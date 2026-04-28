@@ -1,0 +1,55 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34902.65
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMoola.API", "src\MyMoola.API\MyMoola.API.csproj", "{3C8FD2C4-F0F5-4434-A7F2-93B8DD8A346F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMoola.Application", "src\MyMoola.Application\MyMoola.Application.csproj", "{5AE052FE-0574-42B8-B3AC-FC887D5FB5C8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMoola.Domain", "src\MyMoola.Domain\MyMoola.Domain.csproj", "{9B4E566D-C117-47B6-BBE2-AAFBC0976D51}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMoola.Infrastructure", "src\MyMoola.Infrastructure\MyMoola.Infrastructure.csproj", "{AEFA931E-502F-49B9-9664-276C34ECB728}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMoola.UnitTests", "tests\MyMoola.UnitTests\MyMoola.UnitTests.csproj", "{407B305D-EC89-45EE-A998-128D04364F4F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyMoola.IntergrationTests", "tests\MyMoola.IntergrationTests\MyMoola.IntergrationTests.csproj", "{5A1D0444-BF56-4409-868B-626D07B8CCCC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3C8FD2C4-F0F5-4434-A7F2-93B8DD8A346F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C8FD2C4-F0F5-4434-A7F2-93B8DD8A346F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C8FD2C4-F0F5-4434-A7F2-93B8DD8A346F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C8FD2C4-F0F5-4434-A7F2-93B8DD8A346F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5AE052FE-0574-42B8-B3AC-FC887D5FB5C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5AE052FE-0574-42B8-B3AC-FC887D5FB5C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5AE052FE-0574-42B8-B3AC-FC887D5FB5C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5AE052FE-0574-42B8-B3AC-FC887D5FB5C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B4E566D-C117-47B6-BBE2-AAFBC0976D51}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B4E566D-C117-47B6-BBE2-AAFBC0976D51}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B4E566D-C117-47B6-BBE2-AAFBC0976D51}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B4E566D-C117-47B6-BBE2-AAFBC0976D51}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEFA931E-502F-49B9-9664-276C34ECB728}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEFA931E-502F-49B9-9664-276C34ECB728}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEFA931E-502F-49B9-9664-276C34ECB728}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEFA931E-502F-49B9-9664-276C34ECB728}.Release|Any CPU.Build.0 = Release|Any CPU
+		{407B305D-EC89-45EE-A998-128D04364F4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{407B305D-EC89-45EE-A998-128D04364F4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{407B305D-EC89-45EE-A998-128D04364F4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{407B305D-EC89-45EE-A998-128D04364F4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A1D0444-BF56-4409-868B-626D07B8CCCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A1D0444-BF56-4409-868B-626D07B8CCCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A1D0444-BF56-4409-868B-626D07B8CCCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A1D0444-BF56-4409-868B-626D07B8CCCC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0F1F26FD-529C-4F9C-983A-EE6F2B256FA4}
+	EndGlobalSection
+EndGlobal
