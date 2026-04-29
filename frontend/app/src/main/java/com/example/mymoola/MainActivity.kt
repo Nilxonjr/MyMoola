@@ -24,13 +24,56 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = "onboarding",
+                        startDestination = "onboarding1",
                         modifier = Modifier.padding(innerPadding)
                     ) {
-                        composable("onboarding") {
+                        composable("onboarding1") {
                             OnboardingScreen(
-                                onSignUpClick = { navController.navigate("signup") },
-                                onLoginClick = { navController.navigate("login") }
+                                title = "Welcome to MyMoola",
+                                subtitle = "Buy, sell, send, and spend crypto with M-PESA support in Kenya.",
+                                features = listOf(
+                                    OnboardingFeature("onb_buy_mpesa", "↗", "Buy crypto using M-PESA"),
+                                    OnboardingFeature("onb_sell_kes", "↘", "Sell crypto back to KES"),
+                                    OnboardingFeature("onb_wallet_manage", "◎", "Manage everything from one wallet")
+                                ),
+                                currentPage = 0,
+                                totalPages = 3,
+                                onRegisterClick = { navController.navigate("onboarding2") }
+                            )
+                        }
+                        composable("onboarding2") {
+                            OnboardingScreen(
+                                title = "Pay with M-PESA",
+                                subtitle = "Use your wallet to pay Till Numbers, PayBills, and everyday services.",
+                                features = listOf(
+                                    OnboardingFeature("onb_pay_till", "₸", "Pay Till Numbers"),
+                                    OnboardingFeature("onb_paybill", "¤", "Pay PayBills"),
+                                    OnboardingFeature("onb_payment_records", "✓", "Keep payment records")
+                                ),
+                                currentPage = 1,
+                                totalPages = 3,
+                                showBackButton = true,
+                                onBackClick = { navController.popBackStack() },
+                                onRegisterClick = { navController.navigate("onboarding3") }
+                            )
+                        }
+                        composable("onboarding3") {
+                            OnboardingScreen(
+                                title = "Send Crypto Easily",
+                                subtitle = "Send crypto to friends, family, or supported wallet addresses quickly and securely.",
+                                features = listOf(
+                                    OnboardingFeature("onb_send_crypto", "➤", "Send crypto to other users"),
+                                    OnboardingFeature("onb_receive_crypto", "⬇", "Receive crypto in your wallet"),
+                                    OnboardingFeature("onb_tx_history", "🕘", "View your transaction history")
+                                ),
+                                currentPage = 2,
+                                totalPages = 3,
+                                buttonText = "Get Started",
+                                showBackButton = true,
+                                showSignInPrompt = true,
+                                onLoginClick = { navController.navigate("login") },
+                                onBackClick = { navController.popBackStack() },
+                                onRegisterClick = { navController.navigate("signup") }
                             )
                         }
                         composable("signup") {
