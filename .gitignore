@@ -1,7 +1,19 @@
+# IDE
 .vs/
-appsettings.Development.json
-appsettings.Production.json
-*.user
-.vs/
+.idea/
+
+# OS
+.DS_Store
+
+# .NET
 bin/
 obj/
+*.user
+
+# Secrets
+appsettings.Development.json
+appsettings.Production.json
+
+# Android/Frontend
+.gradle/
+local.properties
