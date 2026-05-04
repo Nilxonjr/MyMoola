@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,13 +81,30 @@ class MainActivity : ComponentActivity() {
                         composable("signup") {
                             SignUpScreen(
                                 onBackClick = { navController.popBackStack() },
-                                onLoginClick = { navController.navigate("login") }
+                                onLoginClick = { navController.navigate("login") },
+                                onRegisterSuccess = { phone ->
+                                    navController.navigate("otp/$phone")
+                                }
                             )
                         }
                         composable("login") {
                             LoginScreen(
                                 onBackClick = { navController.popBackStack() },
-                                onSignUpClick = { navController.navigate("signup") }
+                                onSignUpClick = { navController.navigate("signup") },
+                                onLoginSuccess = { phone ->
+                                    navController.navigate("otp/$phone")
+                                }
+                            )
+                        }
+                        composable(
+                            route = "otp/{phone}",
+                            arguments = listOf(navArgument("phone") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val phone = backStackEntry.arguments?.getString("phone").orEmpty()
+                            OtpScreen(
+                                phoneNumber = phone,
+                                onBackClick = { navController.popBackStack() },
+                                onVerified = { navController.navigate("onboarding1") }
                             )
                         }
                     }

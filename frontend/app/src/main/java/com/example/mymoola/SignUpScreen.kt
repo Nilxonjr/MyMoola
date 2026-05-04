@@ -46,7 +46,8 @@ import com.example.mymoola.ui.theme.MyMoolaTheme
 fun SignUpScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onLoginClick: () -> Unit = {}
+    onLoginClick: () -> Unit = {},
+    onRegisterSuccess: (String) -> Unit = {}
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -179,6 +180,7 @@ fun SignUpScreen(
                         }
                         errors = validationErrors
                         successMessage = if (validationErrors.isEmpty()) "Registration submitted (mock)." else null
+                        if (validationErrors.isEmpty()) onRegisterSuccess(phone)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
