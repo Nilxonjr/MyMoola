@@ -21,42 +21,46 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import kotlinx.coroutines.delay
 
 @Composable
-fun LoginScreen(
+fun OtpScreen(
+    phoneNumber: String,
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onSignUpClick: () -> Unit = {},
-    onLoginSuccess: (String) -> Unit = {}
+    onVerified: () -> Unit = {}
 ) {
-    var phone by remember { mutableStateOf("") }
-    var pin by remember { mutableStateOf("") }
-    var showPin by remember { mutableStateOf(false) }
-    var errors by remember { mutableStateOf(emptyList<String>()) }
+    var otp by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+    var secondsRemaining by remember { mutableIntStateOf(30) }
 
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
     val buttonShape = RoundedCornerShape(12.dp)
+
+    LaunchedEffect(secondsRemaining) {
+        if (secondsRemaining > 0) {
+            delay(1000)
+            secondsRemaining -= 1
+        }
+    }
 
     Box(
         modifier = modifier
@@ -93,63 +97,74 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Login",
+                    text = "Verify Phone Number",
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color(0xFF0F172A),
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Sign in with your phone number and 4-digit PIN.",
+                    text = "Enter the 6-digit code sent to $phoneNumber",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B)
                 )
 
                 OutlinedTextField(
-                    value = phone,
+                    value = otp,
                     onValueChange = {
-                        phone = it.filter(Char::isDigit).take(10)
-                        errors = emptyList()
+                        otp = it.filter(Char::isDigit).take(6)
+                        error = null
                         successMessage = null
                     },
-                    label = { Text("Phone Number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = {
-                        pin = it.filter(Char::isDigit).take(4)
-                        errors = emptyList()
-                        successMessage = null
-                    },
-                    label = { Text("4-digit PIN") },
+                    label = { Text("6-digit OTP") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Text(
+                    text = if (secondsRemaining > 0) {
+                        "Resend code in 00:${secondsRemaining.toString().padStart(2, '0')}"
+                    } else {
+                        "You can resend the code now."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF64748B)
+                )
+
                 OutlinedButton(
-                    onClick = { showPin = !showPin },
+                    onClick = {
+                        otp = ""
+                        error = null
+                        successMessage = "New OTP sent (mock). Use 123456."
+                        secondsRemaining = 30
+                    },
+                    enabled = secondsRemaining == 0,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp),
                     shape = buttonShape,
                     border = BorderStroke(1.dp, panelBorder)
                 ) {
-                    Text(if (showPin) "Hide PIN" else "Show PIN")
+                    Text("Resend Code")
                 }
 
                 Button(
                     onClick = {
-                        val validationErrors = buildList {
-                            if (phone.length != 10) add("Phone number must be exactly 10 digits.")
-                            if (pin.length != 4) add("PIN must be exactly 4 digits.")
+                        when {
+                            otp.length != 6 -> {
+                                error = "OTP must be exactly 6 digits."
+                                successMessage = null
+                            }
+                            otp != "123456" -> {
+                                error = "Invalid OTP. Try 123456 for mock flow."
+                                successMessage = null
+                            }
+                            else -> {
+                                error = null
+                                successMessage = "Phone verified (mock)."
+                                onVerified()
+                            }
                         }
-                        errors = validationErrors
-                        successMessage = if (validationErrors.isEmpty()) "Login submitted (mock)." else null
-                        if (validationErrors.isEmpty()) onLoginSuccess(phone)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -160,39 +175,22 @@ fun LoginScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Login", style = MaterialTheme.typography.labelLarge)
+                    Text("Verify", style = MaterialTheme.typography.labelLarge)
                 }
 
-                errors.forEach { error ->
+                if (error != null) {
                     Text(
-                        text = "• $error",
+                        text = error ?: "",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-
                 if (successMessage != null) {
                     Text(
                         text = successMessage ?: "",
                         color = Color(0xFF166534),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                TextButton(
-                    onClick = onSignUpClick,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = buildAnnotatedString {
-                            append("Need an account? ")
-                            withStyle(style = androidx.compose.ui.text.SpanStyle(color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold)) {
-                                append("Register")
-                            }
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF64748B),
-                        textAlign = TextAlign.Center
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Start
                     )
                 }
             }
@@ -209,8 +207,8 @@ fun LoginScreen(
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LoginScreenPreview() {
+fun OtpScreenPreview() {
     MyMoolaTheme {
-        LoginScreen()
+        OtpScreen(phoneNumber = "0712345678")
     }
 }
