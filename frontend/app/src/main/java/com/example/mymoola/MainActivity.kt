@@ -78,12 +78,14 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("signup") {
                             SignUpScreen(
-                                onBackClick = { navController.popBackStack() }
+                                onBackClick = { navController.popBackStack() },
+                                onLoginClick = { navController.navigate("login") }
                             )
                         }
                         composable("login") {
                             LoginScreen(
-                                onBackClick = { navController.popBackStack() }
+                                onBackClick = { navController.popBackStack() },
+                                onSignUpClick = { navController.navigate("signup") }
                             )
                         }
                     }
