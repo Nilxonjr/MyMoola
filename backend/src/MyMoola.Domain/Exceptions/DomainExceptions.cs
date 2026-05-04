@@ -42,3 +42,47 @@ public sealed class ConflictException : Exception
     public ConflictException(string entity)
         : base($"A conflict occurred on {entity}. Please retry the operation.") { }
 }
+
+public sealed class NotFoundException : Exception
+{
+    public NotFoundException(string entity, object key)
+        : base($"{entity} with key '{key}' was not found.") { }
+}
+
+public sealed class InvalidOtpException : Exception
+{
+    public InvalidOtpException()
+        : base("OTP is invalid or has expired.") { }
+}
+
+public sealed class InvalidCredentialsException : Exception
+{
+    public InvalidCredentialsException()
+        : base("Invalid phone number or PIN.") { }
+}
+
+public sealed class PinLockedException : Exception
+{
+    public DateTimeOffset LockedUntil { get; }
+
+    public PinLockedException(DateTimeOffset lockedUntil)
+        : base($"PIN is locked until {lockedUntil:o}. Please try again later.")
+    {
+        LockedUntil = lockedUntil;
+    }
+}
+
+public sealed class ConcurrencyException : Exception
+{
+    public ConcurrencyException()
+        : base("The resource was modified by another request. Please retry.") { }
+}
+
+public sealed class UnauthorizedException : Exception
+{
+    public UnauthorizedException()
+        : base("Authentication is required.") { }
+
+    public UnauthorizedException(string message)
+        : base(message) { }
+}

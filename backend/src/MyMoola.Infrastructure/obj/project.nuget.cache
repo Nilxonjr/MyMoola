@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "dgSpecHash": "sLegAJSMkW8CuA5W5tosy1nHq0VWHMfcYQgB2+CpssT0efv/Cg1P49qlUaDZNB81vQ/ay4xDKB/3OLT1m79VaA==",
+  "dgSpecHash": "m/vhZe1ZxymqhANPZH8OOU4VFwlS6TNP53xtpCMb4hHNgtFe2C+/E9HIDe9+GTZb8qd247BFXlcm7/+1wnUyGg==",
   "success": true,
   "projectFilePath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\user\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\bcrypt.net-next\\4.1.0\\bcrypt.net-next.4.1.0.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\fluentvalidation\\12.1.1\\fluentvalidation.12.1.1.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\fluentvalidation.dependencyinjectionextensions\\12.1.1\\fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\mediatr\\14.1.0\\mediatr.14.1.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\mediatr.contracts\\2.0.1\\mediatr.contracts.2.0.1.nupkg.sha512",

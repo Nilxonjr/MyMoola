@@ -14,16 +14,16 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasKey(u => u.Id);
         builder.Property(u => u.Id).HasColumnName("id");
 
-        builder.Property(u => u.PhoneNumber)
-        .HasColumnName("phone_number")
-        .HasMaxLength(20)
-        .IsRequired()
-        .HasConversion(
-            p => p.Value,
-            v => new PhoneNumber(v));
+        builder.Property(u => u.PhoneNumberValue)
+    .HasColumnName("phone_number")
+    .HasMaxLength(20)
+    .IsRequired();
 
-        builder.HasIndex(u => u.PhoneNumber)
-                .IsUnique();
+        builder.HasIndex(u => u.PhoneNumberValue)
+            .IsUnique();
+
+        builder.Ignore(u => u.PhoneNumber);
+
 
         builder.Property(u => u.PhoneVerifiedAt).HasColumnName("phone_verified_at");
 

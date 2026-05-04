@@ -8,6 +8,8 @@ namespace MyMoola.Domain.Entities;
 public sealed class User : BaseEntity
 {
     public PhoneNumber PhoneNumber { get; private set; } = null!;
+
+    public string PhoneNumberValue { get; private set; } = null!;
     public DateTimeOffset? PhoneVerifiedAt { get; private set; }
 
     public string? Email { get; private set; }
@@ -33,6 +35,7 @@ public sealed class User : BaseEntity
         return new User
         {
             PhoneNumber = phoneNumber,
+            PhoneNumberValue = phoneNumber.Value,
             PinHash = pinHash,
             FullName = fullName
         };
@@ -77,7 +80,7 @@ public sealed class User : BaseEntity
             throw new AccountFrozenException(FreezeReason ?? string.Empty);
 
         if (AccountStatus == AccountStatus.Suspended)
-            throw new AccountFrozenException("Account is suspended.");
+            throw new OperationDisabledException("Account is suspended.");
     }
 
     public void UpdateKycStatus(KycStatus status)

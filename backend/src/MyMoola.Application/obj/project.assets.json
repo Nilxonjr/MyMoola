@@ -2,6 +2,49 @@
   "version": 3,
   "targets": {
     "net8.0": {
+      "BCrypt.Net-Next/4.1.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/BCrypt.Net-Next.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/BCrypt.Net-Next.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FluentValidation/12.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/FluentValidation.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FluentValidation.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FluentValidation.DependencyInjectionExtensions/12.1.1": {
+        "type": "package",
+        "dependencies": {
+          "FluentValidation": "12.1.1",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "2.1.0"
+        },
+        "compile": {
+          "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "MediatR/14.1.0": {
         "type": "package",
         "dependencies": {
@@ -164,6 +207,65 @@
     }
   },
   "libraries": {
+    "BCrypt.Net-Next/4.1.0": {
+      "sha512": "5YT3DKllmtkyW68PjURu/V1TOe4MKiByKwsRNVcfYE1S5KuFTeozdmKzyNzolKiQF391OXCaQtINvYT3j1ERzQ==",
+      "type": "package",
+      "path": "bcrypt.net-next/4.1.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "bcrypt.net-next.4.1.0.nupkg.sha512",
+        "bcrypt.net-next.nuspec",
+        "ico.png",
+        "lib/net10.0/BCrypt.Net-Next.dll",
+        "lib/net10.0/BCrypt.Net-Next.xml",
+        "lib/net20/BCrypt.Net-Next.dll",
+        "lib/net20/BCrypt.Net-Next.xml",
+        "lib/net35/BCrypt.Net-Next.dll",
+        "lib/net35/BCrypt.Net-Next.xml",
+        "lib/net462/BCrypt.Net-Next.dll",
+        "lib/net462/BCrypt.Net-Next.xml",
+        "lib/net472/BCrypt.Net-Next.dll",
+        "lib/net472/BCrypt.Net-Next.xml",
+        "lib/net48/BCrypt.Net-Next.dll",
+        "lib/net48/BCrypt.Net-Next.xml",
+        "lib/netstandard2.0/BCrypt.Net-Next.dll",
+        "lib/netstandard2.0/BCrypt.Net-Next.xml",
+        "lib/netstandard2.1/BCrypt.Net-Next.dll",
+        "lib/netstandard2.1/BCrypt.Net-Next.xml",
+        "readme.md"
+      ]
+    },
+    "FluentValidation/12.1.1": {
+      "sha512": "EPpkIe1yh1a0OXyC100oOA8WMbZvqUu5plwhvYcb7oSELfyUZzfxV48BLhvs3kKo4NwG7MGLNgy1RJiYtT8Dpw==",
+      "type": "package",
+      "path": "fluentvalidation/12.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "fluent-validation-icon.png",
+        "fluentvalidation.12.1.1.nupkg.sha512",
+        "fluentvalidation.nuspec",
+        "lib/net8.0/FluentValidation.dll",
+        "lib/net8.0/FluentValidation.xml"
+      ]
+    },
+    "FluentValidation.DependencyInjectionExtensions/12.1.1": {
+      "sha512": "D0VXh4dtjjX2aQizuaa0g6R8X3U1JaVqJPfGCvLwZX9t/O2h7tkpbitbadQMfwcgSPdDbI2vDxuwRMv/Uf9dHA==",
+      "type": "package",
+      "path": "fluentvalidation.dependencyinjectionextensions/12.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "fluent-validation-icon.png",
+        "fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512",
+        "fluentvalidation.dependencyinjectionextensions.nuspec",
+        "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll",
+        "lib/net8.0/FluentValidation.DependencyInjectionExtensions.xml"
+      ]
+    },
     "MediatR/14.1.0": {
       "sha512": "pdxza1pLqAk+06LV3THzNJrw5K5Ah6EC17TEkoC90gsAxwtXDJAQrGuDSDinHGgxWKWEn5ebqTNN3k1bLJOb0g==",
       "type": "package",
@@ -437,6 +539,10 @@
   },
   "projectFileDependencyGroups": {
     "net8.0": [
+      "BCrypt.Net-Next >= 4.1.0",
+      "FluentValidation >= 12.1.1",
+      "FluentValidation.DependencyInjectionExtensions >= 12.1.1",
+      "MediatR >= 14.1.0",
       "MyMoola.Domain >= 1.0.0"
     ]
   },
@@ -487,6 +593,24 @@
     "frameworks": {
       "net8.0": {
         "targetAlias": "net8.0",
+        "dependencies": {
+          "BCrypt.Net-Next": {
+            "target": "Package",
+            "version": "[4.1.0, )"
+          },
+          "FluentValidation": {
+            "target": "Package",
+            "version": "[12.1.1, )"
+          },
+          "FluentValidation.DependencyInjectionExtensions": {
+            "target": "Package",
+            "version": "[12.1.1, )"
+          },
+          "MediatR": {
+            "target": "Package",
+            "version": "[14.1.0, )"
+          }
+        },
         "imports": [
           "net461",
           "net462",
