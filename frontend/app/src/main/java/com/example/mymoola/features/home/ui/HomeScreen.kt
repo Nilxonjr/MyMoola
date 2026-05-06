@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,6 +56,7 @@ data class HomeActivity(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    onSettingsClick: () -> Unit = {}
 ) {
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
@@ -93,29 +95,60 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(18.dp))
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.mymoola),
-                        contentDescription = "MyMoola app icon",
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Fit
-                    )
-                    Column {
-                        Text(
-                            text = "MyMoola",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = brandDark
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.mymoola),
+                            contentDescription = "MyMoola app icon",
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Fit
                         )
-                        Text(
-                            text = "Wallet",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = mutedText
-                        )
+                        Column {
+                            Text(
+                                text = "MyMoola",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = brandDark
+                            )
+                            Text(
+                                text = "Wallet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = mutedText
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, panelBorder)
+                    ) {
+                        IconButton(
+                            onClick = onSettingsClick,
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.onb_wallet_manage),
+                                    contentDescription = "Settings",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
                     }
                 }
             }
