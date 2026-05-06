@@ -14,6 +14,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.mymoola.features.auth.ui.LoginScreen
+import com.example.mymoola.features.auth.ui.OtpScreen
+import com.example.mymoola.features.auth.ui.SignUpScreen
+import com.example.mymoola.features.onboarding.ui.OnboardingFeature
+import com.example.mymoola.features.onboarding.ui.OnboardingScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

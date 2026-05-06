@@ -1,4 +1,4 @@
-package com.example.mymoola
+package com.example.mymoola.features.onboarding.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image

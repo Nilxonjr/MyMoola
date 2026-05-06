@@ -1,4 +1,4 @@
-package com.example.mymoola
+package com.example.mymoola.features.auth.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.mymoola.BackIconButton
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import kotlinx.coroutines.delay
 
