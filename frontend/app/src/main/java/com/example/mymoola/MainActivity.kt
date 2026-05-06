@@ -17,6 +17,7 @@ import androidx.navigation.navArgument
 import com.example.mymoola.features.auth.ui.LoginScreen
 import com.example.mymoola.features.auth.ui.OtpScreen
 import com.example.mymoola.features.auth.ui.SignUpScreen
+import com.example.mymoola.features.home.ui.HomeScreen
 import com.example.mymoola.features.onboarding.ui.OnboardingFeature
 import com.example.mymoola.features.onboarding.ui.OnboardingScreen
 
@@ -101,6 +102,9 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable("home") {
+                            HomeScreen()
+                        }
                         composable(
                             route = "otp/{phone}",
                             arguments = listOf(navArgument("phone") { type = NavType.StringType })
@@ -109,7 +113,11 @@ class MainActivity : ComponentActivity() {
                             OtpScreen(
                                 phoneNumber = phone,
                                 onBackClick = { navController.popBackStack() },
-                                onVerified = { navController.navigate("onboarding1") }
+                                onVerified = {
+                                    navController.navigate("home") {
+                                        popUpTo("onboarding1") { inclusive = false }
+                                    }
+                                }
                             )
                         }
                     }
