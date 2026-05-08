@@ -134,11 +134,12 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = {
-                        phone = it.filter(Char::isDigit).take(10)
+                        phone = it.filter(Char::isDigit).take(9)
                         errors = emptyList()
                         successMessage = null
                     },
                     label = { Text("Phone Number") },
+                    prefix = { Text("+254") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -176,7 +177,7 @@ fun SignUpScreen(
                             if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                                 add("Enter a valid email address.")
                             }
-                            if (phone.length != 10) add("Phone number must be exactly 10 digits.")
+                            if (phone.length != 9) add("Phone number must be exactly 9 digits.")
                             if (pin.length != 4) add("PIN must be exactly 4 digits.")
                         }
                         errors = validationErrors

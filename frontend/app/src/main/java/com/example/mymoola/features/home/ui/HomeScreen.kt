@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
@@ -56,7 +57,12 @@ data class HomeActivity(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onBuyClick: () -> Unit = {},
+    onSellClick: () -> Unit = {},
+    onPayWithMpesaClick: () -> Unit = {},
+    onSendToUserClick: () -> Unit = {},
+    onViewRecordsClick: () -> Unit = {}
 ) {
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
@@ -70,8 +76,7 @@ fun HomeScreen(
         HomeAction("onb_buy_mpesa", "B", "Buy"),
         HomeAction("onb_sell_kes", "S", "Sell"),
         HomeAction("onb_pay_till", "P", "Pay with MPESA"),
-        HomeAction("onb_send_crypto", "M", "Send with MPESA"),
-        HomeAction("onb_paybill", "W", "Withdraw"),
+        HomeAction("onb_send_crypto", "M", "Send to Other Users"),
         HomeAction("onb_payment_records", "V", "View Records")
     )
     val activities = listOf(
@@ -210,11 +215,21 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 rowItems.forEach { action ->
+                                    val actionClick: () -> Unit = when (action.label) {
+                                        "Buy" -> onBuyClick
+                                        "Sell" -> onSellClick
+                                        "Pay with MPESA" -> onPayWithMpesaClick
+                                        "Send to Other Users" -> onSendToUserClick
+                                        "View Records" -> onViewRecordsClick
+                                        else -> ({})
+                                    }
                                     Card(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                                         border = BorderStroke(1.dp, panelBorder),
-                                        modifier = Modifier.size(width = 94.dp, height = 94.dp)
+                                        modifier = Modifier
+                                            .size(width = 94.dp, height = 94.dp)
+                                            .clickable(onClick = actionClick)
                                     ) {
                                         Column(
                                             modifier = Modifier

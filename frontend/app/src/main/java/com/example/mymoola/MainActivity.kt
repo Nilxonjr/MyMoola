@@ -17,7 +17,13 @@ import androidx.navigation.navArgument
 import com.example.mymoola.features.auth.ui.LoginScreen
 import com.example.mymoola.features.auth.ui.OtpScreen
 import com.example.mymoola.features.auth.ui.SignUpScreen
+import com.example.mymoola.features.home.ui.BuyCryptoScreen
 import com.example.mymoola.features.home.ui.HomeScreen
+import com.example.mymoola.features.home.ui.PayWithMpesaScreen
+import com.example.mymoola.features.home.ui.SellCryptoScreen
+import com.example.mymoola.features.home.ui.SendToUserScreen
+import com.example.mymoola.features.home.ui.SettingsScreen
+import com.example.mymoola.features.home.ui.ViewRecordsScreen
 import com.example.mymoola.features.onboarding.ui.OnboardingFeature
 import com.example.mymoola.features.onboarding.ui.OnboardingScreen
 
@@ -103,7 +109,32 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("home") {
-                            HomeScreen()
+                            HomeScreen(
+                                onSettingsClick = { navController.navigate("settings") },
+                                onBuyClick = { navController.navigate("buy_crypto") },
+                                onSellClick = { navController.navigate("sell_crypto") },
+                                onPayWithMpesaClick = { navController.navigate("pay_with_mpesa") },
+                                onSendToUserClick = { navController.navigate("send_to_user") },
+                                onViewRecordsClick = { navController.navigate("view_records") }
+                            )
+                        }
+                        composable("settings") {
+                            SettingsScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("buy_crypto") {
+                            BuyCryptoScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("sell_crypto") {
+                            SellCryptoScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("pay_with_mpesa") {
+                            PayWithMpesaScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("send_to_user") {
+                            SendToUserScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("view_records") {
+                            ViewRecordsScreen(onBackClick = { navController.popBackStack() })
                         }
                         composable(
                             route = "otp/{phone}",

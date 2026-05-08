@@ -104,7 +104,7 @@ fun OtpScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Enter the 6-digit code sent to $phoneNumber",
+                    text = "Enter the 6-digit code sent to +254$phoneNumber",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B)
                 )
@@ -210,6 +210,6 @@ fun OtpScreen(
 @Composable
 fun OtpScreenPreview() {
     MyMoolaTheme {
-        OtpScreen(phoneNumber = "0712345678")
+        OtpScreen(phoneNumber = "712345678")
     }
 }
