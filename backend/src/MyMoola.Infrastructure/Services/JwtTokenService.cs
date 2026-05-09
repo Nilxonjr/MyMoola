@@ -1,5 +1,6 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -15,7 +16,7 @@ public sealed class JwtTokenService(IConfiguration configuration) : ITokenServic
         var key = configuration["Jwt:SecretKey"]!;
         var issuer = configuration["Jwt:Issuer"]!;
         var audience = configuration["Jwt:Audience"]!;
-        var expiry = int.Parse(configuration["Jwt:ExpiryMinutes"] ?? "60");
+        var expiry = int.Parse(configuration["Jwt:ExpiryMinutes"] ?? "15");
 
 
         var claims = new[]
@@ -37,5 +38,26 @@ public sealed class JwtTokenService(IConfiguration configuration) : ITokenServic
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>
+    /// Generates a cryptographically random 64-byte refresh token encoded as Base64.
+    /// This raw value is returned to the client — never stored in the database.
+    /// </summary>
+    public string GenerateRefreshToken()
+    {
+        var bytes = new byte[64];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes);
+    }
+
+    /// <summary>
+    /// Hashes the raw refresh token using SHA-256.
+    /// Only the hash is stored in the database — if stolen, it is useless without the raw value.
+    /// </summary>
+    public string HashRefreshToken(string rawToken)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(rawToken));
+        return Convert.ToBase64String(bytes);
     }
 }

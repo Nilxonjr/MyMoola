@@ -25,7 +25,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.AdminUser", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -86,7 +85,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -147,7 +145,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.DepositAddress", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -204,7 +201,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.ExchangeRate", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -287,7 +283,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.LedgerEntry", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -295,23 +290,35 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnType("decimal(28,18)")
                         .HasColumnName("amount");
 
-                    b.Property<decimal>("BalanceAfter")
+                    b.Property<decimal>("AvailableBalanceAfter")
                         .HasColumnType("decimal(28,18)")
-                        .HasColumnName("balance_after");
+                        .HasColumnName("available_balance_after");
 
-                    b.Property<decimal>("BalanceBefore")
+                    b.Property<decimal>("AvailableBalanceBefore")
                         .HasColumnType("decimal(28,18)")
-                        .HasColumnName("balance_before");
+                        .HasColumnName("available_balance_before");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("currency");
+
                     b.Property<string>("EntryType")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("entry_type");
+
+                    b.Property<decimal>("LockedBalanceAfter")
+                        .HasColumnType("decimal(28,18)")
+                        .HasColumnName("locked_balance_after");
+
+                    b.Property<decimal>("LockedBalanceBefore")
+                        .HasColumnType("decimal(28,18)")
+                        .HasColumnName("locked_balance_before");
 
                     b.Property<Guid>("TransactionId")
                         .HasColumnType("uniqueidentifier")
@@ -323,11 +330,14 @@ namespace MyMoola.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt");
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_ledger_entries_created_at");
 
-                    b.HasIndex("TransactionId");
+                    b.HasIndex("TransactionId")
+                        .HasDatabaseName("IX_ledger_entries_transaction_id");
 
-                    b.HasIndex("WalletId");
+                    b.HasIndex("WalletId")
+                        .HasDatabaseName("IX_ledger_entries_wallet_id");
 
                     b.ToTable("ledger_entries", null, t =>
                         {
@@ -338,7 +348,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.MpesaTransaction", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -409,10 +418,56 @@ namespace MyMoola.Infrastructure.Migrations
                     b.ToTable("mpesa_transactions", (string)null);
                 });
 
+            modelBuilder.Entity("MyMoola.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_refresh_tokens_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_refresh_tokens_user_id");
+
+                    b.ToTable("refresh_tokens", (string)null);
+                });
+
             modelBuilder.Entity("MyMoola.Domain.Entities.SystemControl", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -455,7 +510,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.Transaction", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -577,7 +631,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.TreasuryPosition", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -634,7 +687,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -741,7 +793,6 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.Wallet", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
@@ -769,6 +820,7 @@ namespace MyMoola.Infrastructure.Migrations
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
+                        .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion")
                         .HasColumnName("row_version");
@@ -809,13 +861,15 @@ namespace MyMoola.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_ledger_entries_transactions_transaction_id");
 
                     b.HasOne("MyMoola.Domain.Entities.Wallet", null)
                         .WithMany()
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_ledger_entries_wallets_wallet_id");
                 });
 
             modelBuilder.Entity("MyMoola.Domain.Entities.MpesaTransaction", b =>
@@ -824,6 +878,15 @@ namespace MyMoola.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MyMoola.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("MyMoola.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

@@ -11,7 +11,7 @@ public sealed class MpesaTransactionConfiguration : IEntityTypeConfiguration<Mpe
         builder.ToTable("mpesa_transactions");
 
         builder.HasKey(m => m.Id);
-        builder.Property(m => m.Id).HasColumnName("id");
+        builder.Property(m => m.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(m => m.TransactionId).HasColumnName("transaction_id").IsRequired();
 

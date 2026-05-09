@@ -7,14 +7,14 @@ namespace MyMoola.Domain.Entities;
 
 public sealed class Wallet : BaseEntity
 {
+    private Wallet() { }
+
     public Guid UserId { get; private set; }
     public Currency Currency { get; private set; }
     public decimal Balance { get; private set; }
     public decimal LockedBalance { get; private set; }
-    public byte[]? RowVersion { get; private set; }
-
-    // EF Core
-    private Wallet() { }
+    public byte[] RowVersion { get; private set; } = [];
+    public decimal TotalBalance => Balance + LockedBalance;
 
     public static Wallet Create(Guid userId, Currency currency)
     {
@@ -22,76 +22,122 @@ public sealed class Wallet : BaseEntity
         {
             UserId = userId,
             Currency = currency,
-            Balance = 0,
-            LockedBalance = 0
+            Balance = 0m,
+            LockedBalance = 0m
         };
     }
 
     public void Credit(decimal amount, Guid transactionId)
     {
         if (amount <= 0)
-            throw new ArgumentException("Credit amount must be positive.", nameof(amount));
+            throw new InvalidOperationException("Credit amount must be greater than zero.");
 
-        var balanceBefore = Balance;
+        var availableBefore = Balance;
+        var lockedBefore = LockedBalance;
         Balance += amount;
 
-        AddDomainEvent(new WalletCreditedEvent(Id, transactionId, amount, balanceBefore, Balance));
+        AddDomainEvent(new WalletCreditedEvent(
+            WalletId: Id,
+            TransactionId: transactionId,
+            Amount: amount,
+            AvailableBalanceBefore: availableBefore,
+            AvailableBalanceAfter: Balance,
+            LockedBalanceBefore: lockedBefore,
+            LockedBalanceAfter: LockedBalance,
+            Currency: Currency));
     }
 
     public void Debit(decimal amount, Guid transactionId)
     {
         if (amount <= 0)
-            throw new ArgumentException("Debit amount must be positive.", nameof(amount));
+            throw new InvalidOperationException("Debit amount must be greater than zero.");
 
-        if (amount > Balance)
+        if (Balance < amount)
             throw new InsufficientBalanceException();
 
-        var balanceBefore = Balance;
+        var availableBefore = Balance;
+        var lockedBefore = LockedBalance;
         Balance -= amount;
 
-        AddDomainEvent(new WalletDebitedEvent(Id, transactionId, amount, balanceBefore, Balance));
+        AddDomainEvent(new WalletDebitedEvent(
+            WalletId: Id,
+            TransactionId: transactionId,
+            Amount: amount,
+            AvailableBalanceBefore: availableBefore,
+            AvailableBalanceAfter: Balance,
+            LockedBalanceBefore: lockedBefore,
+            LockedBalanceAfter: LockedBalance,
+            Currency: Currency));
     }
 
     public void Lock(decimal amount, Guid transactionId)
     {
         if (amount <= 0)
-            throw new ArgumentException("Lock amount must be positive.", nameof(amount));
+            throw new InvalidOperationException("Lock amount must be greater than zero.");
 
-        if (amount > Balance)
-            throw new InsufficientBalanceException("Insufficient balance to lock.");
+        if (Balance < amount)
+            throw new InsufficientBalanceException();
 
+        var availableBefore = Balance;
+        var lockedBefore = LockedBalance;
         Balance -= amount;
         LockedBalance += amount;
-        AddDomainEvent(new WalletLockedEvent(Id, transactionId, amount));
+
+        AddDomainEvent(new WalletLockedEvent(
+            WalletId: Id,
+            TransactionId: transactionId,
+            Amount: amount,
+            AvailableBalanceBefore: availableBefore,
+            AvailableBalanceAfter: Balance,
+            LockedBalanceBefore: lockedBefore,
+            LockedBalanceAfter: LockedBalance,
+            Currency: Currency));
     }
 
     public void Unlock(decimal amount, Guid transactionId)
     {
         if (amount <= 0)
-            throw new ArgumentException("Unlock amount must be positive.", nameof(amount));
+            throw new InvalidOperationException("Unlock amount must be greater than zero.");
 
-        if (amount > LockedBalance)
-            throw new InvalidOperationException("Cannot unlock more than the locked balance.");
+        if (LockedBalance < amount)
+            throw new InvalidOperationException("Unlock amount exceeds locked balance.");
 
+        var availableBefore = Balance;
+        var lockedBefore = LockedBalance;
         LockedBalance -= amount;
         Balance += amount;
 
-        AddDomainEvent(new WalletUnlockedEvent(Id, transactionId, amount));
+        AddDomainEvent(new WalletUnlockedEvent(
+            WalletId: Id,
+            TransactionId: transactionId,
+            Amount: amount,
+            AvailableBalanceBefore: availableBefore,
+            AvailableBalanceAfter: Balance,
+            LockedBalanceBefore: lockedBefore,
+            LockedBalanceAfter: LockedBalance,
+            Currency: Currency));
     }
 
     public void UnlockAndDebit(decimal amount, Guid transactionId)
     {
         if (amount <= 0)
-            throw new ArgumentException("Amount must be positive.", nameof(amount));
+            throw new InvalidOperationException("Amount must be greater than zero.");
 
-        if (amount > LockedBalance)
-            throw new InvalidOperationException("Cannot debit more than the locked balance.");
+        if (LockedBalance < amount)
+            throw new InvalidOperationException("UnlockAndDebit amount exceeds locked balance.");
 
-        var balanceBefore = Balance;
+        var availableBefore = Balance;
+        var lockedBefore = LockedBalance;
         LockedBalance -= amount;
 
-        AddDomainEvent(new WalletDebitedEvent(Id, transactionId, amount, balanceBefore, Balance));
+        AddDomainEvent(new WalletDebitedEvent(
+            WalletId: Id,
+            TransactionId: transactionId,
+            Amount: amount,
+            AvailableBalanceBefore: availableBefore,
+            AvailableBalanceAfter: Balance,
+            LockedBalanceBefore: lockedBefore,
+            LockedBalanceAfter: LockedBalance,
+            Currency: Currency));
     }
-
-    public decimal TotalBalance => Balance + LockedBalance;
 }

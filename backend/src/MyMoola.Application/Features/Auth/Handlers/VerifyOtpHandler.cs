@@ -10,6 +10,7 @@ namespace MyMoola.Application.Features.Auth.Handlers;
 public sealed class VerifyOtpHandler(
     IUserRepository users,
     IWalletRepository wallets,
+    IRefreshTokenRepository refreshTokens,
     IUnitOfWork uow,
     IOtpCache otpCache,
     ITokenService tokens) : IRequestHandler<VerifyOtpCommand, AuthTokenResponse>
@@ -33,7 +34,6 @@ public sealed class VerifyOtpHandler(
         var user = await users.FindByPhoneAsync(cmd.PhoneNumber, ct)
             ?? throw new NotFoundException(nameof(User), cmd.PhoneNumber);
 
-        user.VerifyPhone();
 
         // Provision default wallets in the same transaction as phone verification
         //var defaultWallets = DefaultCurrencies
@@ -47,7 +47,7 @@ public sealed class VerifyOtpHandler(
             user.VerifyPhone();
 
             var defaultWallets = DefaultCurrencies
-                .Select(c => Wallet.Create(user.Id, c))
+                .Select(c => Domain.Entities.Wallet.Create(user.Id, c))
                 .ToList();
 
             await wallets.AddRangeAsync(defaultWallets, ct);
@@ -58,13 +58,19 @@ public sealed class VerifyOtpHandler(
             user.RecordSuccessfulLogin();
         }
 
+        var rawRefreshToken = tokens.GenerateRefreshToken();
+        var hashedRefreshToken = tokens.HashRefreshToken(rawRefreshToken);
+        var refreshToken = RefreshToken.Create(user.Id, hashedRefreshToken);
+
+        await refreshTokens.AddAsync(refreshToken, ct);
+
         // Single atomic commit — user update + wallet creation together or not at all
         await uow.SaveChangesAsync(ct);
 
         // Invalidate OTP immediately after use — one-time only, prevent replay
         await otpCache.RemoveAsync(cacheKey, ct);
 
-        var token = tokens.GenerateToken(user.Id, user.PhoneNumberValue, user.FullName);
-        return new AuthTokenResponse(token);
+        var accessToken = tokens.GenerateToken(user.Id, user.PhoneNumberValue, user.FullName);
+        return new AuthTokenResponse(accessToken, rawRefreshToken);
     }
 }

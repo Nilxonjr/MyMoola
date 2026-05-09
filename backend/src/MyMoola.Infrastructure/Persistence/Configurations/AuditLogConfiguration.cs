@@ -11,7 +11,8 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.ToTable("audit_log");
 
         builder.HasKey(a => a.Id);
-        builder.Property(a => a.Id).HasColumnName("id");
+        builder.Property(a => a.Id).HasColumnName("id")
+            .ValueGeneratedNever();
 
         builder.Property(a => a.ActorId).HasColumnName("actor_id");
 

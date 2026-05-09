@@ -11,7 +11,7 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.ToTable("transactions");
 
         builder.HasKey(t => t.Id);
-        builder.Property(t => t.Id).HasColumnName("id");
+        builder.Property(t => t.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(t => t.ReferenceCode)
             .HasColumnName("reference_code")

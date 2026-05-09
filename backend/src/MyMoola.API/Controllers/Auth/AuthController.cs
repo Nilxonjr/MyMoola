@@ -73,4 +73,23 @@ public sealed class AuthController(ISender sender) : ControllerBase
         var result = await sender.Send(command, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Exchanges a valid refresh token for a new access token and rotated refresh token.
+    /// </summary>
+    /// <response code="200">New tokens returned.</response>
+    /// <response code="401">Refresh token invalid, expired, or revoked.</response>
+    /// <response code="429">Too many requests.</response>
+    [HttpPost("refresh")]
+    [EnableRateLimiting("verify-otp")]
+    [ProducesResponseType(typeof(AuthTokenResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Refresh(
+        [FromBody] RefreshTokenCommand command,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(command, ct);
+        return Ok(result);
+    }
 }

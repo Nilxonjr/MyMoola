@@ -15,6 +15,7 @@ using MyMoola.Infrastructure.Services;
 using System.Text;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json.Serialization;
+using MyMoola.Application.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -80,14 +81,20 @@ builder.Services.AddMemoryCache();
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IWalletRepository, WalletRepository>();
-// builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-
+builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<ILedgerEntryRepository, LedgerEntryRepository>();
+builder.Services.AddScoped<ISystemControlRepository, SystemControlRepository>();
 // ── Unit of Work ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IOtpCache, MemoryCacheOtpCache>();
+builder.Services.AddScoped<ILedgerService, LedgerService>();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 // ── SMS (Africa's Talking) ────────────────────────────────────────────────────
 builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
 {
@@ -130,6 +137,8 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(30),
             NameClaimType = "sub",
         };
+
+        options.MapInboundClaims = false;
 
         options.Events = new JwtBearerEvents
         {

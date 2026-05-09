@@ -17,4 +17,8 @@ public sealed class WalletRepository(AppDbContext db) : IWalletRepository
         CancellationToken ct = default)
         => await db.Wallets
             .FirstOrDefaultAsync(w => w.UserId == userId && w.Currency == currency, ct);
+
+    public async Task<Wallet?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await db.Wallets
+            .FirstOrDefaultAsync(w => w.Id == id, ct);
 }

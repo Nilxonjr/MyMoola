@@ -21,4 +21,4 @@ public sealed record VerifyOtpCommand(
 /// <summary>
 /// Returned by both <see cref="VerifyOtpCommand"/> and <see cref="LoginUserCommand"/>.
 /// </summary>
-public sealed record AuthTokenResponse(string AccessToken, string TokenType = "Bearer");
+public sealed record AuthTokenResponse(string AccessToken, string RefreshToken, string TokenType = "Bearer");

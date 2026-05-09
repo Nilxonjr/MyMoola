@@ -11,7 +11,8 @@ public sealed class DepositAddressConfiguration : IEntityTypeConfiguration<Depos
         builder.ToTable("deposit_addresses");
 
         builder.HasKey(d => d.Id);
-        builder.Property(d => d.Id).HasColumnName("id");
+        builder.Property(d => d.Id).HasColumnName("id")
+            .ValueGeneratedNever();
 
         builder.Property(d => d.UserId).HasColumnName("user_id").IsRequired();
 

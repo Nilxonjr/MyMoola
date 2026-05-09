@@ -11,7 +11,7 @@ public sealed class ExchangeRateConfiguration : IEntityTypeConfiguration<Exchang
         builder.ToTable("exchange_rates");
 
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.Id).HasColumnName("id");
+        builder.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(e => e.Currency)
             .HasColumnName("currency")
@@ -45,7 +45,7 @@ public sealed class TreasuryPositionConfiguration : IEntityTypeConfiguration<Tre
         builder.ToTable("treasury_positions");
 
         builder.HasKey(t => t.Id);
-        builder.Property(t => t.Id).HasColumnName("id");
+        builder.Property(t => t.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(t => t.Currency)
             .HasColumnName("currency")
@@ -90,7 +90,7 @@ public sealed class SystemControlConfiguration : IEntityTypeConfiguration<System
         builder.ToTable("system_controls");
 
         builder.HasKey(s => s.Id);
-        builder.Property(s => s.Id).HasColumnName("id");
+        builder.Property(s => s.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(s => s.ControlKey)
             .HasColumnName("control_key")
@@ -135,7 +135,7 @@ public sealed class AdminUserConfiguration : IEntityTypeConfiguration<AdminUser>
         builder.ToTable("admin_users");
 
         builder.HasKey(a => a.Id);
-        builder.Property(a => a.Id).HasColumnName("id");
+        builder.Property(a => a.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(a => a.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
 

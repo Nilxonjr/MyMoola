@@ -4,7 +4,7 @@ namespace MyMoola.Domain.Entities;
 
 public sealed class IdempotencyKey
 {
-    public string Key { get; private set; } = null!;
+    public string Key { get; private set; } = null!;   // key will be composite userid and code
     public string ResponseBody { get; private set; } = null!;
     public int StatusCode { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }

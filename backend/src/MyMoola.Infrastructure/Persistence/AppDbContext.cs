@@ -35,6 +35,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>(); //[cite: 1]
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>(); //[cite: 5]
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>(); //[cite: 5]
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

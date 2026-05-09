@@ -11,7 +11,7 @@ public sealed class WalletConfiguration : IEntityTypeConfiguration<Wallet>
         builder.ToTable("wallets");
 
         builder.HasKey(w => w.Id);
-        builder.Property(w => w.Id).HasColumnName("id");
+        builder.Property(w => w.Id).HasColumnName("id").ValueGeneratedNever();
 
         builder.Property(w => w.UserId).HasColumnName("user_id").IsRequired();
 
@@ -38,7 +38,9 @@ public sealed class WalletConfiguration : IEntityTypeConfiguration<Wallet>
 
         builder.Property(w => w.RowVersion).HasColumnName("row_version").IsRowVersion();
 
-        builder.HasIndex(w => new { w.UserId, w.Currency }).IsUnique();
+        builder.HasIndex(w => new { w.UserId, w.Currency })
+    .IsUnique()
+    .HasDatabaseName("IX_wallets_user_currency");
 
         builder.ToTable(t => t.HasCheckConstraint("CK_wallets_balance", "[balance] >= 0"));
         builder.ToTable(t => t.HasCheckConstraint("CK_wallets_locked_balance", "[locked_balance] >= 0"));

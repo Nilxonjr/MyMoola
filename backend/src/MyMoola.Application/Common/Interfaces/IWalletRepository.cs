@@ -13,4 +13,6 @@ public interface IWalletRepository
 {
     Task AddRangeAsync(IEnumerable<Wallet> wallets, CancellationToken ct = default);
     Task<Wallet?> FindByUserAndCurrencyAsync(Guid userId, Currency currency, CancellationToken ct = default);
+
+    Task<Wallet?> GetByIdAsync(Guid id, CancellationToken ct = default);
 }
