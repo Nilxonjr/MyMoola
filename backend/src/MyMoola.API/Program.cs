@@ -16,6 +16,8 @@ using System.Text;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json.Serialization;
 using MyMoola.Application.Interfaces;
+using StackExchange.Redis;
+using MyMoola.API.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +56,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         { scheme, Array.Empty<string>() }
     });
+    options.OperationFilter<IdempotencyHeaderOperationFilter>();
 });
 
 // ── Database ──────────────────────────────────────────────────────────────────
@@ -95,6 +98,10 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// Idempotency
+builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();
+builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 // ── SMS (Africa's Talking) ────────────────────────────────────────────────────
 builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
 {
@@ -102,11 +109,28 @@ builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
         ?? "https://api.africastalking.com/";
     client.BaseAddress = new Uri(baseUrl);
     client.DefaultRequestHeaders.Add("apiKey",
-    builder.Configuration["AfricasTalking:ApiKey"]
-        ?? throw new InvalidOperationException("AfricasTalking:ApiKey is not configured."));
+        builder.Configuration["AfricasTalking:ApiKey"]
+            ?? throw new InvalidOperationException("AfricasTalking:ApiKey is not configured."));
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    EnableMultipleHttp2Connections = false,
+    SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+    {
+        ApplicationProtocols = new List<System.Net.Security.SslApplicationProtocol>
+        {
+            System.Net.Security.SslApplicationProtocol.Http11
+        }
+    }
 });
+
 builder.Services.AddTransient<ISmsService>(
     sp => sp.GetRequiredService<AfricasTalkingSmsService>());
+// Redis
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    ConnectionMultiplexer.Connect(
+        builder.Configuration["Redis:ConnectionString"]!));
+
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:SecretKey"]
@@ -236,5 +260,6 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<IdempotencyMiddleware>();
 app.MapControllers();
 app.Run();

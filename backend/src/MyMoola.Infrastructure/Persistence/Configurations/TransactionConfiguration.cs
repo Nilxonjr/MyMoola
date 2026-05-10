@@ -77,7 +77,9 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
             .HasColumnName("idempotency_key")
             .HasMaxLength(100)
             .IsRequired();
-        builder.HasIndex(t => t.IdempotencyKey).IsUnique();
+        builder.HasIndex(t => new { t.InitiatorUserId, t.IdempotencyKey })
+            .IsUnique()
+            .HasDatabaseName("IX_transactions_initiator_idempotency_key");
 
         builder.Property(t => t.Metadata).HasColumnName("metadata");
         builder.Property(t => t.AdminNote).HasColumnName("admin_note");

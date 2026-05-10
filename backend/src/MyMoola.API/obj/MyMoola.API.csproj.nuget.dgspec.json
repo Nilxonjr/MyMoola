@@ -320,6 +320,10 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[8.0.26, )"
+            },
+            "StackExchange.Redis": {
+              "target": "Package",
+              "version": "[2.12.14, )"
             }
           },
           "imports": [

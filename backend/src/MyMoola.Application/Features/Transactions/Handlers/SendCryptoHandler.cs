@@ -12,6 +12,7 @@ namespace MyMoola.Application.Features.Transactions.Handlers;
 
 public sealed class SendCryptoHandler(
     ICurrentUserService currentUser,
+    IIdempotencyContext idempotencyContext,
     IUserRepository users,
     IWalletRepository wallets,
     ITransactionRepository transactions,
@@ -29,6 +30,10 @@ public sealed class SendCryptoHandler(
             throw new UnauthorizedException();
 
         var senderId = currentUser.UserId.Value;
+
+        // 2. Require idempotency key — set by middleware
+        var idempotencyKey = idempotencyContext.IdempotencyKey
+            ?? throw new InvalidOperationException("Idempotency key is required.");
 
         // 2. Load sender
         var sender = await users.FindByIdAsync(senderId, ct)
@@ -95,7 +100,7 @@ public sealed class SendCryptoHandler(
             type: Domain.Enums.TransactionType.Send,
             currency: command.Currency,
             amount: command.Amount,
-            idempotencyKey: Guid.NewGuid().ToString(),
+            idempotencyKey: idempotencyKey,
             initiatorUserId: sender.Id,
             counterpartyUserId: recipient.Id,
             feeAmount: 0);

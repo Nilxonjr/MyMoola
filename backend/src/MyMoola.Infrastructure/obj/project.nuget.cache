@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "0kQqNo2EoPa9uGnBRIeT8g6BWW3LNLiCpnyyUdPushvg+W0HbLGt4iQkYoJ7H523ubcR+ZiTtmg5YnCOkYeI1w==",
+  "dgSpecHash": "vMHjyqFPz4wgCo/eIbDsxfSHZmZGHNPWfVl+nUT39h97lPAzX4VmoO3I5ofiM4MqdWyMGmmElkH8472ZJs5n5g==",
   "success": true,
   "projectFilePath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj",
   "expectedPackageFiles": [
@@ -54,6 +54,8 @@
     "C:\\Users\\user\\.nuget\\packages\\microsoft.sqlserver.server\\1.0.0\\microsoft.sqlserver.server.1.0.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\pipelines.sockets.unofficial\\2.2.8\\pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\stackexchange.redis\\2.12.14\\stackexchange.redis.2.12.14.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.buffers\\4.6.0\\system.buffers.4.6.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.clientmodel\\1.0.0\\system.clientmodel.1.0.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.codedom\\4.4.0\\system.codedom.4.4.0.nupkg.sha512",
@@ -69,6 +71,7 @@
     "C:\\Users\\user\\.nuget\\packages\\system.drawing.common\\6.0.0\\system.drawing.common.6.0.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.formats.asn1\\8.0.2\\system.formats.asn1.8.0.2.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.identitymodel.tokens.jwt\\6.35.0\\system.identitymodel.tokens.jwt.6.35.0.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\system.io.hashing\\10.0.2\\system.io.hashing.10.0.2.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.io.pipelines\\6.0.3\\system.io.pipelines.6.0.3.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.memory\\4.5.4\\system.memory.4.5.4.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\system.memory.data\\1.0.2\\system.memory.data.1.0.2.nupkg.sha512",
