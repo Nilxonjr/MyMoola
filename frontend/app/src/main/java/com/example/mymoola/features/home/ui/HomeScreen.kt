@@ -20,12 +20,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
@@ -54,6 +61,14 @@ data class HomeActivity(
     val amountColor: Color
 )
 
+data class BalanceCurrency(
+    val iconResName: String,
+    val code: String,
+    val label: String,
+    val balance: String
+)
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -71,10 +86,18 @@ fun HomeScreen(
     val mutedText = Color(0xFF64748B)
     val panelBackground = Color.White
     val placeholderUserName = "Austin"
+    val context = LocalContext.current
+    val balanceCurrencies = listOf(
+        BalanceCurrency("usdc_logo", "USDC", "USD Coin", "19.36 USDC"),
+        BalanceCurrency("bitcoin_logo", "BTC", "Bitcoin", "0.0042 BTC"),
+        BalanceCurrency("ethereum_logo", "ETH", "Ethereum", "0.128 ETH")
+    )
+    var selectedCurrency by remember { mutableStateOf(balanceCurrencies.first()) }
+    var balanceMenuExpanded by remember { mutableStateOf(false) }
 
     val quickActions = listOf(
-        HomeAction("onb_buy_mpesa", "B", "Buy"),
-        HomeAction("onb_sell_kes", "S", "Sell"),
+        HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
+        HomeAction("onb_sell_kes", "S", "Sell Crypto"),
         HomeAction("onb_pay_till", "P", "Pay with MPESA"),
         HomeAction("onb_send_crypto", "M", "Send to Other Users"),
         HomeAction("onb_payment_records", "V", "View Records")
@@ -176,11 +199,99 @@ fun HomeScreen(
                     shadowElevation = 0.dp
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = "TOTAL BALANCE",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = mutedText
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "TOTAL BALANCE",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = mutedText
+                            )
+
+                            ExposedDropdownMenuBox(
+                                expanded = balanceMenuExpanded,
+                                onExpandedChange = { balanceMenuExpanded = !balanceMenuExpanded }
+                            ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .menuAnchor(
+                                            type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                            enabled = true
+                                        )
+                                        .clickable { balanceMenuExpanded = true },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFF8FAFC),
+                                    border = BorderStroke(1.dp, panelBorder)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val selectedIconResId = remember(selectedCurrency.iconResName) {
+                                            context.resources.getIdentifier(
+                                                selectedCurrency.iconResName,
+                                                "drawable",
+                                                context.packageName
+                                            )
+                                        }
+                                        Image(
+                                            painter = painterResource(
+                                                id = selectedIconResId.takeIf { it != 0 } ?: R.drawable.onb_wallet_manage
+                                            ),
+                                            contentDescription = "${selectedCurrency.code} logo",
+                                            modifier = Modifier.size(16.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                        Text(
+                                            text = selectedCurrency.code,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = brandDark
+                                        )
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = balanceMenuExpanded)
+                                    }
+                                }
+
+                                ExposedDropdownMenu(
+                                    expanded = balanceMenuExpanded,
+                                    onDismissRequest = { balanceMenuExpanded = false }
+                                ) {
+                                    balanceCurrencies.forEach { option ->
+                                        val optionIconResId = remember(option.iconResName) {
+                                            context.resources.getIdentifier(
+                                                option.iconResName,
+                                                "drawable",
+                                                context.packageName
+                                            )
+                                        }
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Image(
+                                                        painter = painterResource(
+                                                            id = optionIconResId.takeIf { it != 0 } ?: R.drawable.onb_wallet_manage
+                                                        ),
+                                                        contentDescription = "${option.code} logo",
+                                                        modifier = Modifier.size(16.dp),
+                                                        contentScale = ContentScale.Fit
+                                                    )
+                                                    Text("${option.code} - ${option.label}")
+                                                }
+                                            },
+                                            onClick = {
+                                                selectedCurrency = option
+                                                balanceMenuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "KSH 2,500.50",
@@ -189,7 +300,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "19.36 USDC",
+                            text = selectedCurrency.balance,
                             style = MaterialTheme.typography.bodyMedium,
                             color = mutedText
                         )
@@ -216,8 +327,8 @@ fun HomeScreen(
                             ) {
                                 rowItems.forEach { action ->
                                     val actionClick: () -> Unit = when (action.label) {
-                                        "Buy" -> onBuyClick
-                                        "Sell" -> onSellClick
+                                        "Buy Crypto" -> onBuyClick
+                                        "Sell Crypto" -> onSellClick
                                         "Pay with MPESA" -> onPayWithMpesaClick
                                         "Send to Other Users" -> onSendToUserClick
                                         "View Records" -> onViewRecordsClick
