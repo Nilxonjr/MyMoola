@@ -83,6 +83,8 @@ public sealed class User : BaseEntity
             throw new OperationDisabledException("Account is suspended.");
     }
 
+ 
+
     public void UpdateKycStatus(KycStatus status)
     {
         KycStatus = status;

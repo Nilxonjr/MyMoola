@@ -11,7 +11,9 @@
     "https": {
       "commandName": "Project",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ADMIN_TEMP_PASSWORD": "Kenya2026*",
+        "ADMIN_EMAIL": "njugunadenilson@gmail.com"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7199;http://localhost:5029"

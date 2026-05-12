@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Features\Admin\Validators\ChangePasswordCommandValidator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
@@ -15,6 +19,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MyMoola.Domain\MyMoola.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Features\Admin\Validators\ChangePasswordCommandValidator.cs" />
   </ItemGroup>
 
 </Project>

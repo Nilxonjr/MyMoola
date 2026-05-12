@@ -17,3 +17,5 @@ appsettings.Production.json
 # Android/Frontend
 .gradle/
 local.properties
+
+launchSettings.json

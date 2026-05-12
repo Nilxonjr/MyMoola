@@ -135,14 +135,29 @@ public sealed class AdminUserConfiguration : IEntityTypeConfiguration<AdminUser>
         builder.ToTable("admin_users");
 
         builder.HasKey(a => a.Id);
-        builder.Property(a => a.Id).HasColumnName("id").ValueGeneratedNever();
 
-        builder.Property(a => a.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+        builder.Property(a => a.Id)
+            .HasColumnName("id")
+            .ValueGeneratedNever();
 
-        builder.Property(a => a.Email).HasColumnName("email").HasMaxLength(200).IsRequired();
-        builder.HasIndex(a => a.Email).IsUnique();
+        builder.Property(a => a.Name)
+            .HasColumnName("name")
+            .HasMaxLength(100)
+            .IsRequired();
 
-        builder.Property(a => a.PasswordHash).HasColumnName("password_hash").HasMaxLength(100).IsRequired();
+        builder.Property(a => a.Email)
+            .HasColumnName("email")
+            .HasMaxLength(200)
+            .IsRequired();
+
+        builder.HasIndex(a => a.Email)
+            .IsUnique()
+            .HasDatabaseName("IX_admin_users_email");
+
+        builder.Property(a => a.PasswordHash)
+            .HasColumnName("password_hash")
+            .HasMaxLength(100)
+            .IsRequired();
 
         builder.Property(a => a.Role)
             .HasColumnName("role")
@@ -150,12 +165,33 @@ public sealed class AdminUserConfiguration : IEntityTypeConfiguration<AdminUser>
             .HasConversion<string>()
             .IsRequired();
 
-        builder.Property(a => a.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
-        builder.Property(a => a.LastLoginAt).HasColumnName("last_login_at");
-        builder.Property(a => a.CreatedBy).HasColumnName("created_by");
+        builder.Property(a => a.IsActive)
+            .HasColumnName("is_active")
+            .HasDefaultValue(true)
+            .IsRequired();
 
-        builder.Property(a => a.CreatedAt).HasColumnName("created_at").IsRequired();
-        builder.Property(a => a.UpdatedAt).HasColumnName("updated_at").IsRequired();
+        builder.Property(a => a.MustChangePassword)
+            .HasColumnName("must_change_password")
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.Property(a => a.LastLoginAt)
+            .HasColumnName("last_login_at");
+
+        builder.Property(a => a.CreatedBy)
+            .HasColumnName("created_by");
+
+        builder.Property(a => a.RowVersion)
+            .HasColumnName("row_version")
+            .IsRowVersion();
+
+        builder.Property(a => a.CreatedAt)
+            .HasColumnName("created_at")
+            .IsRequired();
+
+        builder.Property(a => a.UpdatedAt)
+            .HasColumnName("updated_at")
+            .IsRequired();
 
         builder.Ignore(a => a.DomainEvents);
     }

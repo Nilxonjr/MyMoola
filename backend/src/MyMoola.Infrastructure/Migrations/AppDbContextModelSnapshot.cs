@@ -52,6 +52,12 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnType("datetimeoffset")
                         .HasColumnName("last_login_at");
 
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("must_change_password");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -70,6 +76,13 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)")
                         .HasColumnName("role");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion")
+                        .HasColumnName("row_version");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset")
                         .HasColumnName("updated_at");
@@ -77,7 +90,8 @@ namespace MyMoola.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_admin_users_email");
 
                     b.ToTable("admin_users", (string)null);
                 });

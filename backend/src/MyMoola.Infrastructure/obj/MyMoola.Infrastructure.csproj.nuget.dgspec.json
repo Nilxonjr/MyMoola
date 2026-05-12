@@ -215,6 +215,10 @@
               "target": "Package",
               "version": "[8.0.26, )"
             },
+            "Microsoft.Extensions.Http": {
+              "target": "Package",
+              "version": "[8.0.1, )"
+            },
             "StackExchange.Redis": {
               "target": "Package",
               "version": "[2.12.14, )"
