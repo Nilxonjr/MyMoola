@@ -215,6 +215,10 @@
               "target": "Package",
               "version": "[8.0.26, )"
             },
+            "Microsoft.Extensions.Hosting": {
+              "target": "Package",
+              "version": "[10.0.8, )"
+            },
             "Microsoft.Extensions.Http": {
               "target": "Package",
               "version": "[8.0.1, )"

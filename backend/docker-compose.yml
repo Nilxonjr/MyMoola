@@ -1,0 +1,94 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/MyMoola.API/Dockerfile
+    container_name: mymoola-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=MyMoola;User Id=sa;Password=Kenya2026#;TrustServerCertificate=True;
+      - Jwt__SecretKey=9fA7kL2xQw8ZrP4mT1vYc6JdN0sH3eUb
+      - Jwt__Issuer=MyMoola
+      - Jwt__Audience=MyMoolaUsers
+      - Jwt__ExpiryMinutes=15
+      - AdminJwt__SecretKey=mK9pL3xQw7ZrN4vT2uYc8JdN1sH5eUbW
+      - AdminJwt__Issuer=MyMoola-Admin
+      - AdminJwt__Audience=MyMoolaAdmins
+      - AdminJwt__ExpiryMinutes=60
+      - Redis__ConnectionString=redis:6379
+      - Redis__IdempotencyDatabase=6
+      - AfricasTalking__Username=sandbox
+      - AfricasTalking__ApiKey=atsk_92457b1b3f5b5f7284187a518dae52460815f1a124660e2141f8bf33a6fa72a240f234d6
+      - AfricasTalking__SenderId=
+      - AfricasTalking__BaseUrl=https://api.sandbox.africastalking.com/
+      - Email__Host=smtp.gmail.com
+      - Email__Port=587
+      - Email__Username=njugunadenilson@gmail.com
+      - Email__Password=afwndqxspacocfxl
+      - Email__FromAddress=njugunadenilson@gmail.com
+      - Email__FromName=MyMoola
+      - ExternalApis__CoinGeckoApiKey=CG-p5sLcU3zJLxWfUU6KyMemYD3
+      - ExternalApis__Binance__BaseUrl=https://api.binance.com
+      - ExternalApis__Binance__TimeoutSeconds=15
+      - ExternalApis__CoinGecko__BaseUrl=https://api.coingecko.com
+      - ExternalApis__CoinGecko__TimeoutSeconds=20
+      - ExternalApis__ForexBaseUrl=https://open.er-api.com
+      - ExternalApis__RateRefreshIntervalMinutes=1
+      - ExternalApis__RateStalenessThresholdMinutes=5
+      - ExternalApis__SpreadPercent=1.5
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mymoola-network
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mymoola-sqlserver
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Kenya2026#
+    expose:
+      - "1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Kenya2026# -Q 'SELECT 1' -C || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - mymoola-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mymoola-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - mymoola-network
+
+volumes:
+  sqlserver-data:
+  redis-data:
+
+networks:
+  mymoola-network:
+    driver: bridge
