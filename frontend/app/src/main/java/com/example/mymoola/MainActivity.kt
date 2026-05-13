@@ -22,10 +22,17 @@ import com.example.mymoola.features.home.ui.HomeScreen
 import com.example.mymoola.features.home.ui.PayWithMpesaScreen
 import com.example.mymoola.features.home.ui.SellCryptoScreen
 import com.example.mymoola.features.home.ui.SendToUserScreen
-import com.example.mymoola.features.home.ui.SettingsScreen
 import com.example.mymoola.features.home.ui.ViewRecordsScreen
 import com.example.mymoola.features.onboarding.ui.OnboardingFeature
 import com.example.mymoola.features.onboarding.ui.OnboardingScreen
+import com.example.mymoola.features.settings.ui.BiometricLoginScreen
+import com.example.mymoola.features.settings.ui.ChangePinScreen
+import com.example.mymoola.features.settings.ui.DefaultCurrencyScreen
+import com.example.mymoola.features.settings.ui.HelpSupportScreen
+import com.example.mymoola.features.settings.ui.LogoutScreen
+import com.example.mymoola.features.settings.ui.ProfileSummaryScreen
+import com.example.mymoola.features.settings.ui.SettingsScreen
+import com.example.mymoola.features.settings.ui.TransactionNotificationsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,7 +126,37 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("settings") {
-                            SettingsScreen(onBackClick = { navController.popBackStack() })
+                            SettingsScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onProfileSummaryClick = { navController.navigate("settings_profile_summary") },
+                                onChangePinClick = { navController.navigate("settings_change_pin") },
+                                onBiometricLoginClick = { navController.navigate("settings_biometric_login") },
+                                onDefaultCurrencyClick = { navController.navigate("settings_default_currency") },
+                                onTransactionNotificationsClick = { navController.navigate("settings_transaction_notifications") },
+                                onHelpSupportClick = { navController.navigate("settings_help_support") },
+                                onLogoutClick = { navController.navigate("settings_logout") }
+                            )
+                        }
+                        composable("settings_profile_summary") {
+                            ProfileSummaryScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("settings_change_pin") {
+                            ChangePinScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("settings_biometric_login") {
+                            BiometricLoginScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("settings_default_currency") {
+                            DefaultCurrencyScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("settings_transaction_notifications") {
+                            TransactionNotificationsScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("settings_help_support") {
+                            HelpSupportScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("settings_logout") {
+                            LogoutScreen(onBackClick = { navController.popBackStack() })
                         }
                         composable("buy_crypto") {
                             BuyCryptoScreen(onBackClick = { navController.popBackStack() })

@@ -1,4 +1,4 @@
-package com.example.mymoola.features.home.ui
+package com.example.mymoola.features.settings.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +17,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import com.example.mymoola.ui.theme.MyMoolaTheme
 
 @Composable
-fun SettingsScreen(
+fun ProfileSummaryScreen(
     onBackClick: () -> Unit
 ) {
     Column(
@@ -38,7 +40,7 @@ fun SettingsScreen(
         ) {
             BackIconButton(onClick = onBackClick)
             Text(
-                text = "Settings",
+                text = "Profile Summary",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF0F172A),
@@ -47,9 +49,17 @@ fun SettingsScreen(
         }
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "Settings screen initialized.",
+            text = "Profile summary screen initialized.",
             style = MaterialTheme.typography.bodyLarge,
             color = Color(0xFF334155)
         )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ProfileSummaryScreenPreview() {
+    MyMoolaTheme {
+        ProfileSummaryScreen(onBackClick = {})
     }
 }
