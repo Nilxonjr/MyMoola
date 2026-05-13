@@ -1,6 +1,21 @@
-.vs/.DS_Store
+# IDE
+.vs/
 .idea/
 
+# OS
 .DS_Store
+
+# .NET
+bin/
+obj/
+*.user
+
+# Secrets
+appsettings.Development.json
+appsettings.Production.json
+
+# Android/Frontend
 .gradle/
 local.properties
+
+launchSettings.json
