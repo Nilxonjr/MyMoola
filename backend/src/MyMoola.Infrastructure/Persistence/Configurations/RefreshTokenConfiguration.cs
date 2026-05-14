@@ -32,10 +32,9 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
             .HasColumnName("revoked_at");
 
         // RowVersion — optimistic concurrency guard
-        builder.Property(r => r.RowVersion)
-            .HasColumnName("row_version")
-            .IsRowVersion()
-            .IsConcurrencyToken();
+#pragma warning disable CS0618
+        builder.UseXminAsConcurrencyToken();
+#pragma warning restore CS0618
 
         // Index on token_hash — every refresh call looks up by hash
         builder.HasIndex(r => r.TokenHash)

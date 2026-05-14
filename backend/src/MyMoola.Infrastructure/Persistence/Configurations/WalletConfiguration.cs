@@ -36,14 +36,16 @@ public sealed class WalletConfiguration : IEntityTypeConfiguration<Wallet>
         builder.Property(w => w.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(w => w.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
-        builder.Property(w => w.RowVersion).HasColumnName("row_version").IsRowVersion();
+#pragma warning disable CS0618
+        builder.UseXminAsConcurrencyToken();
+#pragma warning restore CS0618
 
         builder.HasIndex(w => new { w.UserId, w.Currency })
-    .IsUnique()
-    .HasDatabaseName("IX_wallets_user_currency");
+        .IsUnique()
+        .HasDatabaseName("IX_wallets_user_currency");
 
-        builder.ToTable(t => t.HasCheckConstraint("CK_wallets_balance", "[balance] >= 0"));
-        builder.ToTable(t => t.HasCheckConstraint("CK_wallets_locked_balance", "[locked_balance] >= 0"));
+        builder.ToTable(t => t.HasCheckConstraint("CK_wallets_balance", "balance >= 0"));
+        builder.ToTable(t => t.HasCheckConstraint("CK_wallets_locked_balance", "locked_balance >= 0"));
 
         builder.HasOne<User>()
             .WithMany()

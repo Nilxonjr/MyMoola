@@ -18,8 +18,7 @@ public sealed class MpesaTransactionConfiguration : IEntityTypeConfiguration<Mpe
         builder.Property(m => m.CheckoutRequestId)
             .HasColumnName("checkout_request_id")
             .HasMaxLength(100);
-        builder.HasIndex(m => m.CheckoutRequestId)
-            .HasFilter("[checkout_request_id] IS NOT NULL");
+        builder.HasIndex(m => m.CheckoutRequestId).HasFilter("checkout_request_id IS NOT NULL");
 
         builder.Property(m => m.MerchantRequestId)
             .HasColumnName("merchant_request_id")
@@ -28,9 +27,7 @@ public sealed class MpesaTransactionConfiguration : IEntityTypeConfiguration<Mpe
         builder.Property(m => m.MpesaReceiptNumber)
             .HasColumnName("mpesa_receipt_number")
             .HasMaxLength(50);
-        builder.HasIndex(m => m.MpesaReceiptNumber)
-            .IsUnique()
-            .HasFilter("[mpesa_receipt_number] IS NOT NULL");
+        builder.HasIndex(m => m.MpesaReceiptNumber).IsUnique().HasFilter("mpesa_receipt_number IS NOT NULL");
 
         // Stored encrypted at application layer
         builder.Property(m => m.PhoneNumber)
