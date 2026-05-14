@@ -1,15 +1,21 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using MyMoola.Application.Common.Interfaces;
 using MyMoola.Application.Features.Users.Queries;
 using MyMoola.Domain.Enums;
+using MyMoola.Infrastructure.Persistence;
 
 namespace MyMoola.API.Controllers;
 
 [ApiController]
 [Route("api/users")]
 [Authorize]
-public sealed class UsersController(ISender sender) : ControllerBase
+public sealed class UsersController(
+    ISender sender,
+    AppDbContext db,
+    ICurrentUserService currentUser) : ControllerBase
 {
     [HttpGet("me")]
     [Authorize]
@@ -58,5 +64,60 @@ public sealed class UsersController(ISender sender) : ControllerBase
     {
         var response = await sender.Send(new LookupUserByPhoneQuery(phone), ct);
         return Ok(response);
+    }
+
+    [HttpDelete("me")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteMyAccount(CancellationToken ct)
+    {
+        var userId = currentUser.UserId;
+        if (userId is null)
+            return Unauthorized();
+
+        var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Id == userId.Value, ct);
+        if (existingUser is null)
+            return NotFound();
+
+        var walletIds = await db.Wallets
+            .Where(w => w.UserId == userId.Value)
+            .Select(w => w.Id)
+            .ToListAsync(ct);
+
+        var userTransactionIds = await db.Transactions
+            .Where(t => t.InitiatorUserId == userId.Value || t.CounterpartyUserId == userId.Value)
+            .Select(t => t.Id)
+            .ToListAsync(ct);
+
+        if (walletIds.Count > 0)
+        {
+            var ledgerEntries = db.LedgerEntries.Where(l => walletIds.Contains(l.WalletId));
+            db.LedgerEntries.RemoveRange(ledgerEntries);
+        }
+
+        if (userTransactionIds.Count > 0)
+        {
+            var mpesaTransactions = db.MpesaTransactions.Where(m => userTransactionIds.Contains(m.TransactionId));
+            db.MpesaTransactions.RemoveRange(mpesaTransactions);
+
+            var transactions = db.Transactions.Where(t => userTransactionIds.Contains(t.Id));
+            db.Transactions.RemoveRange(transactions);
+        }
+
+        var depositAddresses = db.DepositAddresses.Where(d => d.UserId == userId.Value);
+        db.DepositAddresses.RemoveRange(depositAddresses);
+
+        var wallets = db.Wallets.Where(w => w.UserId == userId.Value);
+        db.Wallets.RemoveRange(wallets);
+
+        var refreshTokens = db.RefreshTokens.Where(r => r.UserId == userId.Value);
+        db.RefreshTokens.RemoveRange(refreshTokens);
+
+        db.Users.Remove(existingUser);
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 }

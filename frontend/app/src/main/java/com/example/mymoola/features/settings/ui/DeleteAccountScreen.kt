@@ -16,6 +16,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,13 +28,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import com.example.mymoola.features.auth.data.AuthApiClient
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import kotlinx.coroutines.launch
 
 @Composable
-fun LogoutScreen(
+fun DeleteAccountScreen(
     onBackClick: () -> Unit,
-    onConfirmLogout: () -> Unit = {}
+    onDeleted: () -> Unit = {}
 ) {
+    var error by remember { mutableStateOf<String?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -44,22 +56,44 @@ fun LogoutScreen(
         ) {
             BackIconButton(onClick = onBackClick)
             Text(
-                text = "Log out",
+                text = "Delete Account",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF0F172A),
                 modifier = Modifier.padding(start = 12.dp)
             )
         }
+
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "You will need to sign in again to access your wallet.",
+            text = "This action is permanent and removes your account data.",
             style = MaterialTheme.typography.bodyLarge,
             color = Color(0xFF334155)
         )
+
         Spacer(modifier = Modifier.height(20.dp))
         Button(
-            onClick = onConfirmLogout,
+            onClick = {
+                val token = AuthSession.accessToken
+                if (token.isNullOrBlank()) {
+                    error = "Session missing. Please log in again."
+                    return@Button
+                }
+
+                scope.launch {
+                    isDeleting = true
+                    val result = AuthApiClient.deleteMyAccount(token)
+                    isDeleting = false
+
+                    if (result.isSuccess) {
+                        AuthSession.accessToken = null
+                        onDeleted()
+                    } else {
+                        error = result.errorMessage ?: "Failed to delete account."
+                    }
+                }
+            },
+            enabled = !isDeleting,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
@@ -69,15 +103,25 @@ fun LogoutScreen(
                 contentColor = Color.White
             )
         ) {
-            Text("Log Out")
+            Text(if (isDeleting) "Deleting..." else "Delete My Account")
+        }
+
+        if (!error.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = error.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LogoutScreenPreview() {
+fun DeleteAccountScreenPreview() {
     MyMoolaTheme {
-        LogoutScreen(onBackClick = {})
+        DeleteAccountScreen(onBackClick = {})
     }
 }
+

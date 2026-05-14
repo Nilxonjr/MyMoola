@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,20 +38,34 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private fun maskPhoneNumber(phoneNumber: String): String {
+    if (phoneNumber.length <= 7) return phoneNumber
+    val prefix = phoneNumber.take(5)
+    val suffix = phoneNumber.takeLast(2)
+    val stars = "*".repeat((phoneNumber.length - prefix.length - suffix.length).coerceAtLeast(0))
+    return "$prefix$stars$suffix"
+}
 
 @Composable
 fun OtpScreen(
     phoneNumber: String,
+    purpose: AuthApiClient.OtpPurpose,
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onVerified: () -> Unit = {}
+    onResendClick: () -> Unit = {},
+    onVerified: (AuthApiClient.AuthTokenResponse) -> Unit = {}
 ) {
     var otp by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+    var isVerifying by remember { mutableStateOf(false) }
     var secondsRemaining by remember { mutableIntStateOf(30) }
+    val scope = rememberCoroutineScope()
 
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
@@ -104,7 +119,7 @@ fun OtpScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Enter the 6-digit code sent to +254$phoneNumber",
+                    text = "Enter the 6-digit code sent to ${maskPhoneNumber(phoneNumber)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B)
                 )
@@ -134,10 +149,7 @@ fun OtpScreen(
 
                 OutlinedButton(
                     onClick = {
-                        otp = ""
-                        error = null
-                        successMessage = "New OTP sent (mock). Use 123456."
-                        secondsRemaining = 30
+                        onResendClick()
                     },
                     enabled = secondsRemaining == 0,
                     modifier = Modifier
@@ -151,22 +163,35 @@ fun OtpScreen(
 
                 Button(
                     onClick = {
-                        when {
-                            otp.length != 6 -> {
-                                error = "OTP must be exactly 6 digits."
-                                successMessage = null
-                            }
-                            otp != "123456" -> {
-                                error = "Invalid OTP. Try 123456 for mock flow."
-                                successMessage = null
-                            }
-                            else -> {
-                                error = null
-                                successMessage = "Phone verified (mock)."
-                                onVerified()
+                        if (otp.length != 6) {
+                            error = "OTP must be exactly 6 digits."
+                            successMessage = null
+                            return@Button
+                        }
+
+                        scope.launch {
+                            isVerifying = true
+                            error = null
+                            successMessage = null
+
+                            val result = AuthApiClient.verifyOtp(
+                                AuthApiClient.VerifyOtpRequest(
+                                    phoneNumber = phoneNumber,
+                                    otp = otp,
+                                    purpose = purpose
+                                )
+                            )
+
+                            isVerifying = false
+                            if (result.isSuccess) {
+                                successMessage = "Phone verified successfully."
+                                result.data?.let(onVerified)
+                            } else {
+                                error = result.errorMessage ?: "OTP verification failed."
                             }
                         }
                     },
+                    enabled = !isVerifying,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -176,7 +201,10 @@ fun OtpScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Verify", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (isVerifying) "Verifying..." else "Verify",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 if (error != null) {
@@ -210,6 +238,9 @@ fun OtpScreen(
 @Composable
 fun OtpScreenPreview() {
     MyMoolaTheme {
-        OtpScreen(phoneNumber = "712345678")
+        OtpScreen(
+            phoneNumber = "+254712345678",
+            purpose = AuthApiClient.OtpPurpose.Registration
+        )
     }
 }

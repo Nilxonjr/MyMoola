@@ -1,5 +1,6 @@
 package com.example.mymoola
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +15,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.mymoola.features.auth.data.AuthApiClient
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.auth.ui.LoginScreen
 import com.example.mymoola.features.auth.ui.OtpScreen
 import com.example.mymoola.features.auth.ui.SignUpScreen
@@ -28,6 +31,7 @@ import com.example.mymoola.features.onboarding.ui.OnboardingScreen
 import com.example.mymoola.features.settings.ui.BiometricLoginScreen
 import com.example.mymoola.features.settings.ui.ChangePinScreen
 import com.example.mymoola.features.settings.ui.DefaultCurrencyScreen
+import com.example.mymoola.features.settings.ui.DeleteAccountScreen
 import com.example.mymoola.features.settings.ui.HelpSupportScreen
 import com.example.mymoola.features.settings.ui.LogoutScreen
 import com.example.mymoola.features.settings.ui.ProfileSummaryScreen
@@ -102,7 +106,7 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = { navController.popBackStack() },
                                 onLoginClick = { navController.navigate("login") },
                                 onRegisterSuccess = { phone ->
-                                    navController.navigate("otp/$phone")
+                                    navController.navigate("otp/${Uri.encode(phone)}/${AuthApiClient.OtpPurpose.Registration.name}")
                                 }
                             )
                         }
@@ -111,7 +115,7 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = { navController.popBackStack() },
                                 onSignUpClick = { navController.navigate("signup") },
                                 onLoginSuccess = { phone ->
-                                    navController.navigate("otp/$phone")
+                                    navController.navigate("otp/${Uri.encode(phone)}/${AuthApiClient.OtpPurpose.Login.name}")
                                 }
                             )
                         }
@@ -134,6 +138,7 @@ class MainActivity : ComponentActivity() {
                                 onDefaultCurrencyClick = { navController.navigate("settings_default_currency") },
                                 onTransactionNotificationsClick = { navController.navigate("settings_transaction_notifications") },
                                 onHelpSupportClick = { navController.navigate("settings_help_support") },
+                                onDeleteAccountClick = { navController.navigate("settings_delete_account") },
                                 onLogoutClick = { navController.navigate("settings_logout") }
                             )
                         }
@@ -156,7 +161,27 @@ class MainActivity : ComponentActivity() {
                             HelpSupportScreen(onBackClick = { navController.popBackStack() })
                         }
                         composable("settings_logout") {
-                            LogoutScreen(onBackClick = { navController.popBackStack() })
+                            LogoutScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onConfirmLogout = {
+                                    AuthSession.accessToken = null
+                                    navController.navigate("login") {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        }
+                        composable("settings_delete_account") {
+                            DeleteAccountScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onDeleted = {
+                                    navController.navigate("login") {
+                                        popUpTo(0) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
                         }
                         composable("buy_crypto") {
                             BuyCryptoScreen(onBackClick = { navController.popBackStack() })
@@ -174,14 +199,28 @@ class MainActivity : ComponentActivity() {
                             ViewRecordsScreen(onBackClick = { navController.popBackStack() })
                         }
                         composable(
-                            route = "otp/{phone}",
-                            arguments = listOf(navArgument("phone") { type = NavType.StringType })
+                            route = "otp/{phone}/{purpose}",
+                            arguments = listOf(
+                                navArgument("phone") { type = NavType.StringType },
+                                navArgument("purpose") { type = NavType.StringType }
+                            )
                         ) { backStackEntry ->
                             val phone = backStackEntry.arguments?.getString("phone").orEmpty()
+                            val purpose = backStackEntry.arguments?.getString("purpose")
+                                ?.let { runCatching { AuthApiClient.OtpPurpose.valueOf(it) }.getOrNull() }
+                                ?: AuthApiClient.OtpPurpose.Registration
                             OtpScreen(
                                 phoneNumber = phone,
+                                purpose = purpose,
                                 onBackClick = { navController.popBackStack() },
-                                onVerified = {
+                                onResendClick = {
+                                    navController.navigate("login") {
+                                        popUpTo("login") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                onVerified = { tokenResponse ->
+                                    AuthSession.accessToken = tokenResponse.accessToken
                                     navController.navigate("home") {
                                         popUpTo("onboarding1") { inclusive = false }
                                     }

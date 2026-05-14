@@ -49,6 +49,7 @@ fun SettingsScreen(
     onDefaultCurrencyClick: () -> Unit = {},
     onTransactionNotificationsClick: () -> Unit = {},
     onHelpSupportClick: () -> Unit = {},
+    onDeleteAccountClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
     val pageBackground = Color(0xFFF8FAFC)
@@ -87,6 +88,7 @@ fun SettingsScreen(
         SettingsSection(
             title = "Session",
             rows = listOf(
+                SettingsRow("Delete Account"),
                 SettingsRow("Log out")
             ),
             showTitle = false
@@ -138,7 +140,7 @@ fun SettingsScreen(
                         border = BorderStroke(1.dp, panelBorder)
                     ) {
                         section.rows.forEachIndexed { index, row ->
-                            val isLogoutRow = row.title == "Log out"
+                            val isLogoutRow = row.title == "Log out" || row.title == "Delete Account"
                             val rowClick: () -> Unit = when (row.title) {
                                 "Profile Summary" -> onProfileSummaryClick
                                 "Change PIN" -> onChangePinClick
@@ -146,6 +148,7 @@ fun SettingsScreen(
                                 "Default Currency" -> onDefaultCurrencyClick
                                 "Transaction Notifications" -> onTransactionNotificationsClick
                                 "Help & Support" -> onHelpSupportClick
+                                "Delete Account" -> onDeleteAccountClick
                                 "Log out" -> onLogoutClick
                                 else -> ({})
                             }
