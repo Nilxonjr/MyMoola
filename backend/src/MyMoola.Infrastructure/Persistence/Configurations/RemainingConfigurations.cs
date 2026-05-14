@@ -181,9 +181,9 @@ public sealed class AdminUserConfiguration : IEntityTypeConfiguration<AdminUser>
         builder.Property(a => a.CreatedBy)
             .HasColumnName("created_by");
 
-        builder.Property(a => a.RowVersion)
-            .HasColumnName("row_version")
-            .IsRowVersion();
+        #pragma warning disable CS0618
+        builder.UseXminAsConcurrencyToken();
+        #pragma warning restore CS0618
 
         builder.Property(a => a.CreatedAt)
             .HasColumnName("created_at")

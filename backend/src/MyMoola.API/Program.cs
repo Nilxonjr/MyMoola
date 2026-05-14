@@ -14,6 +14,8 @@ using MyMoola.Infrastructure.Persistence.Repositories;
 using MyMoola.Infrastructure.Services;
 using System.Text;
 using Microsoft.AspNetCore.RateLimiting;
+using Polly;
+using Polly.Extensions.Http;
 using System.Text.Json.Serialization;
 using MyMoola.Application.Interfaces;
 using StackExchange.Redis;
@@ -92,7 +94,7 @@ builder.Services.AddSwaggerGen(options =>
 
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.MigrationsAssembly("MyMoola.Infrastructure")));
 
@@ -132,7 +134,6 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAdminTokenService, AdminTokenService>();
 builder.Services.AddScoped<ICurrentAdminService, CurrentAdminService>();
-builder.Services.AddTransient<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
 
 builder.Services.AddHttpContextAccessor();
@@ -146,6 +147,18 @@ builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 
 builder.Services.AddHttpClient();
+
+builder.Services.AddHttpClient<ResendEmailService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.resend.com/");
+    client.DefaultRequestHeaders.Add(
+        "Authorization",
+        $"Bearer {builder.Configuration["Email:ResendApiKey"]
+            ?? throw new InvalidOperationException("Email:ResendApiKey is not configured.")}");
+});
+
+builder.Services.AddTransient<IEmailService>(
+    sp => sp.GetRequiredService<ResendEmailService>());
 
 builder.Services.Configure<ExchangeRateSettings>(
     builder.Configuration.GetSection(ExchangeRateSettings.Section));
@@ -186,7 +199,11 @@ builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
             System.Net.Security.SslApplicationProtocol.Http11
         }
     }
-});
+})
+.AddTransientHttpErrorPolicy(policy =>
+    policy.WaitAndRetryAsync(
+        retryCount: 3,
+        sleepDurationProvider: attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt))));
 
 builder.Services.AddTransient<ISmsService>(
     sp => sp.GetRequiredService<AfricasTalkingSmsService>());

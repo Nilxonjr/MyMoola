@@ -66,7 +66,7 @@ public sealed class LedgerEntryConfiguration : IEntityTypeConfiguration<LedgerEn
         builder.Ignore(l => l.UpdatedAt);
         builder.Ignore(l => l.DomainEvents);
 
-        builder.ToTable(t => t.HasCheckConstraint("CK_ledger_entries_amount", "[amount] > 0"));
+        builder.ToTable(t => t.HasCheckConstraint("CK_ledger_entries_amount", "amount > 0"));
 
         builder.HasIndex(l => l.WalletId)
             .HasDatabaseName("IX_ledger_entries_wallet_id");

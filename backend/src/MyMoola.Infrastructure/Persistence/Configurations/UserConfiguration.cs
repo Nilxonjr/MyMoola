@@ -29,7 +29,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PhoneVerifiedAt).HasColumnName("phone_verified_at");
 
         builder.Property(u => u.Email).HasColumnName("email").HasMaxLength(200);
-        builder.HasIndex(u => u.Email).IsUnique().HasFilter("[email] IS NOT NULL");
+        builder.HasIndex(u => u.Email).IsUnique().HasFilter("email IS NOT NULL");
 
         builder.Property(u => u.EmailVerifiedAt).HasColumnName("email_verified_at");
 
@@ -58,7 +58,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired();
 
         builder.Property(u => u.NationalId).HasColumnName("national_id").HasMaxLength(20);
-        builder.HasIndex(u => u.NationalId).IsUnique().HasFilter("[national_id] IS NOT NULL");
+        builder.HasIndex(u => u.NationalId).IsUnique().HasFilter("national_id IS NOT NULL");
 
         builder.Property(u => u.KycStatus)
             .HasColumnName("kyc_status")
@@ -72,7 +72,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(u => u.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
-        builder.Property(u => u.RowVersion).HasColumnName("row_version").IsRowVersion();
+#pragma warning disable CS0618
+        builder.UseXminAsConcurrencyToken();
+#pragma warning restore CS0618
 
         builder.Ignore(u => u.DomainEvents);
     }
