@@ -1,7 +1,9 @@
 package com.example.mymoola.features.home.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +18,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -29,13 +29,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,7 +46,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.R
+import com.example.mymoola.features.auth.data.AuthSession
+import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import java.util.Locale
 
 data class HomeAction(
     val iconResName: String,
@@ -85,15 +89,65 @@ fun HomeScreen(
     val brandAccent = Color(0xFF0A7C6A)
     val mutedText = Color(0xFF64748B)
     val panelBackground = Color.White
-    val placeholderUserName = "Austin"
     val context = LocalContext.current
-    val balanceCurrencies = listOf(
-        BalanceCurrency("usdc_logo", "USDC", "USD Coin", "19.36 USDC"),
-        BalanceCurrency("bitcoin_logo", "BTC", "Bitcoin", "0.0042 BTC"),
-        BalanceCurrency("ethereum_logo", "ETH", "Ethereum", "0.128 ETH")
-    )
+
+    var userName by remember { mutableStateOf("User") }
+    var totalBalanceText by remember { mutableStateOf("KES 0.00") }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var balanceCurrencies by remember {
+        mutableStateOf(
+            listOf(
+                BalanceCurrency("usdc_logo", "USDC", "USD Coin", "0.00 USDC"),
+                BalanceCurrency("bitcoin_logo", "BTC", "Bitcoin", "0.00 BTC"),
+                BalanceCurrency("ethereum_logo", "ETH", "Ethereum", "0.00 ETH")
+            )
+        )
+    }
     var selectedCurrency by remember { mutableStateOf(balanceCurrencies.first()) }
     var balanceMenuExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val token = AuthSession.accessToken
+        if (token.isNullOrBlank()) {
+            loadError = "Session missing. Please log in again."
+            return@LaunchedEffect
+        }
+
+        val meResult = HomeApiClient.getMe(token)
+        if (meResult.isSuccess) {
+            userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
+        } else {
+            loadError = meResult.errorMessage
+        }
+
+        val balanceResult = HomeApiClient.getBalance(token)
+        if (balanceResult.isSuccess) {
+            val balance = balanceResult.data
+            if (balance != null) {
+                totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}"
+                val wallets = balance.wallets.map { wallet ->
+                    val icon = when (wallet.currency.uppercase(Locale.US)) {
+                        "BTC" -> "bitcoin_logo"
+                        "ETH" -> "ethereum_logo"
+                        "USDC" -> "usdc_logo"
+                        else -> "onb_wallet_manage"
+                    }
+                    BalanceCurrency(
+                        iconResName = icon,
+                        code = wallet.currency,
+                        label = wallet.currency,
+                        balance = "${String.format(Locale.US, "%.6f", wallet.total)} ${wallet.currency}"
+                    )
+                }
+                if (wallets.isNotEmpty()) {
+                    balanceCurrencies = wallets
+                    selectedCurrency = wallets.first()
+                }
+            }
+        } else {
+            loadError = balanceResult.errorMessage
+        }
+    }
 
     val quickActions = listOf(
         HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
@@ -183,7 +237,7 @@ fun HomeScreen(
 
             item {
                 Text(
-                    text = "Welcome, $placeholderUserName",
+                    text = "Welcome, $userName",
                     style = MaterialTheme.typography.titleMedium,
                     color = brandDark,
                     fontWeight = FontWeight.SemiBold
@@ -294,7 +348,7 @@ fun HomeScreen(
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "KSH 2,500.50",
+                            text = totalBalanceText,
                             style = MaterialTheme.typography.headlineLarge,
                             color = brandDark,
                             fontWeight = FontWeight.SemiBold
@@ -304,6 +358,13 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = mutedText
                         )
+                        if (!loadError.isNullOrBlank()) {
+                            Text(
+                                text = loadError.orEmpty(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }
@@ -358,12 +419,12 @@ fun HomeScreen(
                                                     ),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                val context = LocalContext.current
+                                                val localContext = LocalContext.current
                                                 val iconResId = remember(action.iconResName) {
-                                                    context.resources.getIdentifier(
+                                                    localContext.resources.getIdentifier(
                                                         action.iconResName,
                                                         "drawable",
-                                                        context.packageName
+                                                        localContext.packageName
                                                     )
                                                 }
                                                 if (iconResId != 0) {

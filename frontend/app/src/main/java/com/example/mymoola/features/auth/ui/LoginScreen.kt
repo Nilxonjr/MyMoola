@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +41,22 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import kotlinx.coroutines.launch
+
+private const val KenyaPrefix = "+254"
+
+private fun normalizeKenyanPhone(raw: String): String {
+    val digits = raw.filter(Char::isDigit)
+    if (digits.isEmpty()) return ""
+    val local = when {
+        digits.startsWith("254") -> digits.drop(3)
+        digits.startsWith("0") -> digits.drop(1)
+        else -> digits
+    }.take(9)
+    return if (local.length == 9) "$KenyaPrefix$local" else ""
+}
 
 @Composable
 fun LoginScreen(
@@ -52,8 +68,10 @@ fun LoginScreen(
     var phone by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
     var errors by remember { mutableStateOf(emptyList<String>()) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
@@ -108,12 +126,11 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = {
-                        phone = it.filter(Char::isDigit).take(9)
+                        phone = it
                         errors = emptyList()
                         successMessage = null
                     },
                     label = { Text("Phone Number") },
-                    prefix = { Text("+254") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -145,14 +162,35 @@ fun LoginScreen(
 
                 Button(
                     onClick = {
+                        val normalizedPhone = normalizeKenyanPhone(phone)
                         val validationErrors = buildList {
-                            if (phone.length != 9) add("Phone number must be exactly 9 digits.")
+                            if (normalizedPhone.isBlank()) add("Phone number must be in format +2547XXXXXXXX.")
                             if (pin.length != 4) add("PIN must be exactly 4 digits.")
                         }
                         errors = validationErrors
-                        successMessage = if (validationErrors.isEmpty()) "Login submitted (mock)." else null
-                        if (validationErrors.isEmpty()) onLoginSuccess(phone)
+                        successMessage = null
+
+                        if (validationErrors.isNotEmpty()) return@Button
+
+                        scope.launch {
+                            isSubmitting = true
+                            val result = AuthApiClient.login(
+                                AuthApiClient.LoginRequest(
+                                    phoneNumber = normalizedPhone,
+                                    pin = pin
+                                )
+                            )
+                            isSubmitting = false
+
+                            if (result.isSuccess) {
+                                successMessage = result.data?.message ?: "OTP sent to your phone number."
+                                onLoginSuccess(normalizedPhone)
+                            } else {
+                                errors = listOf(result.errorMessage ?: "Login failed.")
+                            }
+                        }
                     },
+                    enabled = !isSubmitting,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -162,7 +200,10 @@ fun LoginScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Login", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (isSubmitting) "Logging in..." else "Login",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 errors.forEach { error ->

@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +42,22 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import kotlinx.coroutines.launch
+
+private const val KenyaPrefix = "+254"
+
+private fun normalizeKenyanPhone(raw: String): String {
+    val digits = raw.filter(Char::isDigit)
+    if (digits.isEmpty()) return ""
+    val local = when {
+        digits.startsWith("254") -> digits.drop(3)
+        digits.startsWith("0") -> digits.drop(1)
+        else -> digits
+    }.take(9)
+    return if (local.length == 9) "$KenyaPrefix$local" else ""
+}
 
 @Composable
 fun SignUpScreen(
@@ -52,11 +68,14 @@ fun SignUpScreen(
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var nationalId by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
     var errors by remember { mutableStateOf(emptyList<String>()) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
@@ -103,7 +122,7 @@ fun SignUpScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Use your name, email, phone number, and 4-digit PIN.",
+                    text = "Use your name, email, national ID, phone number, and 4-digit PIN.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B)
                 )
@@ -134,13 +153,23 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = {
-                        phone = it.filter(Char::isDigit).take(9)
+                        phone = it
                         errors = emptyList()
                         successMessage = null
                     },
                     label = { Text("Phone Number") },
-                    prefix = { Text("+254") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = nationalId,
+                    onValueChange = {
+                        nationalId = it.filter(Char::isLetterOrDigit).take(20)
+                        errors = emptyList()
+                        successMessage = null
+                    },
+                    label = { Text("National ID") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -171,19 +200,44 @@ fun SignUpScreen(
 
                 Button(
                     onClick = {
+                        val normalizedPhone = normalizeKenyanPhone(phone)
                         val validationErrors = buildList {
                             if (name.isBlank()) add("Name is required.")
                             if (email.isBlank()) add("Email is required.")
                             if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                                 add("Enter a valid email address.")
                             }
-                            if (phone.length != 9) add("Phone number must be exactly 9 digits.")
+                            if (normalizedPhone.isBlank()) add("Phone number must be in format +2547XXXXXXXX.")
+                            if (nationalId.length < 6) add("National ID must be at least 6 characters.")
                             if (pin.length != 4) add("PIN must be exactly 4 digits.")
                         }
                         errors = validationErrors
-                        successMessage = if (validationErrors.isEmpty()) "Registration submitted (mock)." else null
-                        if (validationErrors.isEmpty()) onRegisterSuccess(phone)
+                        successMessage = null
+
+                        if (validationErrors.isNotEmpty()) return@Button
+
+                        scope.launch {
+                            isSubmitting = true
+                            val result = AuthApiClient.register(
+                                AuthApiClient.RegisterRequest(
+                                    phoneNumber = normalizedPhone,
+                                    pin = pin,
+                                    email = email,
+                                    nationalId = nationalId,
+                                    fullName = name
+                                )
+                            )
+                            isSubmitting = false
+
+                            if (result.isSuccess) {
+                                successMessage = result.data?.message ?: "Registration submitted."
+                                onRegisterSuccess(normalizedPhone)
+                            } else {
+                                errors = listOf(result.errorMessage ?: "Registration failed.")
+                            }
+                        }
                     },
+                    enabled = !isSubmitting,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -193,7 +247,10 @@ fun SignUpScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Register", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (isSubmitting) "Registering..." else "Register",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 errors.forEach { error ->

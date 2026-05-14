@@ -27,7 +27,12 @@ public sealed class RegisterUserHandler(
         var pinHash = BCrypt.Net.BCrypt.HashPassword(cmd.Pin, workFactor: 12);
 
         var phoneNumber = new PhoneNumber(cmd.PhoneNumber);
-        var user = User.Create(phoneNumber, pinHash, cmd.FullName);
+        var user = User.Create(
+            phoneNumber,
+            pinHash,
+            cmd.FullName,
+            cmd.email,
+            cmd.NationalId);
 
         await users.AddAsync(user, ct);
 
