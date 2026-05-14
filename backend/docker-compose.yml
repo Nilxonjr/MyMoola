@@ -26,12 +26,9 @@ services:
       - AfricasTalking__ApiKey=atsk_92457b1b3f5b5f7284187a518dae52460815f1a124660e2141f8bf33a6fa72a240f234d6
       - AfricasTalking__SenderId=
       - AfricasTalking__BaseUrl=https://api.sandbox.africastalking.com/
-      - Email__Host=smtp.gmail.com
-      - Email__Port=587
-      - Email__Username=njugunadenilson@gmail.com
-      - Email__Password=afwndqxspacocfxl
-      - Email__FromAddress=njugunadenilson@gmail.com
-      - Email__FromName=MyMoola
+      - Email__ResendApiKey=re_NLkZPPFA_PXM4iivh5DTbXiK3CN76K47W
+        Email__FromAddress=onboarding@resend.dev
+        Email__FromName=MyMoola
       - ExternalApis__CoinGeckoApiKey=CG-p5sLcU3zJLxWfUU6KyMemYD3
       - ExternalApis__Binance__BaseUrl=https://api.binance.com
       - ExternalApis__Binance__TimeoutSeconds=15

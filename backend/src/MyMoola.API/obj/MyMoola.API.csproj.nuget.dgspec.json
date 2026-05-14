@@ -333,6 +333,10 @@
               "target": "Package",
               "version": "[8.0.11, )"
             },
+            "Resend": {
+              "target": "Package",
+              "version": "[0.5.1, )"
+            },
             "StackExchange.Redis": {
               "target": "Package",
               "version": "[2.12.14, )"

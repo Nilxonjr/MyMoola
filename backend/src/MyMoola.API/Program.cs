@@ -134,7 +134,6 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAdminTokenService, AdminTokenService>();
 builder.Services.AddScoped<ICurrentAdminService, CurrentAdminService>();
-builder.Services.AddTransient<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
 
 builder.Services.AddHttpContextAccessor();
@@ -148,6 +147,18 @@ builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 
 builder.Services.AddHttpClient();
+
+builder.Services.AddHttpClient<ResendEmailService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.resend.com/");
+    client.DefaultRequestHeaders.Add(
+        "Authorization",
+        $"Bearer {builder.Configuration["Email:ResendApiKey"]
+            ?? throw new InvalidOperationException("Email:ResendApiKey is not configured.")}");
+});
+
+builder.Services.AddTransient<IEmailService>(
+    sp => sp.GetRequiredService<ResendEmailService>());
 
 builder.Services.Configure<ExchangeRateSettings>(
     builder.Configuration.GetSection(ExchangeRateSettings.Section));
