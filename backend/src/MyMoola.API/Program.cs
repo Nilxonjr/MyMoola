@@ -21,6 +21,8 @@ using MyMoola.API.Filters;
 using MyMoola.Application.Common.Services;
 using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
+using MyMoola.Infrastructure.Settings;
+using MyMoola.Infrastructure.BackgroundJobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -119,6 +121,7 @@ builder.Services.AddScoped<ILedgerEntryRepository, LedgerEntryRepository>();
 builder.Services.AddScoped<ISystemControlRepository, SystemControlRepository>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 // ── Unit of Work ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -130,10 +133,7 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAdminTokenService, AdminTokenService>();
 builder.Services.AddScoped<ICurrentAdminService, CurrentAdminService>();
 builder.Services.AddTransient<IEmailService, SmtpEmailService>();
-builder.Services.AddScoped<BinanceCurrencyExchangeService>();
-builder.Services.AddScoped<CoinGeckoCurrencyExchangeService>();
-builder.Services.AddScoped<ICurrencyExchangeService, ResilientCurrencyExchangeService>();
-
+builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -147,16 +147,24 @@ builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 
 builder.Services.AddHttpClient();
 
-// Exchange rate HTTP clients — named clients with timeouts
-builder.Services.AddHttpClient<BinanceCurrencyExchangeService>(client =>
+builder.Services.Configure<ExchangeRateSettings>(
+    builder.Configuration.GetSection(ExchangeRateSettings.Section));
+
+builder.Services.AddHttpClient<BinanceRateFetcher>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(5);
+    client.BaseAddress = new Uri(builder.Configuration["ExternalApis:Binance:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue<int>("ExternalApis:Binance:TimeoutSeconds"));
 });
 
-builder.Services.AddHttpClient<CoinGeckoCurrencyExchangeService>(client =>
+builder.Services.AddHttpClient<CoinGeckoRateFetcher>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(8);
+    client.BaseAddress = new Uri(builder.Configuration["ExternalApis:CoinGecko:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromSeconds(
+        builder.Configuration.GetValue<int>("ExternalApis:CoinGecko:TimeoutSeconds"));
 });
+
+builder.Services.AddHostedService<ExchangeRateRefreshJob>();
 
 // ── SMS (Africa's Talking) ────────────────────────────────────────────────────
 builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
@@ -423,6 +431,11 @@ app.UseRateLimiter();
 app.UseMiddleware<IdempotencyMiddleware>();
 
 app.MapControllers();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
 await SeedSuperAdminAsync(app);
 app.Run();
 
