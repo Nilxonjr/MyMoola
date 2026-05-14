@@ -2,18 +2,18 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyMoola.Infrastructure.Persistence;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace MyMoola.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260505151019_AddRefreshTokens2")]
-    partial class AddRefreshTokens2
+    [Migration("20260514090752_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -21,66 +21,82 @@ namespace MyMoola.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.26")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("MyMoola.Domain.Entities.AdminUser", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("email");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
+
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("must_change_password");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("password_hash");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
+                        .HasColumnType("character varying(30)")
                         .HasColumnName("role");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_admin_users_email");
 
                     b.ToTable("admin_users", (string)null);
                 });
@@ -88,50 +104,50 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("Action")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("action");
 
                     b.Property<Guid?>("ActorId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("actor_id");
 
                     b.Property<string>("ActorType")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("actor_type");
 
                     b.Property<string>("AfterState")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("after_state");
 
                     b.Property<string>("BeforeState")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("before_state");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("ip_address");
 
                     b.Property<string>("TargetEntity")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("target_entity");
 
                     b.Property<Guid>("TargetId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("target_id");
 
                     b.HasKey("Id");
@@ -148,47 +164,47 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.DepositAddress", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("address");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
 
                     b.Property<string>("DerivationPath")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("derivation_path");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
                     b.Property<DateTimeOffset?>("LastUsedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_used_at");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
@@ -204,7 +220,7 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.ExchangeRate", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("BuyRateKes")
@@ -214,11 +230,11 @@ namespace MyMoola.Infrastructure.Migrations
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
 
                     b.Property<DateTimeOffset>("FetchedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("fetched_at");
 
                     b.Property<decimal>("RateKes")
@@ -236,7 +252,7 @@ namespace MyMoola.Infrastructure.Migrations
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
+                        .HasColumnType("character varying(30)")
                         .HasColumnName("source");
 
                     b.Property<decimal>("SpreadPercent")
@@ -256,24 +272,24 @@ namespace MyMoola.Infrastructure.Migrations
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("key");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
                     b.Property<string>("ResponseBody")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("response_body");
 
                     b.Property<int>("StatusCode")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("status_code");
 
                     b.HasKey("Key");
@@ -286,57 +302,72 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.LedgerEntry", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(28,18)")
                         .HasColumnName("amount");
 
-                    b.Property<decimal>("BalanceAfter")
+                    b.Property<decimal>("AvailableBalanceAfter")
                         .HasColumnType("decimal(28,18)")
-                        .HasColumnName("balance_after");
+                        .HasColumnName("available_balance_after");
 
-                    b.Property<decimal>("BalanceBefore")
+                    b.Property<decimal>("AvailableBalanceBefore")
                         .HasColumnType("decimal(28,18)")
-                        .HasColumnName("balance_before");
+                        .HasColumnName("available_balance_before");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("currency");
 
                     b.Property<string>("EntryType")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("text")
                         .HasColumnName("entry_type");
 
+                    b.Property<decimal>("LockedBalanceAfter")
+                        .HasColumnType("decimal(28,18)")
+                        .HasColumnName("locked_balance_after");
+
+                    b.Property<decimal>("LockedBalanceBefore")
+                        .HasColumnType("decimal(28,18)")
+                        .HasColumnName("locked_balance_before");
+
                     b.Property<Guid>("TransactionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<Guid>("WalletId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("wallet_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt");
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_ledger_entries_created_at");
 
-                    b.HasIndex("TransactionId");
+                    b.HasIndex("TransactionId")
+                        .HasDatabaseName("IX_ledger_entries_transaction_id");
 
-                    b.HasIndex("WalletId");
+                    b.HasIndex("WalletId")
+                        .HasDatabaseName("IX_ledger_entries_wallet_id");
 
                     b.ToTable("ledger_entries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_ledger_entries_amount", "[amount] > 0");
+                            t.HasCheckConstraint("CK_ledger_entries_amount", "amount > 0");
                         });
                 });
 
             modelBuilder.Entity("MyMoola.Domain.Entities.MpesaTransaction", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("AmountKes")
@@ -345,61 +376,61 @@ namespace MyMoola.Infrastructure.Migrations
 
                     b.Property<string>("CheckoutRequestId")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("checkout_request_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Direction")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("direction");
 
                     b.Property<string>("MerchantRequestId")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("merchant_request_id");
 
                     b.Property<string>("MpesaReceiptNumber")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("mpesa_receipt_number");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("phone_number");
 
                     b.Property<string>("RawCallbackPayload")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("raw_callback_payload");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
                     b.Property<Guid>("TransactionId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("transaction_id");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CheckoutRequestId")
-                        .HasFilter("[checkout_request_id] IS NOT NULL");
+                        .HasFilter("checkout_request_id IS NOT NULL");
 
                     b.HasIndex("MpesaReceiptNumber")
                         .IsUnique()
-                        .HasFilter("[mpesa_receipt_number] IS NOT NULL");
+                        .HasFilter("mpesa_receipt_number IS NOT NULL");
 
                     b.HasIndex("TransactionId");
 
@@ -409,37 +440,40 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
                     b.Property<DateTimeOffset?>("RevokedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("revoked_at");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion")
-                        .HasColumnName("row_version");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("token_hash");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("user_id");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -456,35 +490,35 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.SystemControl", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("ControlKey")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("control_key");
 
                     b.Property<DateTimeOffset?>("DisabledAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("disabled_at");
 
                     b.Property<Guid?>("DisabledBy")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("disabled_by");
 
                     b.Property<bool>("IsEnabled")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_enabled");
 
                     b.Property<string>("Reason")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("reason");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
@@ -498,11 +532,11 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.Transaction", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("AdminNote")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("admin_note");
 
                     b.Property<decimal>("Amount")
@@ -510,21 +544,21 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnName("amount");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_at");
 
                     b.Property<Guid?>("CounterpartyUserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("counterparty_user_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
 
                     b.Property<decimal?>("ExchangeRateSnapshot")
@@ -540,11 +574,11 @@ namespace MyMoola.Infrastructure.Migrations
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("idempotency_key");
 
                     b.Property<Guid?>("InitiatorUserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("initiator_user_id");
 
                     b.Property<decimal?>("KesAmount")
@@ -556,62 +590,63 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnName("market_rate_snapshot");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("metadata");
 
                     b.Property<string>("MpesaReference")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("mpesa_reference");
 
                     b.Property<int>("OnChainConfirmations")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("on_chain_confirmations");
 
                     b.Property<string>("OnChainTxHash")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("on_chain_tx_hash");
 
                     b.Property<string>("ReferenceCode")
                         .IsRequired()
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
+                        .HasColumnType("character varying(30)")
                         .HasColumnName("reference_code");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("type");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
 
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
                     b.HasIndex("MpesaReference")
-                        .HasFilter("[mpesa_reference] IS NOT NULL");
+                        .HasFilter("mpesa_reference IS NOT NULL");
 
                     b.HasIndex("OnChainTxHash")
-                        .HasFilter("[on_chain_tx_hash] IS NOT NULL");
+                        .HasFilter("on_chain_tx_hash IS NOT NULL");
 
                     b.HasIndex("ReferenceCode")
                         .IsUnique();
+
+                    b.HasIndex("InitiatorUserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_transactions_initiator_idempotency_key");
 
                     b.ToTable("transactions", (string)null);
                 });
@@ -619,7 +654,7 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.TreasuryPosition", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Balance")
@@ -630,7 +665,7 @@ namespace MyMoola.Infrastructure.Migrations
 
                     b.Property<bool>("BuyHalted")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("buy_halted");
 
@@ -643,7 +678,7 @@ namespace MyMoola.Infrastructure.Migrations
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
 
                     b.Property<decimal>("KesReserve")
@@ -653,15 +688,15 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnName("kes_reserve");
 
                     b.Property<DateTimeOffset?>("LastRebalancedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_rebalanced_at");
 
                     b.Property<DateTimeOffset?>("LastSyncedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_synced_at");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
@@ -675,102 +710,105 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("AccountStatus")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("account_status");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Email")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("email");
 
                     b.Property<DateTimeOffset?>("EmailVerifiedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("email_verified_at");
 
                     b.Property<int>("FailedPinAttempts")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasDefaultValue(0)
                         .HasColumnName("failed_pin_attempts");
 
                     b.Property<string>("FreezeReason")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("freeze_reason");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("full_name");
 
                     b.Property<string>("KycStatus")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("kyc_status");
 
                     b.Property<DateTimeOffset?>("KycVerifiedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("kyc_verified_at");
 
                     b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_login_at");
 
                     b.Property<string>("NationalId")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("national_id");
 
                     b.Property<string>("PhoneNumberValue")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("phone_number");
 
                     b.Property<DateTimeOffset?>("PhoneVerifiedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("phone_verified_at");
 
                     b.Property<string>("PinHash")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("pin_hash");
 
                     b.Property<DateTimeOffset?>("PinLockedUntil")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("pin_locked_until");
 
-                    b.Property<byte[]>("RowVersion")
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<uint>("xmin")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion")
-                        .HasColumnName("row_version");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("updated_at");
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique()
-                        .HasFilter("[email] IS NOT NULL");
+                        .HasFilter("email IS NOT NULL");
 
                     b.HasIndex("NationalId")
                         .IsUnique()
-                        .HasFilter("[national_id] IS NOT NULL");
+                        .HasFilter("national_id IS NOT NULL");
 
                     b.HasIndex("PhoneNumberValue")
                         .IsUnique();
@@ -781,7 +819,7 @@ namespace MyMoola.Infrastructure.Migrations
             modelBuilder.Entity("MyMoola.Domain.Entities.Wallet", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<decimal>("Balance")
@@ -791,13 +829,13 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasColumnName("balance");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("currency");
 
                     b.Property<decimal>("LockedBalance")
@@ -806,30 +844,34 @@ namespace MyMoola.Infrastructure.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("locked_balance");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion")
-                        .HasColumnName("row_version");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("uuid")
                         .HasColumnName("user_id");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "Currency")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_wallets_user_currency");
 
                     b.ToTable("wallets", null, t =>
                         {
-                            t.HasCheckConstraint("CK_wallets_balance", "[balance] >= 0");
+                            t.HasCheckConstraint("CK_wallets_balance", "balance >= 0");
 
-                            t.HasCheckConstraint("CK_wallets_locked_balance", "[locked_balance] >= 0");
+                            t.HasCheckConstraint("CK_wallets_locked_balance", "locked_balance >= 0");
                         });
                 });
 
@@ -848,13 +890,15 @@ namespace MyMoola.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TransactionId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_ledger_entries_transactions_transaction_id");
 
                     b.HasOne("MyMoola.Domain.Entities.Wallet", null)
                         .WithMany()
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_ledger_entries_wallets_wallet_id");
                 });
 
             modelBuilder.Entity("MyMoola.Domain.Entities.MpesaTransaction", b =>

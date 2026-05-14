@@ -13,7 +13,7 @@ public sealed class AdminUser : BaseEntity
     public bool MustChangePassword { get; private set; } = true;
     public DateTimeOffset? LastLoginAt { get; private set; }
     public Guid? CreatedBy { get; private set; }
-    public byte[] RowVersion { get; private set; } = [];
+    public uint Version { get; private set; }
 
     private AdminUser() { }
 

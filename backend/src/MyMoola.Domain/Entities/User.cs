@@ -25,7 +25,7 @@ public sealed class User : BaseEntity
     public KycStatus KycStatus { get; private set; } = KycStatus.Unverified;
     public DateTimeOffset? KycVerifiedAt { get; private set; }
     public DateTimeOffset? LastLoginAt { get; private set; }
-    public byte[]? RowVersion { get; private set; }
+    public uint Version { get; private set; }
 
     // EF Core
     private User() { }

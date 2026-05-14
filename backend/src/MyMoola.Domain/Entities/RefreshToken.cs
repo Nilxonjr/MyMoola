@@ -11,7 +11,7 @@ public sealed class RefreshToken : BaseEntity
     public bool IsRevoked => RevokedAt.HasValue;
     public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
     public bool IsActive => !IsRevoked && !IsExpired;
-    public byte[]? RowVersion { get; private set; }
+    public uint Version { get; private set; }
 
     // EF Core
     private RefreshToken() { }

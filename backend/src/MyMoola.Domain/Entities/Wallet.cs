@@ -13,7 +13,7 @@ public sealed class Wallet : BaseEntity
     public Currency Currency { get; private set; }
     public decimal Balance { get; private set; }
     public decimal LockedBalance { get; private set; }
-    public byte[] RowVersion { get; private set; } = [];
+    public uint Version { get; private set; }
     public decimal TotalBalance => Balance + LockedBalance;
 
     public static Wallet Create(Guid userId, Currency currency)

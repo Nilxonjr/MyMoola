@@ -14,6 +14,8 @@ using MyMoola.Infrastructure.Persistence.Repositories;
 using MyMoola.Infrastructure.Services;
 using System.Text;
 using Microsoft.AspNetCore.RateLimiting;
+using Polly;
+using Polly.Extensions.Http;
 using System.Text.Json.Serialization;
 using MyMoola.Application.Interfaces;
 using StackExchange.Redis;
@@ -92,7 +94,7 @@ builder.Services.AddSwaggerGen(options =>
 
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.MigrationsAssembly("MyMoola.Infrastructure")));
 
@@ -186,7 +188,11 @@ builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
             System.Net.Security.SslApplicationProtocol.Http11
         }
     }
-});
+})
+.AddTransientHttpErrorPolicy(policy =>
+    policy.WaitAndRetryAsync(
+        retryCount: 3,
+        sleepDurationProvider: attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt))));
 
 builder.Services.AddTransient<ISmsService>(
     sp => sp.GetRequiredService<AfricasTalkingSmsService>());

@@ -11,7 +11,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=MyMoola;User Id=sa;Password=Kenya2026#;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Host=localhost;Database=MyMoola;Username=postgres;Password=Kenya2026*;
       - Jwt__SecretKey=9fA7kL2xQw8ZrP4mT1vYc6JdN0sH3eUb
       - Jwt__Issuer=MyMoola
       - Jwt__Audience=MyMoolaUsers
@@ -42,33 +42,33 @@ services:
       - ExternalApis__RateStalenessThresholdMinutes=5
       - ExternalApis__SpreadPercent=1.5
     depends_on:
-      sqlserver:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
       - mymoola-network
 
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: mymoola-sqlserver
-    restart: unless-stopped
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=Kenya2026#
-    expose:
-      - "1433"
-    volumes:
-      - sqlserver-data:/var/opt/mssql
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Kenya2026# -Q 'SELECT 1' -C || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    networks:
-      - mymoola-network
-
+  postgres:
+  image: postgres:16-alpine
+  container_name: mymoola-postgres
+  environment:
+    - POSTGRES_DB=MyMoola
+    - POSTGRES_USER=postgres
+    - POSTGRES_PASSWORD=Kenya2026*
+  expose:
+    - "5432"
+  volumes:
+    - postgres-data:/var/lib/postgresql/data
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -d MyMoola"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+    start_period: 30s
+  restart: unless-stopped
+  networks:
+    - mymoola-network
   redis:
     image: redis:7-alpine
     container_name: mymoola-redis
@@ -86,7 +86,7 @@ services:
       - mymoola-network
 
 volumes:
-  sqlserver-data:
+  postgres-data:
   redis-data:
 
 networks:

@@ -64,10 +64,10 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
             .HasColumnType("decimal(28,8)");
 
         builder.Property(t => t.MpesaReference).HasColumnName("mpesa_reference").HasMaxLength(50);
-        builder.HasIndex(t => t.MpesaReference).HasFilter("[mpesa_reference] IS NOT NULL");
+        builder.HasIndex(t => t.MpesaReference).HasFilter("mpesa_reference IS NOT NULL");
 
         builder.Property(t => t.OnChainTxHash).HasColumnName("on_chain_tx_hash").HasMaxLength(100);
-        builder.HasIndex(t => t.OnChainTxHash).HasFilter("[on_chain_tx_hash] IS NOT NULL");
+        builder.HasIndex(t => t.OnChainTxHash).HasFilter("on_chain_tx_hash IS NOT NULL");
 
         builder.Property(t => t.OnChainConfirmations)
             .HasColumnName("on_chain_confirmations")
