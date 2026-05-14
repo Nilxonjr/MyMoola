@@ -7,14 +7,6 @@ namespace MyMoola.Infrastructure.Persistence.Repositories;
 
 public sealed class UserRepository(AppDbContext db) : IUserRepository
 {
-    //public async Task<User?> FindByPhoneAsync(string phoneNumber, CancellationToken ct = default)
-    //    => await db.Users
-    //        .FirstOrDefaultAsync(u => u.PhoneNumber.Value == phoneNumber, ct);
-
-    //public async Task<User?> FindByPhoneAsync(string phoneNumber, CancellationToken ct = default)
-    //=> await db.Users
-    //    .FirstOrDefaultAsync(u => EF.Property<string>(u, "phone_number") == phoneNumber, ct);
-
     public async Task<User?> FindByPhoneAsync(string phoneNumber, CancellationToken ct = default)
     => await db.Users
         .FirstOrDefaultAsync(u => u.PhoneNumberValue == phoneNumber, ct);
@@ -28,9 +20,6 @@ public sealed class UserRepository(AppDbContext db) : IUserRepository
         => await db.Users
             .AnyAsync(u => u.PhoneNumberValue == phoneNumber, ct);
 
-    //public async Task<bool> ExistsByPhoneAsync(string phoneNumber, CancellationToken ct = default)
-    //    => await db.Users
-    //        .AnyAsync(u => u.PhoneNumber.Value == phoneNumber, ct);
 
     public async Task AddAsync(User user, CancellationToken ct = default)
         => await db.Users.AddAsync(user, ct);

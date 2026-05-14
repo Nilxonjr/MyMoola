@@ -47,4 +47,16 @@ public sealed class UsersController(ISender sender) : ControllerBase
         var response = await sender.Send(new GetTransactionsQuery(page, pageSize), ct);
         return Ok(response);
     }
+
+    [HttpGet("lookup")]
+    [ProducesResponseType(typeof(LookupUserByPhoneResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LookupByPhone(
+    [FromQuery] string phone,
+    CancellationToken ct)
+    {
+        var response = await sender.Send(new LookupUserByPhoneQuery(phone), ct);
+        return Ok(response);
+    }
 }
