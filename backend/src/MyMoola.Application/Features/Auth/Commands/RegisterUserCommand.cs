@@ -9,8 +9,6 @@ namespace MyMoola.Application.Features.Auth.Commands;
 public sealed record RegisterUserCommand(
     string PhoneNumber,
     string Pin,
-    string email,
-    string NationalId,
     string FullName) : IRequest<RegisterUserResponse>;
 
 public sealed record RegisterUserResponse(Guid UserId, string Message);
