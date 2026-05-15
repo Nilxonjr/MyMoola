@@ -14,9 +14,7 @@ namespace MyMoola.API.Controllers;
 [Route("api/users")]
 [Authorize]
 public sealed class UsersController(
-    ISender sender,
-    AppDbContext db,
-    ICurrentUserService currentUser) : ControllerBase
+    ISender sender) : ControllerBase
 {
     [HttpGet("me")]
     [Authorize]
