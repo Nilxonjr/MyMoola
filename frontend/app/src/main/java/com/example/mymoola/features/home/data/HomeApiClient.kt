@@ -1,6 +1,8 @@
 package com.example.mymoola.features.home.data
 
 import com.example.mymoola.BuildConfig
+import com.example.mymoola.features.auth.data.AuthApiClient
+import com.example.mymoola.features.auth.data.AuthSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -33,11 +35,17 @@ object HomeApiClient {
         val wallets: List<WalletBalance>
     )
 
-    suspend fun getMe(accessToken: String): ApiResult<MeResponse> = withContext(Dispatchers.IO) {
+    suspend fun getMe(): ApiResult<MeResponse> = withContext(Dispatchers.IO) {
         runCatching {
-            val connection = openGetConnection("/api/users/me", accessToken)
-            val code = connection.responseCode
-            val body = readBody(connection, code in 200..299)
+            val firstAttempt = executeAuthorizedGet("/api/users/me")
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedGet("/api/users/me")
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
             if (code == HttpURLConnection.HTTP_OK) {
                 val json = JSONObject(body)
                 ApiResult(data = MeResponse(fullName = json.optString("fullName", "User")))
@@ -49,11 +57,17 @@ object HomeApiClient {
         }
     }
 
-    suspend fun getBalance(accessToken: String): ApiResult<BalanceResponse> = withContext(Dispatchers.IO) {
+    suspend fun getBalance(): ApiResult<BalanceResponse> = withContext(Dispatchers.IO) {
         runCatching {
-            val connection = openGetConnection("/api/users/me/balance?currency=KES", accessToken)
-            val code = connection.responseCode
-            val body = readBody(connection, code in 200..299)
+            val firstAttempt = executeAuthorizedGet("/api/users/me/balance?currency=KES")
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedGet("/api/users/me/balance?currency=KES")
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
             if (code == HttpURLConnection.HTTP_OK) {
                 val json = JSONObject(body)
                 val walletsJson = json.optJSONArray("wallets") ?: JSONArray()
@@ -82,6 +96,23 @@ object HomeApiClient {
         }.getOrElse {
             ApiResult(errorMessage = "Network error while loading balances.")
         }
+    }
+
+    private data class RawResponse(
+        val statusCode: Int,
+        val body: String
+    )
+
+    private fun executeAuthorizedGet(path: String): RawResponse {
+        val accessToken = AuthSession.accessToken
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val connection = openGetConnection(path, accessToken)
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
     }
 
     private fun openGetConnection(path: String, accessToken: String): HttpURLConnection {

@@ -41,6 +41,7 @@ import com.example.mymoola.features.settings.ui.TransactionNotificationsScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AuthSession.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             MyMoolaTheme {
@@ -164,7 +165,7 @@ class MainActivity : ComponentActivity() {
                             LogoutScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onConfirmLogout = {
-                                    AuthSession.accessToken = null
+                                    AuthSession.clear()
                                     navController.navigate("login") {
                                         popUpTo(0) { inclusive = true }
                                         launchSingleTop = true
@@ -220,7 +221,10 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onVerified = { tokenResponse ->
-                                    AuthSession.accessToken = tokenResponse.accessToken
+                                    AuthSession.setTokens(
+                                        tokenResponse.accessToken,
+                                        tokenResponse.refreshToken
+                                    )
                                     navController.navigate("home") {
                                         popUpTo("onboarding1") { inclusive = false }
                                     }
