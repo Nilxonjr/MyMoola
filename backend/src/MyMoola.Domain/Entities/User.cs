@@ -30,7 +30,10 @@ public sealed class User : BaseEntity
     // EF Core
     private User() { }
 
-    public static User Create(PhoneNumber phoneNumber, string pinHash, string fullName)
+    public static User Create(
+        PhoneNumber phoneNumber,
+        string pinHash,
+        string fullName)
     {
         return new User
         {
