@@ -98,12 +98,13 @@ public sealed class User : BaseEntity
             KycVerifiedAt = DateTimeOffset.UtcNow;
     }
 
+
     public void MarkDeleted()
-    {
+    {   
         EnsureActive();
         AccountStatus = AccountStatus.Deleted;
-        // Anonymize PII but preserve the row for audit trail
-        PhoneNumberValue = $"DELETED_{Id}";
+        // Use first 8 chars of Id to keep within phone_number column length (20)
+        PhoneNumberValue = $"DEL_{Id.ToString()[..8]}";
         Email = null;
         FullName = "Deleted User";
     }
