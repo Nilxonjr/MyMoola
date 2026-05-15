@@ -4,7 +4,8 @@ public enum AccountStatus
 {
     Active,
     Frozen,
-    Suspended
+    Suspended,
+    Deleted
 }
 
 public enum KycStatus

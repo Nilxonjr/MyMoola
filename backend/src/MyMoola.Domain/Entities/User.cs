@@ -84,6 +84,9 @@ public sealed class User : BaseEntity
 
         if (AccountStatus == AccountStatus.Suspended)
             throw new OperationDisabledException("Account is suspended.");
+
+        if (AccountStatus == AccountStatus.Deleted)
+            throw new OperationDisabledException("Account is deleted.");
     }
 
  
@@ -93,5 +96,15 @@ public sealed class User : BaseEntity
         KycStatus = status;
         if (status == KycStatus.Verified)
             KycVerifiedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void MarkDeleted()
+    {
+        EnsureActive();
+        AccountStatus = AccountStatus.Deleted;
+        // Anonymize PII but preserve the row for audit trail
+        PhoneNumberValue = $"DELETED_{Id}";
+        Email = null;
+        FullName = "Deleted User";
     }
 }
