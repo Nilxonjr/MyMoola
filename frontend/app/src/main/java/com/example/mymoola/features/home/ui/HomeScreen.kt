@@ -113,14 +113,14 @@ fun HomeScreen(
             return@LaunchedEffect
         }
 
-        val meResult = HomeApiClient.getMe(token)
+        val meResult = HomeApiClient.getMe()
         if (meResult.isSuccess) {
             userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
         } else {
             loadError = meResult.errorMessage
         }
 
-        val balanceResult = HomeApiClient.getBalance(token)
+        val balanceResult = HomeApiClient.getBalance()
         if (balanceResult.isSuccess) {
             val balance = balanceResult.data
             if (balance != null) {
