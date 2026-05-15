@@ -50,14 +50,22 @@ public sealed class IdempotencyMiddleware(RequestDelegate next)
 
         // Require authenticated user — [Idempotency] always implies auth
         var userId = currentUserService.UserId;
-        if (userId is null)
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
-        }
 
-        var cacheKey = $"idempotency:{userId}:{idempotencyKey}";
-        var lockKey = $"lock:{userId}:{idempotencyKey}";
+        //if (userId is null)
+        //{
+        //    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        //    return;
+        //}
+
+        //var cacheKey = $"idempotency:{userId}:{idempotencyKey}";
+        //var lockKey = $"lock:{userId}:{idempotencyKey}";
+
+        var scope = userId.HasValue
+            ? userId.Value.ToString()
+            : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        var cacheKey = $"idempotency:{scope}:{idempotencyKey}";
+        var lockKey = $"lock:{scope}:{idempotencyKey}";
 
         // Check Redis cache — return immediately if found
         var cached = await idempotencyService.GetAsync(cacheKey);
