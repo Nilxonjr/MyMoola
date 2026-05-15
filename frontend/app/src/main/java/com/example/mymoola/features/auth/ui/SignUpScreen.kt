@@ -1,6 +1,4 @@
 package com.example.mymoola.features.auth.ui
-
-import android.util.Patterns
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -67,8 +65,6 @@ fun SignUpScreen(
     onRegisterSuccess: (String) -> Unit = {}
 ) {
     var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var nationalId by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var showPin by remember { mutableStateOf(false) }
@@ -122,7 +118,7 @@ fun SignUpScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Use your name, email, national ID, phone number, and 4-digit PIN.",
+                    text = "Use your name, phone number, and 4-digit PIN.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF64748B)
                 )
@@ -139,18 +135,6 @@ fun SignUpScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = {
-                        email = it.trim()
-                        errors = emptyList()
-                        successMessage = null
-                    },
-                    label = { Text("Email") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
                     value = phone,
                     onValueChange = {
                         phone = it
@@ -159,17 +143,6 @@ fun SignUpScreen(
                     },
                     label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = nationalId,
-                    onValueChange = {
-                        nationalId = it.filter(Char::isLetterOrDigit).take(20)
-                        errors = emptyList()
-                        successMessage = null
-                    },
-                    label = { Text("National ID") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -203,12 +176,7 @@ fun SignUpScreen(
                         val normalizedPhone = normalizeKenyanPhone(phone)
                         val validationErrors = buildList {
                             if (name.isBlank()) add("Name is required.")
-                            if (email.isBlank()) add("Email is required.")
-                            if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                                add("Enter a valid email address.")
-                            }
                             if (normalizedPhone.isBlank()) add("Phone number must be in format +2547XXXXXXXX.")
-                            if (nationalId.length < 6) add("National ID must be at least 6 characters.")
                             if (pin.length != 4) add("PIN must be exactly 4 digits.")
                         }
                         errors = validationErrors
@@ -222,8 +190,6 @@ fun SignUpScreen(
                                 AuthApiClient.RegisterRequest(
                                     phoneNumber = normalizedPhone,
                                     pin = pin,
-                                    email = email,
-                                    nationalId = nationalId,
                                     fullName = name
                                 )
                             )

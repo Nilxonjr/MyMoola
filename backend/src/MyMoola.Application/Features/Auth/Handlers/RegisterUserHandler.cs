@@ -30,9 +30,7 @@ public sealed class RegisterUserHandler(
         var user = User.Create(
             phoneNumber,
             pinHash,
-            cmd.FullName,
-            cmd.email,
-            cmd.NationalId);
+            cmd.FullName);
 
         await users.AddAsync(user, ct);
 

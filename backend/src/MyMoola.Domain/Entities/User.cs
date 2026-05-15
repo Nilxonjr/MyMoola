@@ -33,18 +33,14 @@ public sealed class User : BaseEntity
     public static User Create(
         PhoneNumber phoneNumber,
         string pinHash,
-        string fullName,
-        string? email,
-        string? nationalId)
+        string fullName)
     {
         return new User
         {
             PhoneNumber = phoneNumber,
             PhoneNumberValue = phoneNumber.Value,
             PinHash = pinHash,
-            FullName = fullName,
-            Email = email,
-            NationalId = nationalId
+            FullName = fullName
         };
     }
 

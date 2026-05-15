@@ -30,14 +30,5 @@ public sealed class RegisterUserCommandValidator : AbstractValidator<RegisterUse
             .MinimumLength(2).WithMessage("Full name must be at least 2 characters.")
             .MaximumLength(100).WithMessage("Full name must not exceed 100 characters.");
 
-        RuleFor(x => x.email)
-            .NotEmpty().WithMessage("Email is required.")
-            .EmailAddress().WithMessage("Email must be a valid email address.")
-            .MaximumLength(200).WithMessage("Email must not exceed 200 characters.");
-
-        RuleFor(x => x.NationalId)
-            .NotEmpty().WithMessage("National ID is required.")
-            .Matches("^[A-Za-z0-9]{6,20}$")
-            .WithMessage("National ID must be 6-20 alphanumeric characters.");
     }
 }

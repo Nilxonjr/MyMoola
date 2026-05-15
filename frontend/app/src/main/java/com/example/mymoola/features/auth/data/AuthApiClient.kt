@@ -19,8 +19,6 @@ object AuthApiClient {
     data class RegisterRequest(
         val phoneNumber: String,
         val pin: String,
-        val email: String,
-        val nationalId: String,
         val fullName: String
     )
 
@@ -74,8 +72,6 @@ object AuthApiClient {
                 val payload = JSONObject().apply {
                     put("phoneNumber", request.phoneNumber)
                     put("pin", request.pin)
-                    put("email", request.email)
-                    put("nationalId", request.nationalId)
                     put("fullName", request.fullName)
                 }
 
