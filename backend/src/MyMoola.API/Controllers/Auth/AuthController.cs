@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using MyMoola.API.Attributes;
 using MyMoola.Application.Features.Auth.Commands;
 
 namespace MyMoola.API.Controllers.Auth;
@@ -22,6 +23,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     /// <response code="429">Too many requests.</response>
     [HttpPost("register")]
     [EnableRateLimiting("register")]
+    [Idempotency]
     [ProducesResponseType(typeof(RegisterUserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
