@@ -16,6 +16,17 @@ public sealed class UserRepository(AppDbContext db) : IUserRepository
         => await db.Users
             .FirstOrDefaultAsync(u => u.Id == id, ct);
 
+    public async Task<IReadOnlyList<User>> GetByIdsAsync(IEnumerable<Guid> userIds, CancellationToken ct = default)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return [];
+
+        return await db.Users
+            .Where(u => ids.Contains(u.Id))
+            .ToListAsync(ct);
+    }
+
     public async Task<bool> ExistsByPhoneAsync(string phoneNumber, CancellationToken ct = default)
         => await db.Users
             .AnyAsync(u => u.PhoneNumberValue == phoneNumber, ct);

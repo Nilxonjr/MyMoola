@@ -8,6 +8,7 @@ namespace MyMoola.Application.Features.Users.Handlers;
 
 public sealed class GetTransactionsHandler(
     ICurrentUserService currentUser,
+    IUserRepository users,
     ITransactionRepository transactions,
     ILogger<GetTransactionsHandler> logger)
     : IRequestHandler<GetTransactionsQuery, GetTransactionsResponse>
@@ -27,6 +28,16 @@ public sealed class GetTransactionsHandler(
         var (items, totalCount) = await transactions
             .GetPagedByUserIdAsync(userId, page, pageSize, ct);
 
+        var relatedUserIds = items
+            .SelectMany(t => new[] { t.InitiatorUserId, t.CounterpartyUserId })
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var relatedUsers = await users.GetByIdsAsync(relatedUserIds, ct);
+        var phoneByUserId = relatedUsers.ToDictionary(u => u.Id, u => u.PhoneNumberValue);
+
         var dtos = items.Select(t => new TransactionDto(
             Id: t.Id,
             ReferenceCode: t.ReferenceCode,
@@ -34,6 +45,7 @@ public sealed class GetTransactionsHandler(
             Status: t.Status.ToString(),
             InitiatorUserId: t.InitiatorUserId,
             CounterpartyUserId: t.CounterpartyUserId,
+            InteractedPhone: ResolveInteractedPhone(userId, t.InitiatorUserId, t.CounterpartyUserId, phoneByUserId),
             Currency: t.Currency.ToString(),
             Amount: t.Amount,
             FeeAmount: t.FeeAmount,
@@ -56,5 +68,23 @@ public sealed class GetTransactionsHandler(
             PageSize: pageSize,
             TotalCount: totalCount,
             TotalPages: totalPages);
+    }
+
+    private static string? ResolveInteractedPhone(
+        Guid currentUserId,
+        Guid? initiatorUserId,
+        Guid? counterpartyUserId,
+        IReadOnlyDictionary<Guid, string> phoneByUserId)
+    {
+        var interactedUserId = initiatorUserId == currentUserId
+            ? counterpartyUserId
+            : initiatorUserId;
+
+        if (!interactedUserId.HasValue)
+            return null;
+
+        return phoneByUserId.TryGetValue(interactedUserId.Value, out var phone)
+            ? phone
+            : null;
     }
 }

@@ -55,6 +55,17 @@ fun ViewRecordsScreen(
         isLoading = false
         if (result.isSuccess) {
             records = result.data.orEmpty()
+                .filter { tx ->
+                    tx.initiatorUserId.equals(currentUserId, ignoreCase = true) ||
+                        tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
+                }
+                .groupBy { it.id }
+                .map { (_, group) ->
+                    group.firstOrNull { it.counterpartyUserId.equals(currentUserId, ignoreCase = true) }
+                        ?: group.firstOrNull { it.initiatorUserId.equals(currentUserId, ignoreCase = true) }
+                        ?: group.first()
+                }
+                .sortedByDescending { it.createdAt }
         } else {
             errorMessage = result.errorMessage ?: "Failed to load transaction records."
         }
@@ -165,6 +176,13 @@ fun ViewRecordsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF475569)
                                 )
+                                if (!tx.interactedPhone.isNullOrBlank()) {
+                                    Text(
+                                        text = "With: ${tx.interactedPhone}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF334155)
+                                    )
+                                }
                                 Text(
                                     text = "Date: ${formatRecordDate(tx.createdAt)}",
                                     style = MaterialTheme.typography.bodySmall,
