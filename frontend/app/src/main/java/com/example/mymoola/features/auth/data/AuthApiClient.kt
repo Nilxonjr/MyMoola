@@ -9,6 +9,7 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 
 object AuthApiClient {
     enum class OtpPurpose {
@@ -67,6 +68,7 @@ object AuthApiClient {
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Idempotency-Key", UUID.randomUUID().toString())
                 }
 
                 val payload = JSONObject().apply {
@@ -129,11 +131,17 @@ object AuthApiClient {
 
                 if (code == HttpURLConnection.HTTP_OK) {
                     val json = JSONObject(body)
+                    val tokens = AuthTokenResponse(
+                        accessToken = json.optString("accessToken"),
+                        refreshToken = json.optString("refreshToken"),
+                        tokenType = json.optString("tokenType", "Bearer")
+                    )
+                    AuthSession.setTokens(tokens.accessToken, tokens.refreshToken)
                     ApiResult(
                         data = AuthTokenResponse(
-                            accessToken = json.optString("accessToken"),
-                            refreshToken = json.optString("refreshToken"),
-                            tokenType = json.optString("tokenType", "Bearer")
+                            accessToken = tokens.accessToken,
+                            refreshToken = tokens.refreshToken,
+                            tokenType = tokens.tokenType
                         )
                     )
                 } else {
@@ -186,31 +194,105 @@ object AuthApiClient {
             }
         }
 
-    suspend fun deleteMyAccount(accessToken: String): ApiResult<Unit> =
+    suspend fun deleteMyAccount(): ApiResult<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/users/me")
+                val firstAttempt = executeDeleteMyAccount(AuthSession.accessToken)
+                if (firstAttempt.statusCode != HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    return@runCatching firstAttempt.toUnitResult()
+                }
+
+                val refreshed = refreshSession()
+                if (!refreshed) {
+                    AuthSession.clear()
+                    return@runCatching ApiResult(errorMessage = "Session expired. Please log in again.")
+                }
+
+                executeDeleteMyAccount(AuthSession.accessToken).toUnitResult()
+            }.getOrElse {
+                ApiResult(errorMessage = "Network error. Check API URL/server and try again.")
+            }
+        }
+
+    suspend fun refreshSession(): Boolean =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val currentRefreshToken = AuthSession.refreshToken
+                if (currentRefreshToken.isNullOrBlank()) return@runCatching false
+
+                val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/auth/refresh")
                 val connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "DELETE"
+                    requestMethod = "POST"
                     connectTimeout = 15_000
                     readTimeout = 15_000
                     doInput = true
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Accept", "application/json")
-                    setRequestProperty("Authorization", "Bearer $accessToken")
+                }
+
+                val payload = JSONObject().apply {
+                    put("refreshToken", currentRefreshToken)
+                }
+
+                OutputStreamWriter(connection.outputStream).use { writer ->
+                    writer.write(payload.toString())
+                    writer.flush()
                 }
 
                 val code = connection.responseCode
                 val body = readBody(connection, code in 200..299)
 
-                if (code == HttpURLConnection.HTTP_NO_CONTENT) {
-                    ApiResult(data = Unit)
+                if (code == HttpURLConnection.HTTP_OK) {
+                    val json = JSONObject(body)
+                    val newAccessToken = json.optString("accessToken")
+                    val newRefreshToken = json.optString("refreshToken")
+                    if (newAccessToken.isBlank() || newRefreshToken.isBlank()) {
+                        return@runCatching false
+                    }
+
+                    AuthSession.setTokens(newAccessToken, newRefreshToken)
+                    true
                 } else {
-                    ApiResult(errorMessage = extractErrorMessage(body, code))
+                    false
                 }
             }.getOrElse {
-                ApiResult(errorMessage = "Network error. Check API URL/server and try again.")
+                false
             }
         }
+
+    private data class RawResponse(
+        val statusCode: Int,
+        val body: String
+    )
+
+    private fun executeDeleteMyAccount(accessToken: String?): RawResponse {
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/users/me")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "DELETE"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+        }
+
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
+    }
+
+    private fun RawResponse.toUnitResult(): ApiResult<Unit> {
+        return if (statusCode == HttpURLConnection.HTTP_NO_CONTENT) {
+            ApiResult(data = Unit)
+        } else {
+            ApiResult(errorMessage = extractErrorMessage(body, statusCode))
+        }
+    }
 
     private fun readBody(connection: HttpURLConnection, useInputStream: Boolean): String {
         val stream = if (useInputStream) connection.inputStream else connection.errorStream
