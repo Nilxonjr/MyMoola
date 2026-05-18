@@ -20,6 +20,7 @@ public sealed record TransactionDto(
     string Status,
     Guid? InitiatorUserId,
     Guid? CounterpartyUserId,
+    string? InteractedPhone,
     string Currency,
     decimal Amount,
     decimal FeeAmount,
