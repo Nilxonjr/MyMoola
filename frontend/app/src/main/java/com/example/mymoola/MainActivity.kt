@@ -21,6 +21,7 @@ import com.example.mymoola.features.auth.ui.LoginScreen
 import com.example.mymoola.features.auth.ui.OtpScreen
 import com.example.mymoola.features.auth.ui.SignUpScreen
 import com.example.mymoola.features.home.ui.BuyCryptoScreen
+import com.example.mymoola.features.home.ui.ActivityDetailsScreen
 import com.example.mymoola.features.home.ui.HomeScreen
 import com.example.mymoola.features.home.ui.PayWithMpesaScreen
 import com.example.mymoola.features.home.ui.SellCryptoScreen
@@ -127,7 +128,16 @@ class MainActivity : ComponentActivity() {
                                 onSellClick = { navController.navigate("sell_crypto") },
                                 onPayWithMpesaClick = { navController.navigate("pay_with_mpesa") },
                                 onSendToUserClick = { navController.navigate("send_to_user") },
-                                onViewRecordsClick = { navController.navigate("view_records") }
+                                onViewRecordsClick = { navController.navigate("view_records") },
+                                onActivityClick = { activity ->
+                                    navController.navigate(
+                                        "activity_details/" +
+                                            "${Uri.encode(activity.type)}/" +
+                                            "${Uri.encode(activity.status)}/" +
+                                            "${Uri.encode(activity.detail)}/" +
+                                            "${Uri.encode(activity.amount)}"
+                                    )
+                                }
                             )
                         }
                         composable("settings") {
@@ -194,10 +204,35 @@ class MainActivity : ComponentActivity() {
                             PayWithMpesaScreen(onBackClick = { navController.popBackStack() })
                         }
                         composable("send_to_user") {
-                            SendToUserScreen(onBackClick = { navController.popBackStack() })
+                            SendToUserScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onGoHomeClick = {
+                                    navController.navigate("home") {
+                                        popUpTo("home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
                         }
                         composable("view_records") {
                             ViewRecordsScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable(
+                            route = "activity_details/{type}/{status}/{detail}/{amount}",
+                            arguments = listOf(
+                                navArgument("type") { type = NavType.StringType },
+                                navArgument("status") { type = NavType.StringType },
+                                navArgument("detail") { type = NavType.StringType },
+                                navArgument("amount") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            ActivityDetailsScreen(
+                                type = backStackEntry.arguments?.getString("type").orEmpty(),
+                                status = backStackEntry.arguments?.getString("status").orEmpty(),
+                                detail = backStackEntry.arguments?.getString("detail").orEmpty(),
+                                amount = backStackEntry.arguments?.getString("amount").orEmpty(),
+                                onBackClick = { navController.popBackStack() }
+                            )
                         }
                         composable(
                             route = "otp/{phone}/{purpose}",

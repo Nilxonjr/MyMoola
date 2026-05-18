@@ -18,6 +18,8 @@ public sealed record TransactionDto(
     string ReferenceCode,
     string Type,
     string Status,
+    Guid? InitiatorUserId,
+    Guid? CounterpartyUserId,
     string Currency,
     decimal Amount,
     decimal FeeAmount,

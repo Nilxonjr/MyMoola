@@ -32,6 +32,8 @@ public sealed class GetTransactionsHandler(
             ReferenceCode: t.ReferenceCode,
             Type: t.Type.ToString(),
             Status: t.Status.ToString(),
+            InitiatorUserId: t.InitiatorUserId,
+            CounterpartyUserId: t.CounterpartyUserId,
             Currency: t.Currency.ToString(),
             Amount: t.Amount,
             FeeAmount: t.FeeAmount,
