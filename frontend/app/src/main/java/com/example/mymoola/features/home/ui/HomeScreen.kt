@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -540,11 +542,6 @@ fun HomeScreen(
                         color = brandDark,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        text = "VIEW ALL >",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = mutedText
-                    )
                 }
             }
 
@@ -568,16 +565,23 @@ fun HomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(activity.type, color = Color(0xFF1E293B), fontWeight = FontWeight.Medium)
+                                Text(
+                                    activity.type,
+                                    color = Color(0xFF1E293B),
+                                    fontWeight = FontWeight.Medium
+                                )
                                 Text(
                                     activity.status,
                                     color = brandAccent,
@@ -587,11 +591,16 @@ fun HomeScreen(
                             Text(
                                 activity.detail,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = mutedText
+                                color = mutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = activity.amount,
+                            modifier = Modifier.width(120.dp),
+                            textAlign = TextAlign.End,
                             color = activity.amountColor,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
