@@ -1,38 +1,36 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.API\\MyMoola.API.csproj": {}
+    "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.API/MyMoola.API.csproj": {}
   },
   "projects": {
-    "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.API\\MyMoola.API.csproj": {
+    "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.API/MyMoola.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.API\\MyMoola.API.csproj",
+        "projectUniqueName": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.API/MyMoola.API.csproj",
         "projectName": "MyMoola.API",
-        "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.API\\MyMoola.API.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.API\\obj\\",
+        "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.API/MyMoola.API.csproj",
+        "packagesPath": "/Users/amwenda/.nuget/packages/",
+        "outputPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.API/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/Users/amwenda/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj": {
-                "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj"
+              "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj": {
+                "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj"
               },
-              "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj": {
-                "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj"
+              "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Infrastructure/MyMoola.Infrastructure.csproj": {
+                "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Infrastructure/MyMoola.Infrastructure.csproj"
               }
             }
           }
@@ -46,7 +44,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -98,6 +97,20 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Host.osx-arm64",
+              "version": "[8.0.26, 8.0.26]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -106,36 +119,34 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.202/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj": {
+    "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj",
+        "projectUniqueName": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj",
         "projectName": "MyMoola.Application",
-        "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\obj\\",
+        "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj",
+        "packagesPath": "/Users/amwenda/.nuget/packages/",
+        "outputPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/Users/amwenda/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Domain\\MyMoola.Domain.csproj": {
-                "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Domain\\MyMoola.Domain.csproj"
+              "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Domain/MyMoola.Domain.csproj": {
+                "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Domain/MyMoola.Domain.csproj"
               }
             }
           }
@@ -149,7 +160,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -183,33 +195,41 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.202/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Domain\\MyMoola.Domain.csproj": {
+    "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Domain/MyMoola.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Domain\\MyMoola.Domain.csproj",
+        "projectUniqueName": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Domain/MyMoola.Domain.csproj",
         "projectName": "MyMoola.Domain",
-        "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Domain\\MyMoola.Domain.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Domain\\obj\\",
+        "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Domain/MyMoola.Domain.csproj",
+        "packagesPath": "/Users/amwenda/.nuget/packages/",
+        "outputPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Domain/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/Users/amwenda/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -227,7 +247,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -249,41 +270,49 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.202/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj": {
+    "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Infrastructure/MyMoola.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj",
+        "projectUniqueName": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Infrastructure/MyMoola.Infrastructure.csproj",
         "projectName": "MyMoola.Infrastructure",
-        "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\obj\\",
+        "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Infrastructure/MyMoola.Infrastructure.csproj",
+        "packagesPath": "/Users/amwenda/.nuget/packages/",
+        "outputPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Infrastructure/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/Users/amwenda/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj": {
-                "projectPath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Application\\MyMoola.Application.csproj"
+              "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj": {
+                "projectPath": "/Users/amwenda/Documents/PROJECTS/MyMoola/backend/src/MyMoola.Application/MyMoola.Application.csproj"
               }
             }
           }
@@ -297,7 +326,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -357,12 +387,22 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.26, 8.0.26]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.300/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.202/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

@@ -74,19 +74,18 @@ fun DeleteAccountScreen(
         Spacer(modifier = Modifier.height(20.dp))
         Button(
             onClick = {
-                val token = AuthSession.accessToken
-                if (token.isNullOrBlank()) {
+                if (AuthSession.accessToken.isNullOrBlank()) {
                     error = "Session missing. Please log in again."
                     return@Button
                 }
 
                 scope.launch {
                     isDeleting = true
-                    val result = AuthApiClient.deleteMyAccount(token)
+                    val result = AuthApiClient.deleteMyAccount()
                     isDeleting = false
 
                     if (result.isSuccess) {
-                        AuthSession.accessToken = null
+                        AuthSession.clear()
                         onDeleted()
                     } else {
                         error = result.errorMessage ?: "Failed to delete account."
@@ -124,4 +123,3 @@ fun DeleteAccountScreenPreview() {
         DeleteAccountScreen(onBackClick = {})
     }
 }
-
