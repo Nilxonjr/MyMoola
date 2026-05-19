@@ -25,6 +25,7 @@ using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
 using MyMoola.Infrastructure.Settings;
 using MyMoola.Infrastructure.BackgroundJobs;
+using MyMoola.Infrastructure.Persistence.Interceptors;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,6 +94,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // ── Database ──────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<AuditInterceptor>();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -112,7 +115,7 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddValidatorsFromAssembly(AssemblyReference.Assembly);
 
 // ── Memory Cache (OTP store) ──────────────────────────────────────────────────
-builder.Services.AddMemoryCache();
+//builder.Services.AddMemoryCache();
 
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -124,17 +127,18 @@ builder.Services.AddScoped<ISystemControlRepository, SystemControlRepository>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
+builder.Services.AddScoped<IOtpCache, RedisOtpCache>();
 // ── Unit of Work ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
-builder.Services.AddScoped<IOtpCache, MemoryCacheOtpCache>();
 builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAdminTokenService, AdminTokenService>();
 builder.Services.AddScoped<ICurrentAdminService, CurrentAdminService>();
 builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
+builder.Services.AddScoped<DatabaseSeeder>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -143,8 +147,6 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();
 builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 
-
-builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 
 builder.Services.AddHttpClient();
 
@@ -453,60 +455,10 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 }
-await SeedSuperAdminAsync(app);
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+    await seeder.SeedAsync();
+}
 app.Run();
 
-static async Task SeedSuperAdminAsync(WebApplication app)
-{
-    using var scope = app.Services.CreateScope();
-    var adminRepo = scope.ServiceProvider.GetRequiredService<IAdminRepository>();
-
-    // Exit immediately if any admin already exists — idempotent
-    if (await adminRepo.AnyAsync())
-        return;
-
-    var tempPassword = Environment.GetEnvironmentVariable("ADMIN_TEMP_PASSWORD");
-    if (string.IsNullOrWhiteSpace(tempPassword))
-    {
-        var logger = scope.ServiceProvider
-            .GetRequiredService<ILogger<Program>>();
-        logger.LogWarning(
-            "No SuperAdmin exists and ADMIN_TEMP_PASSWORD environment variable " +
-            "is not set. Skipping SuperAdmin seed. Set the environment variable " +
-            "and restart to create the first SuperAdmin.");
-        return;
-    }
-
-    var passwordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword, workFactor: 12);
-
-    var admin = AdminUser.Create(
-        name: "Super Admin",
-        email: Environment.GetEnvironmentVariable("ADMIN_EMAIL")
-            ?? throw new InvalidOperationException(
-                "ADMIN_EMAIL environment variable is not set."),
-        passwordHash: passwordHash,
-        role: AdminRole.SuperAdmin);
-
-    await adminRepo.AddAsync(admin, default);
-
-    var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-    await uow.SaveChangesAsync(default);
-
-    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-    await emailService.SendAsync(
-        to: admin.Email,
-        subject: "MyMoola SuperAdmin Account Created",
-        body: $"""
-            Your SuperAdmin account has been created.
-
-            Email: {admin.Email}
-            Temporary Password: {tempPassword}
-
-            Please log in and change your password immediately.
-            """,
-        default);
-
-    app.Logger.LogInformation(
-        "SuperAdmin seeded successfully. Email={Email}",
-        admin.Email);
-}

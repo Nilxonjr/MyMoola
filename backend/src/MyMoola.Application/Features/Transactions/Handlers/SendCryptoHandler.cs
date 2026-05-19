@@ -74,7 +74,7 @@ public sealed class SendCryptoHandler(
         var maintenance = await systemControls
             .FindByKeyAsync(SystemControlKeys.GlobalMaintenance, ct);
 
-        if (maintenance is not null && !maintenance.IsEnabled)
+        if (maintenance is not null && maintenance.IsEnabled)
             throw new OperationDisabledException(SystemControlKeys.GlobalMaintenance);
 
         // 9. Load sender wallet

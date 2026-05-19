@@ -43,7 +43,7 @@ public sealed class ChangePasswordHandler(
 
         // 5. Audit
         auditLog.Log(
-            actorType: "admin",
+            actorType: "adminUser",
             action: "admin.password_changed",
             targetEntity: nameof(admin),
             targetId: admin.Id,
