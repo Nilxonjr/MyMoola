@@ -68,7 +68,10 @@ object HomeApiClient {
         val interactedPhone: String?,
         val currency: String,
         val amount: Double,
-        val createdAt: String
+        val createdAt: String,
+        val marketRateSnapshot: Double?,
+        val onChainConfirmations: Int,
+        val mpesaReference: String?
     )
 
     suspend fun getMe(): ApiResult<MeResponse> = withContext(Dispatchers.IO) {
@@ -164,7 +167,15 @@ object HomeApiClient {
                         )
                     )
                 } else {
-                    ApiResult(errorMessage = extractErrorMessage(body, code))
+                    val rawMessage = extractErrorMessage(body, code)
+                    val normalizedMessage = when {
+                        code == HttpURLConnection.HTTP_NOT_FOUND ->
+                            "No user found with phone number $phoneNumber."
+                        rawMessage.contains("user with key", ignoreCase = true) ->
+                            rawMessage.replace("user with key", "user with phone number", ignoreCase = true)
+                        else -> rawMessage
+                    }
+                    ApiResult(errorMessage = normalizedMessage)
                 }
             }.getOrElse {
                 ApiResult(errorMessage = "Network error while looking up recipient.")
@@ -238,7 +249,10 @@ object HomeApiClient {
                             interactedPhone = item.optString("interactedPhone").ifBlank { null },
                             currency = item.optString("currency"),
                             amount = item.optDouble("amount", 0.0),
-                            createdAt = item.optString("createdAt")
+                            createdAt = item.optString("createdAt"),
+                            marketRateSnapshot = item.optDouble("marketRateSnapshot").takeUnless { item.isNull("marketRateSnapshot") },
+                            onChainConfirmations = item.optInt("onChainConfirmations", 0),
+                            mpesaReference = item.optString("mpesaReference").ifBlank { null }
                         )
                     )
                 }

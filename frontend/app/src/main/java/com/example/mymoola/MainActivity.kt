@@ -130,13 +130,18 @@ class MainActivity : ComponentActivity() {
                                 onSendToUserClick = { navController.navigate("send_to_user") },
                                 onViewRecordsClick = { navController.navigate("view_records") },
                                 onActivityClick = { activity ->
-                                    navController.navigate(
-                                        "activity_details/" +
-                                            "${Uri.encode(activity.type)}/" +
-                                            "${Uri.encode(activity.status)}/" +
-                                            "${Uri.encode(activity.detail)}/" +
-                                            "${Uri.encode(activity.amount)}"
-                                    )
+                                    navController.currentBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.apply {
+                                            set("activity_type", activity.type)
+                                            set("activity_status", activity.status)
+                                            set("activity_detail", activity.detail)
+                                            set("activity_amount", activity.amount)
+                                            set("activity_market_rate_snapshot", activity.marketRateSnapshot)
+                                            set("activity_on_chain_confirmations", activity.onChainConfirmations)
+                                            set("activity_mpesa_reference", activity.mpesaReference)
+                                        }
+                                    navController.navigate("activity_details")
                                 }
                             )
                         }
@@ -217,20 +222,23 @@ class MainActivity : ComponentActivity() {
                         composable("view_records") {
                             ViewRecordsScreen(onBackClick = { navController.popBackStack() })
                         }
-                        composable(
-                            route = "activity_details/{type}/{status}/{detail}/{amount}",
-                            arguments = listOf(
-                                navArgument("type") { type = NavType.StringType },
-                                navArgument("status") { type = NavType.StringType },
-                                navArgument("detail") { type = NavType.StringType },
-                                navArgument("amount") { type = NavType.StringType }
-                            )
-                        ) { backStackEntry ->
+                        composable("activity_details") {
+                            val state = navController.previousBackStackEntry?.savedStateHandle
+                            val activityType = state?.get<String>("activity_type").orEmpty()
+                            val activityStatus = state?.get<String>("activity_status").orEmpty()
+                            val activityDetail = state?.get<String>("activity_detail").orEmpty()
+                            val activityAmount = state?.get<String>("activity_amount").orEmpty()
+                            val activityRate = state?.get<Double>("activity_market_rate_snapshot")
+                            val activityConfirmations = state?.get<Int>("activity_on_chain_confirmations") ?: 0
+                            val activityMpesaRef = state?.get<String>("activity_mpesa_reference")
                             ActivityDetailsScreen(
-                                type = backStackEntry.arguments?.getString("type").orEmpty(),
-                                status = backStackEntry.arguments?.getString("status").orEmpty(),
-                                detail = backStackEntry.arguments?.getString("detail").orEmpty(),
-                                amount = backStackEntry.arguments?.getString("amount").orEmpty(),
+                                type = activityType,
+                                status = activityStatus,
+                                detail = activityDetail,
+                                amount = activityAmount,
+                                marketRateSnapshot = activityRate,
+                                onChainConfirmations = activityConfirmations,
+                                mpesaReference = activityMpesaRef,
                                 onBackClick = { navController.popBackStack() }
                             )
                         }
