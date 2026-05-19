@@ -164,17 +164,6 @@ fun HomeScreen(
         val transactionsResult = HomeApiClient.getAllTransactions()
         if (transactionsResult.isSuccess) {
             val txs = transactionsResult.data.orEmpty()
-                .filter { tx ->
-                    tx.initiatorUserId.equals(currentUserId, ignoreCase = true) ||
-                        tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-                }
-                .groupBy { it.id }
-                .map { (_, group) ->
-                    group.firstOrNull { it.counterpartyUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.firstOrNull { it.initiatorUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.first()
-                }
-                .sortedByDescending { it.createdAt }
             activities = txs.map { tx ->
                 val isSendType = tx.type.equals("Send", ignoreCase = true)
                 val isInitiator = tx.initiatorUserId.equals(currentUserId, ignoreCase = true)
@@ -199,17 +188,7 @@ fun HomeScreen(
                 HomeActivity(
                     type = displayType,
                     status = tx.status.lowercase(Locale.US),
-                    detail = buildString {
-                        append(tx.currency)
-                        append(" • ")
-                        append(formatHomeTime(tx.createdAt))
-                        tx.interactedPhone?.takeIf { it.isNotBlank() }?.let {
-                            append(" • ")
-                            append(it)
-                        }
-                        append(" • ")
-                        append(tx.referenceCode)
-                    },
+                    detail = "${tx.currency} • ${formatHomeTime(tx.createdAt)} • ${tx.referenceCode}",
                     amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
                     amountColor = amountColor
                 )

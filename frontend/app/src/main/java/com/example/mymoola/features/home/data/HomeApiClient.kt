@@ -65,7 +65,6 @@ object HomeApiClient {
         val status: String,
         val initiatorUserId: String?,
         val counterpartyUserId: String?,
-        val interactedPhone: String?,
         val currency: String,
         val amount: Double,
         val createdAt: String
@@ -235,7 +234,6 @@ object HomeApiClient {
                             status = item.optString("status"),
                             initiatorUserId = item.optString("initiatorUserId").ifBlank { null },
                             counterpartyUserId = item.optString("counterpartyUserId").ifBlank { null },
-                            interactedPhone = item.optString("interactedPhone").ifBlank { null },
                             currency = item.optString("currency"),
                             amount = item.optDouble("amount", 0.0),
                             createdAt = item.optString("createdAt")
