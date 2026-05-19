@@ -9,8 +9,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
+import java.net.URLEncoder
 import java.net.URL
+import java.util.UUID
 
 object HomeApiClient {
     data class ApiResult<out T>(
@@ -21,7 +24,9 @@ object HomeApiClient {
     }
 
     data class MeResponse(
-        val fullName: String
+        val id: String,
+        val fullName: String,
+        val phone: String
     )
 
     data class WalletBalance(
@@ -33,6 +38,37 @@ object HomeApiClient {
         val displayCurrency: String,
         val totalFiatEquivalent: Double,
         val wallets: List<WalletBalance>
+    )
+
+    data class LookupUserResponse(
+        val fullName: String,
+        val phoneNumber: String
+    )
+
+    data class SendToUserRequest(
+        val recipientPhone: String,
+        val currency: String,
+        val amount: Double,
+        val pin: String
+    )
+
+    data class SendToUserResponse(
+        val transactionId: String,
+        val referenceCode: String,
+        val message: String
+    )
+
+    data class UserTransaction(
+        val id: String,
+        val referenceCode: String,
+        val type: String,
+        val status: String,
+        val initiatorUserId: String?,
+        val counterpartyUserId: String?,
+        val interactedPhone: String?,
+        val currency: String,
+        val amount: Double,
+        val createdAt: String
     )
 
     suspend fun getMe(): ApiResult<MeResponse> = withContext(Dispatchers.IO) {
@@ -48,7 +84,13 @@ object HomeApiClient {
             val body = finalAttempt.body
             if (code == HttpURLConnection.HTTP_OK) {
                 val json = JSONObject(body)
-                ApiResult(data = MeResponse(fullName = json.optString("fullName", "User")))
+                ApiResult(
+                    data = MeResponse(
+                        id = json.optString("id", ""),
+                        fullName = json.optString("fullName", "User"),
+                        phone = json.optString("phone", "")
+                    )
+                )
             } else {
                 ApiResult(errorMessage = extractErrorMessage(body, code))
             }
@@ -98,10 +140,158 @@ object HomeApiClient {
         }
     }
 
+    suspend fun lookupUserByPhone(phoneNumber: String): ApiResult<LookupUserResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val encoded = URLEncoder.encode(phoneNumber, Charsets.UTF_8.name())
+                val path = "/api/users/lookup?phone=$encoded"
+
+                val firstAttempt = executeAuthorizedGet(path)
+                val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                    executeAuthorizedGet(path)
+                } else {
+                    firstAttempt
+                }
+
+                val code = finalAttempt.statusCode
+                val body = finalAttempt.body
+                if (code == HttpURLConnection.HTTP_OK) {
+                    val json = JSONObject(body)
+                    ApiResult(
+                        data = LookupUserResponse(
+                            fullName = json.optString("fullName", ""),
+                            phoneNumber = json.optString("phoneNumber", "")
+                        )
+                    )
+                } else {
+                    ApiResult(errorMessage = extractErrorMessage(body, code))
+                }
+            }.getOrElse {
+                ApiResult(errorMessage = "Network error while looking up recipient.")
+            }
+        }
+
+    suspend fun sendToUser(request: SendToUserRequest): ApiResult<SendToUserResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val firstAttempt = executeAuthorizedSend(request)
+                val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                    executeAuthorizedSend(request)
+                } else {
+                    firstAttempt
+                }
+
+                val code = finalAttempt.statusCode
+                val body = finalAttempt.body
+                if (code == HttpURLConnection.HTTP_OK) {
+                    val json = JSONObject(body)
+                    ApiResult(
+                        data = SendToUserResponse(
+                            transactionId = json.optString("transactionId", ""),
+                            referenceCode = json.optString("referenceCode", ""),
+                            message = json.optString("message", "Transfer completed successfully.")
+                        )
+                    )
+                } else {
+                    ApiResult(errorMessage = extractErrorMessage(body, code))
+                }
+            }.getOrElse {
+                ApiResult(errorMessage = "Network error while sending funds.")
+            }
+        }
+
+    suspend fun getAllTransactions(): ApiResult<List<UserTransaction>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val collected = mutableListOf<UserTransaction>()
+            var page = 1
+            val pageSize = 50
+            var totalPages = 1
+
+            do {
+                val path = "/api/users/me/transactions?page=$page&pageSize=$pageSize"
+                val firstAttempt = executeAuthorizedGet(path)
+                val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                    executeAuthorizedGet(path)
+                } else {
+                    firstAttempt
+                }
+
+                val code = finalAttempt.statusCode
+                val body = finalAttempt.body
+                if (code != HttpURLConnection.HTTP_OK) {
+                    return@runCatching ApiResult(errorMessage = extractErrorMessage(body, code))
+                }
+
+                val json = JSONObject(body)
+                totalPages = json.optInt("totalPages", 1).coerceAtLeast(1)
+                val items = json.optJSONArray("items") ?: JSONArray()
+                for (i in 0 until items.length()) {
+                    val item = items.getJSONObject(i)
+                    collected.add(
+                        UserTransaction(
+                            id = item.optString("id"),
+                            referenceCode = item.optString("referenceCode"),
+                            type = item.optString("type"),
+                            status = item.optString("status"),
+                            initiatorUserId = item.optString("initiatorUserId").ifBlank { null },
+                            counterpartyUserId = item.optString("counterpartyUserId").ifBlank { null },
+                            interactedPhone = item.optString("interactedPhone").ifBlank { null },
+                            currency = item.optString("currency"),
+                            amount = item.optDouble("amount", 0.0),
+                            createdAt = item.optString("createdAt")
+                        )
+                    )
+                }
+
+                page += 1
+            } while (page <= totalPages)
+
+            ApiResult(data = collected)
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while loading transactions.")
+        }
+    }
+
     private data class RawResponse(
         val statusCode: Int,
         val body: String
     )
+
+    private fun executeAuthorizedSend(request: SendToUserRequest): RawResponse {
+        val accessToken = AuthSession.accessToken
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/transactions/send")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+            setRequestProperty("Idempotency-Key", UUID.randomUUID().toString())
+        }
+
+        val payload = JSONObject().apply {
+            put("recipientPhone", request.recipientPhone)
+            put("currency", request.currency)
+            put("amount", request.amount)
+            put("pin", request.pin)
+        }
+
+        OutputStreamWriter(connection.outputStream).use { writer ->
+            writer.write(payload.toString())
+            writer.flush()
+        }
+
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
+    }
 
     private fun executeAuthorizedGet(path: String): RawResponse {
         val accessToken = AuthSession.accessToken
