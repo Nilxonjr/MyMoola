@@ -44,6 +44,19 @@ public sealed class User : BaseEntity
         };
     }
 
+    public static User CreateSystem(Guid id, string name, string phoneNumberValue)
+    {
+        return new User
+        {
+            Id = id,
+            PhoneNumberValue = $"{phoneNumberValue}",
+            PinHash = "SYSTEM",
+            FullName = name,
+            AccountStatus = AccountStatus.Active,
+            KycStatus = KycStatus.Verified
+        };
+    }
+
     public void VerifyPhone()
     {
         PhoneVerifiedAt = DateTimeOffset.UtcNow;

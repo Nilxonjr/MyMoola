@@ -10,4 +10,6 @@ public interface IWalletRepository
     Task<Wallet?> FindByUserAndCurrencyAsync(Guid userId, Currency currency, CancellationToken ct = default);
     Task<Wallet?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<Wallet>> GetByUserIdAsync(Guid userId, CancellationToken ct = default); // added
+
+    Task AddAsync(Wallet wallet, CancellationToken ct = default);
 }

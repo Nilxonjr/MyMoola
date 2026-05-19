@@ -1,19 +1,18 @@
 ﻿// MyMoola.Infrastructure/BackgroundJobs/ExchangeRateRefreshJob.cs
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MyMoola.Application.Common.Interfaces;
-using MyMoola.Domain.Enums;
 using MyMoola.Infrastructure.Services;
 using MyMoola.Infrastructure.Settings;
+using StackExchange.Redis;
 
 namespace MyMoola.Infrastructure.BackgroundJobs;
 
 public sealed class ExchangeRateRefreshJob(
     IServiceScopeFactory scopeFactory,
-    IMemoryCache cache,
+    IConnectionMultiplexer redis,
     IOptions<ExchangeRateSettings> settings,
     ILogger<ExchangeRateRefreshJob> logger)
     : BackgroundService
@@ -42,7 +41,7 @@ public sealed class ExchangeRateRefreshJob(
             var repository = scope.ServiceProvider.GetRequiredService<IExchangeRateRepository>();
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            IReadOnlyList<MyMoola.Domain.Entities.ExchangeRate> rates;
+            IReadOnlyList<Domain.Entities.ExchangeRate> rates;
 
             try
             {
@@ -63,8 +62,10 @@ public sealed class ExchangeRateRefreshJob(
             await repository.AddRangeAsync(rates, ct);
             await uow.SaveChangesAsync(ct);
 
+            // Invalidate Redis cache for all refreshed currencies
+            var db = redis.GetDatabase();
             foreach (var rate in rates)
-                cache.Remove($"exchange_rate:{rate.Currency}");
+                await db.KeyDeleteAsync($"exchange_rate:{rate.Currency}");
 
             logger.LogInformation(
                 "Exchange rate refresh complete. Currencies={Count} Source={Source}",
@@ -72,12 +73,10 @@ public sealed class ExchangeRateRefreshJob(
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Application is shutting down — exit cleanly
             logger.LogInformation("Exchange rate refresh cancelled — application shutting down.");
         }
         catch (Exception ex)
         {
-            // Any other failure — log and survive to next tick
             logger.LogError(ex,
                 "Exchange rate refresh failed. Will retry in {Minutes} minutes.",
                 settings.Value.RateRefreshIntervalMinutes);

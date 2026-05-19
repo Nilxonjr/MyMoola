@@ -9,7 +9,6 @@ namespace MyMoola.Application.Features.Admin.Handlers;
 public sealed class LoginAdminHandler(
     IAdminRepository admins,
     IAdminTokenService tokenService,
-    IAuditLogService auditLog,
     IUnitOfWork uow,
     ILogger<LoginAdminHandler> logger) : IRequestHandler<LoginAdminCommand, LoginAdminResponse>
 {
@@ -32,13 +31,14 @@ public sealed class LoginAdminHandler(
         // 4. Record login timestamp
         admin.RecordLogin();
 
+        // moved logging to interceptor
         // 5. Audit login
-        auditLog.Log(
-            actorType: "admin",
-            action: "admin.login",
-            targetEntity: nameof(admin),
-            targetId: admin.Id,
-            actorId: admin.Id);
+        //auditLog.Log(
+        //    actorType: "admin",
+        //    action: "admin.login",
+        //    targetEntity: nameof(admin),
+        //    targetId: admin.Id,
+        //    actorId: admin.Id);
 
         await uow.SaveChangesAsync(ct);
 

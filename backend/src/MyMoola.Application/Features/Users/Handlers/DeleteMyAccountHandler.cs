@@ -12,7 +12,6 @@ public sealed class DeleteMyAccountHandler(
     IUserRepository users,
     IWalletRepository wallets,
     IRefreshTokenRepository refreshTokens,
-    IAuditLogService auditLog,
     IUnitOfWork uow,
     ILogger<DeleteMyAccountHandler> logger)
     : IRequestHandler<DeleteMyAccountCommand>
@@ -40,14 +39,16 @@ public sealed class DeleteMyAccountHandler(
         // Preserves transaction history and audit trail
         user.MarkDeleted();
 
-        await uow.SaveChangesAsync(ct);
 
-        auditLog.Log(
-            actorType: "user",
-            action: "account.deleted",
-            targetEntity: nameof(User),
-            targetId: userId,
-            actorId: userId);
+        //auditLog.Log(
+        //    actorType: "user",
+        //    action: "account.deleted",
+        //    targetEntity: nameof(User),
+        //    targetId: userId,
+        //    actorId: userId);
+
+
+        await uow.SaveChangesAsync(ct);
 
         logger.LogInformation("Account deleted. UserId={UserId}", userId);
     }

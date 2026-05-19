@@ -9,7 +9,7 @@ namespace MyMoola.Infrastructure.Services;
 public sealed class RedisIdempotencyService(
     IConnectionMultiplexer redis) : IIdempotencyService
 {
-    private readonly StackExchange.Redis.IDatabase _db = redis.GetDatabase(6);
+    private readonly StackExchange.Redis.IDatabase _db = redis.GetDatabase(0);
 
     public async Task<CachedResponse?> GetAsync(
         string key,
