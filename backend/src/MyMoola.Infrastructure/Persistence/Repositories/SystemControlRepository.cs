@@ -10,4 +10,10 @@ public sealed class SystemControlRepository(AppDbContext db) : ISystemControlRep
     public async Task<SystemControl?> FindByKeyAsync(string controlKey, CancellationToken ct = default)
         => await db.SystemControls
             .FirstOrDefaultAsync(sc => sc.ControlKey == controlKey, ct);
+
+    public async Task<bool> ExistsByKeyAsync(string controlKey, CancellationToken ct = default)
+    => await db.SystemControls.AnyAsync(sc => sc.ControlKey == controlKey, ct);
+
+    public async Task AddAsync(SystemControl control, CancellationToken ct = default)
+        => await db.SystemControls.AddAsync(control, ct);
 }

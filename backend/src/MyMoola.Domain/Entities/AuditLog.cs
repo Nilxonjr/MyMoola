@@ -17,16 +17,16 @@ public sealed class AuditLog : BaseEntity
     private AuditLog() { }
 
     public static AuditLog Create(
-        string actorType,
-        string action,
-        string targetEntity,
-        Guid targetId,
-        Guid? actorId = null,
-        string? ipAddress = null,
-        string? beforeState = null,
-        string? afterState = null)
+    string actorType,
+    string action,
+    string targetEntity,
+    Guid targetId,
+    Guid? actorId = null,
+    string? ipAddress = null,
+    string? beforeState = null,
+    string? afterState = null)
     {
-        return new AuditLog
+        var log = new AuditLog
         {
             ActorId = actorId,
             ActorType = actorType,
@@ -37,5 +37,10 @@ public sealed class AuditLog : BaseEntity
             BeforeState = beforeState,
             AfterState = afterState
         };
+
+        log.SetCreatedAt(DateTimeOffset.UtcNow);
+        log.SetUpdatedAt(DateTimeOffset.UtcNow);
+
+        return log;
     }
 }

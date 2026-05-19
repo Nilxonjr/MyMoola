@@ -89,6 +89,7 @@ public sealed class ExceptionHandlingMiddleware(
         DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Concurrency Conflict", null),
         InsufficientBalanceException => (StatusCodes.Status422UnprocessableEntity, "Insufficient Balance", null),
         DailyLimitExceededException => (StatusCodes.Status422UnprocessableEntity, "Daily Limit Exceeded", null),
+        InvalidOperationException => (StatusCodes.Status422UnprocessableEntity, "Invalid Operation", null),
 
         _ => (StatusCodes.Status500InternalServerError, "Internal Server Error", null),
     };

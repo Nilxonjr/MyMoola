@@ -9,7 +9,6 @@ namespace MyMoola.Application.Features.Admin.Handlers;
 
 public sealed class UpdateAdminStatusHandler(
     IAdminRepository admins,
-    IAuditLogService auditLog,
     ICurrentAdminService currentAdmin,
     IUnitOfWork uow,
     ILogger<UpdateAdminStatusHandler> logger) : IRequestHandler<UpdateAdminStatusCommand>
@@ -43,14 +42,14 @@ public sealed class UpdateAdminStatusHandler(
         var afterState = $"{{\"isActive\":{admin.IsActive.ToString().ToLower()}}}";
 
         // 5. Audit
-        auditLog.Log(
-            actorType: "admin",
-            action: command.Activate ? "admin.activated" : "admin.deactivated",
-            targetEntity: nameof(AdminUser),
-            targetId: admin.Id,
-            actorId: actorId,
-            beforeState: beforeState,
-            afterState: afterState);
+        //auditLog.Log(
+        //    actorType: "admin",
+        //    action: command.Activate ? "admin.activated" : "admin.deactivated",
+        //    targetEntity: nameof(AdminUser),
+        //    targetId: admin.Id,
+        //    actorId: actorId,
+        //    beforeState: beforeState,
+        //    afterState: afterState);
 
         await uow.SaveChangesAsync(ct);
 

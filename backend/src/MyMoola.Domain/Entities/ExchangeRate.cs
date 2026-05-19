@@ -37,4 +37,26 @@ public sealed class ExchangeRate : BaseEntity
             FetchedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static ExchangeRate Restore(
+    Currency currency,
+    decimal rateKes,
+    decimal rateUsd,
+    decimal spreadPercent,
+    string source,
+    DateTimeOffset fetchedAt)
+    {
+        var spread = spreadPercent / 100;
+        return new ExchangeRate
+        {
+            Currency = currency,
+            RateKes = rateKes,
+            RateUsd = rateUsd,
+            BuyRateKes = rateKes * (1 + spread),
+            SellRateKes = rateKes * (1 - spread),
+            SpreadPercent = spreadPercent,
+            Source = source,
+            FetchedAt = fetchedAt
+        };
+    }
 }

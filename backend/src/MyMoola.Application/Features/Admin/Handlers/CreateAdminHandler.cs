@@ -10,7 +10,6 @@ namespace MyMoola.Application.Features.Admin.Handlers;
 public sealed class CreateAdminHandler(
     IAdminRepository admins,
     IEmailService email,
-    IAuditLogService auditLog,
     ICurrentAdminService currentAdmin,
     IUnitOfWork uow,
     ILogger<CreateAdminHandler> logger) : IRequestHandler<CreateAdminCommand, CreateAdminResponse>
@@ -44,13 +43,13 @@ public sealed class CreateAdminHandler(
         await admins.AddAsync(admin, ct);
 
         // 5. Audit
-        auditLog.Log(
-            actorType: "admin",
-            action: "admin.created",
-            targetEntity: nameof(AdminUser),
-            targetId: admin.Id,
-            actorId: actorId,
-            afterState: $"{{\"name\":\"{admin.Name}\",\"email\":\"{admin.Email}\",\"role\":\"{admin.Role}\"}}");
+        //auditLog.Log(
+        //    actorType: "admin",
+        //    action: "admin.created",
+        //    targetEntity: nameof(AdminUser),
+        //    targetId: admin.Id,
+        //    actorId: actorId,
+        //    afterState: $"{{\"name\":\"{admin.Name}\",\"email\":\"{admin.Email}\",\"role\":\"{admin.Role}\"}}");
 
         await uow.SaveChangesAsync(ct);
 
