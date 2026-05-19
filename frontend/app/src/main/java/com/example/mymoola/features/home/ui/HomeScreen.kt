@@ -66,7 +66,10 @@ data class HomeActivity(
     val status: String,
     val detail: String,
     val amount: String,
-    val amountColor: Color
+    val amountColor: Color,
+    val marketRateSnapshot: Double?,
+    val onChainConfirmations: Int,
+    val mpesaReference: String?
 )
 
 data class BalanceCurrency(
@@ -211,7 +214,10 @@ fun HomeScreen(
                         append(tx.referenceCode)
                     },
                     amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
-                    amountColor = amountColor
+                    amountColor = amountColor,
+                    marketRateSnapshot = tx.marketRateSnapshot,
+                    onChainConfirmations = tx.onChainConfirmations,
+                    mpesaReference = tx.mpesaReference
                 )
             }
         } else {
@@ -555,7 +561,7 @@ fun HomeScreen(
                 }
             }
 
-            items(activities) { activity ->
+            items(activities.take(3)) { activity ->
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = panelBackground),

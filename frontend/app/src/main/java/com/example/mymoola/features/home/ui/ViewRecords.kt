@@ -188,6 +188,24 @@ fun ViewRecordsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF64748B)
                                 )
+                                Text(
+                                    text = "Market rate snapshot: ${
+                                        tx.marketRateSnapshot?.let { String.format(Locale.US, "%,.4f", it) }
+                                            ?: "Not available"
+                                    }",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "On-chain confirmations: ${tx.onChainConfirmations}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "M-PESA reference: ${tx.mpesaReference?.takeIf { it.isNotBlank() } ?: "Not available"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF64748B)
+                                )
                             }
                         }
                     }

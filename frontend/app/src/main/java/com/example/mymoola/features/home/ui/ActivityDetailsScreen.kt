@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import java.util.Locale
 
 @Composable
 fun ActivityDetailsScreen(
@@ -28,10 +29,15 @@ fun ActivityDetailsScreen(
     status: String,
     detail: String,
     amount: String,
+    marketRateSnapshot: Double?,
+    onChainConfirmations: Int,
+    mpesaReference: String?,
     onBackClick: () -> Unit
 ) {
     val isCredit = amount.trim().startsWith("+")
     val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+    val marketRateText = marketRateSnapshot?.let { String.format(Locale.US, "%,.4f", it) } ?: "Not available"
+    val mpesaReferenceText = mpesaReference?.takeIf { it.isNotBlank() } ?: "Not available"
 
     Column(
         modifier = Modifier
@@ -90,6 +96,21 @@ fun ActivityDetailsScreen(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = amountColor
+            )
+            Text(
+                text = "Market rate snapshot: $marketRateText",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF475569)
+            )
+            Text(
+                text = "On-chain confirmations: $onChainConfirmations",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF475569)
+            )
+            Text(
+                text = "M-PESA reference: $mpesaReferenceText",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF475569)
             )
         }
     }
