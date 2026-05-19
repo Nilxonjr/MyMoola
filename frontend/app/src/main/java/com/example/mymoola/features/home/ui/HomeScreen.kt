@@ -51,8 +51,6 @@ import com.example.mymoola.R
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 data class HomeAction(
@@ -85,8 +83,7 @@ fun HomeScreen(
     onSellClick: () -> Unit = {},
     onPayWithMpesaClick: () -> Unit = {},
     onSendToUserClick: () -> Unit = {},
-    onViewRecordsClick: () -> Unit = {},
-    onActivityClick: (HomeActivity) -> Unit = {}
+    onViewRecordsClick: () -> Unit = {}
 ) {
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
@@ -97,7 +94,6 @@ fun HomeScreen(
     val context = LocalContext.current
 
     var userName by remember { mutableStateOf("User") }
-    var currentUserId by remember { mutableStateOf("") }
     var totalBalanceText by remember { mutableStateOf("KES 0.00") }
     var loadError by remember { mutableStateOf<String?>(null) }
     var balanceCurrencies by remember {
@@ -111,7 +107,6 @@ fun HomeScreen(
     }
     var selectedCurrency by remember { mutableStateOf(balanceCurrencies.first()) }
     var balanceMenuExpanded by remember { mutableStateOf(false) }
-    var activities by remember { mutableStateOf<List<HomeActivity>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         val token = AuthSession.accessToken
@@ -123,7 +118,6 @@ fun HomeScreen(
         val meResult = HomeApiClient.getMe()
         if (meResult.isSuccess) {
             userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
-            currentUserId = meResult.data?.id.orEmpty()
         } else {
             loadError = meResult.errorMessage
         }
@@ -133,10 +127,6 @@ fun HomeScreen(
             val balance = balanceResult.data
             if (balance != null) {
                 totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}"
-                val preferredCurrencyCode = balance.wallets
-                    .firstOrNull { it.total > 0.0 }
-                    ?.currency
-
                 val wallets = balance.wallets.map { wallet ->
                     val icon = when (wallet.currency.uppercase(Locale.US)) {
                         "BTC" -> "bitcoin_logo"
@@ -153,48 +143,11 @@ fun HomeScreen(
                 }
                 if (wallets.isNotEmpty()) {
                     balanceCurrencies = wallets
-                    selectedCurrency = wallets.firstOrNull { it.code == preferredCurrencyCode }
-                        ?: wallets.first()
+                    selectedCurrency = wallets.first()
                 }
             }
         } else {
             loadError = balanceResult.errorMessage
-        }
-
-        val transactionsResult = HomeApiClient.getAllTransactions()
-        if (transactionsResult.isSuccess) {
-            val txs = transactionsResult.data.orEmpty()
-            activities = txs.map { tx ->
-                val isSendType = tx.type.equals("Send", ignoreCase = true)
-                val isInitiator = tx.initiatorUserId.equals(currentUserId, ignoreCase = true)
-                val isReceiver = tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-
-                val displayType = when {
-                    isSendType && isInitiator -> "Send"
-                    isSendType && isReceiver -> "Receive"
-                    else -> tx.type.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
-                    }
-                }
-
-                val isCredit = when {
-                    isSendType && isReceiver -> true
-                    isSendType && isInitiator -> false
-                    else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
-                }
-
-                val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
-                val amountPrefix = if (isCredit) "+" else "-"
-                HomeActivity(
-                    type = displayType,
-                    status = tx.status.lowercase(Locale.US),
-                    detail = "${tx.currency} • ${formatHomeTime(tx.createdAt)} • ${tx.referenceCode}",
-                    amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
-                    amountColor = amountColor
-                )
-            }
-        } else {
-            loadError = transactionsResult.errorMessage ?: loadError
         }
     }
 
@@ -205,6 +158,12 @@ fun HomeScreen(
         HomeAction("onb_send_crypto", "M", "Send to Other Users"),
         HomeAction("onb_payment_records", "V", "View Records")
     )
+    val activities = listOf(
+        HomeActivity("Buy", "completed", "+254712345678 • 11:12", "+$1,000.00", Color(0xFF10B981)),
+        HomeActivity("Payment", "completed", "Coffee Shop • 11:12", "-$25.50", Color(0xFFEF4444)),
+        HomeActivity("Send", "completed", "0x83...8fd2 • 09:44", "-$120.00", Color(0xFFEF4444))
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -524,22 +483,11 @@ fun HomeScreen(
                 }
             }
 
-            if (activities.isEmpty()) {
-                item {
-                    Text(
-                        text = "No transactions yet.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = mutedText
-                    )
-                }
-            }
-
             items(activities) { activity ->
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = panelBackground),
-                    border = BorderStroke(1.dp, panelBorder),
-                    modifier = Modifier.clickable { onActivityClick(activity) }
+                    border = BorderStroke(1.dp, panelBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -588,16 +536,6 @@ fun HomeScreen(
                 }
             }
         }
-    }
-}
-
-private fun formatHomeTime(raw: String): String {
-    return runCatching {
-        OffsetDateTime.parse(raw)
-            .toLocalTime()
-            .format(DateTimeFormatter.ofPattern("HH:mm"))
-    }.getOrElse {
-        raw.take(16)
     }
 }
 
