@@ -16,6 +16,13 @@ import java.net.URL
 import java.util.UUID
 
 object HomeApiClient {
+    @Volatile
+    private var cachedMe: MeResponse? = null
+    @Volatile
+    private var cachedBalance: BalanceResponse? = null
+    @Volatile
+    private var cachedTransactions: List<UserTransaction>? = null
+
     data class ApiResult<out T>(
         val data: T? = null,
         val errorMessage: String? = null
@@ -91,6 +98,10 @@ object HomeApiClient {
         val mpesaReference: String?
     )
 
+    fun getCachedMe(): MeResponse? = cachedMe
+    fun getCachedBalance(): BalanceResponse? = cachedBalance
+    fun getCachedTransactions(): List<UserTransaction>? = cachedTransactions
+
     suspend fun getMe(): ApiResult<MeResponse> = withContext(Dispatchers.IO) {
         runCatching {
             val firstAttempt = executeAuthorizedGet("/api/users/me")
@@ -110,7 +121,7 @@ object HomeApiClient {
                         fullName = json.optString("fullName", "User"),
                         phone = json.optString("phone", "")
                     )
-                )
+                ).also { cachedMe = it.data }
             } else {
                 ApiResult(errorMessage = extractErrorMessage(body, code))
             }
@@ -151,7 +162,7 @@ object HomeApiClient {
                         totalFiatEquivalent = json.optDouble("totalFiatEquivalent", 0.0),
                         wallets = wallets
                     )
-                )
+                ).also { cachedBalance = it.data }
             } else {
                 ApiResult(errorMessage = extractErrorMessage(body, code))
             }
@@ -277,7 +288,7 @@ object HomeApiClient {
                 page += 1
             } while (page <= totalPages)
 
-            ApiResult(data = collected)
+            ApiResult(data = collected).also { cachedTransactions = it.data }
         }.getOrElse {
             ApiResult(errorMessage = "Network error while loading transactions.")
         }
