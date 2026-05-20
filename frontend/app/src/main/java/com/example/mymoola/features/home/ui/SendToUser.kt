@@ -25,7 +25,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +50,7 @@ import com.example.mymoola.BackIconButton
 import com.example.mymoola.R
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
 import kotlinx.coroutines.launch
 
 private const val KenyaPrefix = "+254"
@@ -219,10 +219,7 @@ fun SendToUserScreen(
                         placeholder = { Text("e.g. 0712345678 or +254712345678") },
                         isError = phoneNumber.isNotEmpty() && normalizedPhone.isBlank(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color(0xFFE2E8F0),
-                            focusedBorderColor = Color(0xFF0A7C6A)
-                        )
+                        colors = myMoolaOutlinedTextFieldColors()
                     )
                     if (phoneNumber.isNotEmpty() && normalizedPhone.isBlank()) {
                         Text(
@@ -322,15 +319,9 @@ fun SendToUserScreen(
                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyMenuExpanded)
                             },
                             shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                            colors = myMoolaOutlinedTextFieldColors(
                                 focusedContainerColor = Color(0xFFF8FAFC),
-                                unfocusedBorderColor = Color(0xFFE2E8F0),
-                                focusedBorderColor = Color(0xFF0A7C6A),
-                                focusedTextColor = Color(0xFF0F172A),
-                                unfocusedTextColor = Color(0xFF0F172A),
-                                focusedTrailingIconColor = Color(0xFF0A7C6A),
-                                unfocusedTrailingIconColor = Color(0xFF64748B)
+                                unfocusedContainerColor = Color(0xFFF8FAFC)
                             )
                         )
 
@@ -409,10 +400,7 @@ fun SendToUserScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         placeholder = { Text("e.g. 2500") },
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color(0xFFE2E8F0),
-                            focusedBorderColor = Color(0xFF0A7C6A)
-                        )
+                        colors = myMoolaOutlinedTextFieldColors()
                     )
                 }
 
@@ -435,10 +423,7 @@ fun SendToUserScreen(
                         placeholder = { Text("Enter 4-digit PIN") },
                         isError = pin.isNotEmpty() && pin.length < 4,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color(0xFFE2E8F0),
-                            focusedBorderColor = Color(0xFF0A7C6A)
-                        )
+                        colors = myMoolaOutlinedTextFieldColors()
                     )
                     if (pin.isNotEmpty() && pin.length < 4) {
                         Text(

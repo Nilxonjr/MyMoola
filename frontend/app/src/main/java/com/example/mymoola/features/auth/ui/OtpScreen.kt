@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -134,7 +135,8 @@ fun OtpScreen(
                     label = { Text("6-digit OTP") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = myMoolaOutlinedTextFieldColors(unfocusedBorderColor = panelBorder)
                 )
 
                 Text(

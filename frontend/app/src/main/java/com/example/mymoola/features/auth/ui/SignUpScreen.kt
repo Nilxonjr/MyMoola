@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
 import kotlinx.coroutines.launch
 
 private const val KenyaPrefix = "+254"
@@ -132,7 +133,8 @@ fun SignUpScreen(
                     },
                     label = { Text("Name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = myMoolaOutlinedTextFieldColors()
                 )
                 OutlinedTextField(
                     value = phone,
@@ -144,7 +146,8 @@ fun SignUpScreen(
                     label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = myMoolaOutlinedTextFieldColors()
                 )
                 OutlinedTextField(
                     value = pin,
@@ -157,7 +160,8 @@ fun SignUpScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = myMoolaOutlinedTextFieldColors()
                 )
 
                 OutlinedButton(

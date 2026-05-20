@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -34,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,8 +56,9 @@ import com.example.mymoola.R
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 data class HomeAction(
@@ -79,7 +85,7 @@ data class BalanceCurrency(
     val balance: String
 )
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterialApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -115,13 +121,17 @@ fun HomeScreen(
     var selectedCurrency by remember { mutableStateOf(balanceCurrencies.first()) }
     var balanceMenuExpanded by remember { mutableStateOf(false) }
     var activities by remember { mutableStateOf<List<HomeActivity>>(emptyList()) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    suspend fun reloadHomeData() {
         val token = AuthSession.accessToken
         if (token.isNullOrBlank()) {
             loadError = "Session missing. Please log in again."
-            return@LaunchedEffect
+            return
         }
+
+        loadError = null
 
         val meResult = HomeApiClient.getMe()
         if (meResult.isSuccess) {
@@ -225,6 +235,21 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        reloadHomeData()
+    }
+
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                reloadHomeData()
+                isRefreshing = false
+            }
+        }
+    )
+
     val quickActions = listOf(
         HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
         HomeAction("onb_sell_kes", "S", "Sell Crypto"),
@@ -237,6 +262,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(pageBackground)
             .statusBarsPadding()
+            .pullRefresh(pullRefreshState)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -615,17 +641,28 @@ fun HomeScreen(
                 }
             }
         }
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
 private fun formatHomeTime(raw: String): String {
-    return runCatching {
-        OffsetDateTime.parse(raw)
-            .toLocalTime()
-            .format(DateTimeFormatter.ofPattern("HH:mm"))
-    }.getOrElse {
-        raw.take(16)
+    val parsers = listOf(
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+    )
+    val outputFormat = SimpleDateFormat("dd-MM-yyyy", Locale.US)
+    for (parser in parsers) {
+        val parsed = runCatching { parser.parse(raw) }.getOrNull()
+        if (parsed != null) {
+            return outputFormat.format(parsed)
+        }
     }
+    return raw
 }
 
 @Preview(showBackground = true, showSystemUi = true)

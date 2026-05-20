@@ -36,9 +36,6 @@ fun ActivityDetailsScreen(
 ) {
     val isCredit = amount.trim().startsWith("+")
     val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
-    val marketRateText = marketRateSnapshot?.let { String.format(Locale.US, "%,.4f", it) } ?: "Not available"
-    val mpesaReferenceText = mpesaReference?.takeIf { it.isNotBlank() } ?: "Not available"
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -97,21 +94,29 @@ fun ActivityDetailsScreen(
                 fontWeight = FontWeight.SemiBold,
                 color = amountColor
             )
-            Text(
-                text = "Market rate snapshot: $marketRateText",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF475569)
-            )
-            Text(
-                text = "On-chain confirmations: $onChainConfirmations",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF475569)
-            )
-            Text(
-                text = "M-PESA reference: $mpesaReferenceText",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF475569)
-            )
+            marketRateSnapshot?.let { snapshot ->
+                Text(
+                    text = "Market rate snapshot: ${String.format(Locale.US, "%,.4f", snapshot)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
+            }
+            if (onChainConfirmations > 0) {
+                Text(
+                    text = "On-chain confirmations: $onChainConfirmations",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
+            }
+            mpesaReference
+                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                ?.let { mpesaRef ->
+                    Text(
+                        text = "M-PESA reference: $mpesaRef",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                }
         }
     }
 }
