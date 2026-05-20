@@ -4,9 +4,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,19 +33,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private data class RatePoint(
     val timestampLabel: String,
+    val timestampRaw: String,
     val kesRate: Double
+)
+
+private data class SelectedChartPoint(
+    val point: RatePoint,
+    val xPx: Float,
+    val yPx: Float
 )
 
 @Composable
@@ -55,10 +71,23 @@ fun ViewRatesScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var generatedAt by remember { mutableStateOf<String?>(null) }
     var pointsByCurrency by remember { mutableStateOf<Map<String, List<RatePoint>>>(emptyMap()) }
+    var selectedPoint by remember { mutableStateOf<SelectedChartPoint?>(null) }
 
     fun formatTimestampLabel(raw: String): String {
-        val datePart = raw.substringBefore("T", missingDelimiterValue = raw)
-        return if (datePart.length >= 5) datePart.takeLast(5) else datePart
+        return runCatching {
+            OffsetDateTime.parse(raw)
+                .toLocalDate()
+                .format(DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault()))
+        }.getOrDefault(raw)
+    }
+
+    fun formatLocalDateTime(raw: String): String {
+        return runCatching {
+            OffsetDateTime.parse(raw)
+                .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                .toLocalDateTime()
+                .format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.getDefault()))
+        }.getOrDefault(raw)
     }
 
     suspend fun loadRates() {
@@ -66,8 +95,8 @@ fun ViewRatesScreen(
         errorMessage = null
         val result = HomeApiClient.getRatesHistory(
             currencies = currencies,
-            range = "7d",
-            interval = "day"
+            range = "24h",
+            interval = "hour"
         )
         isLoading = false
 
@@ -79,14 +108,17 @@ fun ViewRatesScreen(
                     series.currency.uppercase(Locale.US) to series.points.map { point ->
                         RatePoint(
                             timestampLabel = formatTimestampLabel(point.timestamp),
+                            timestampRaw = point.timestamp,
                             kesRate = point.kesRate
                         )
                     }
                 }
                 .orEmpty()
+            selectedPoint = null
         } else {
             errorMessage = result.errorMessage ?: "Failed to load rates."
             pointsByCurrency = emptyMap()
+            selectedPoint = null
         }
     }
 
@@ -104,6 +136,13 @@ fun ViewRatesScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8FAFC))
+            .pointerInput(selectedPoint) {
+                detectTapGestures {
+                    if (selectedPoint != null) {
+                        selectedPoint = null
+                    }
+                }
+            }
             .statusBarsPadding()
             .padding(16.dp)
     ) {
@@ -190,19 +229,70 @@ fun ViewRatesScreen(
                 }
             }
             else -> {
-                Surface(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color.White
+                        .height(220.dp)
                 ) {
-                    RatesLineChart(
-                        points = points,
+                    val density = LocalDensity.current
+                    Surface(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp, vertical = 16.dp)
-                    )
+                            .fillMaxSize(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.White
+                    ) {
+                        RatesLineChart(
+                            points = points,
+                            onPointSelected = { selectedPoint = it },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp, vertical = 16.dp)
+                        )
+                    }
+
+                    selectedPoint?.let { selected ->
+                        val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+                        val estimatedCardWidthPx = with(density) { 220.dp.toPx() }
+                        val chartWidthPx = with(density) { maxWidth.toPx() }
+                        val cardCenterTargetX = selected.xPx + with(density) { 16.dp.toPx() }
+                        val clampedX = (cardCenterTargetX - estimatedCardWidthPx / 2f)
+                            .coerceIn(8f, minOf(chartWidthPx - estimatedCardWidthPx - 8f, screenWidthPx - estimatedCardWidthPx - 8f))
+                        val rawY = selected.yPx - with(density) { 90.dp.toPx() }
+                        val clampedY = rawY.coerceAtLeast(8f)
+
+                        Surface(
+                            modifier = Modifier
+                                .offset {
+                                    IntOffset(
+                                        x = clampedX.toInt(),
+                                        y = clampedY.toInt()
+                                    )
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            tonalElevation = 1.dp,
+                            shadowElevation = 4.dp,
+                            color = Color.White,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = formatLocalDateTime(selected.point.timestampRaw),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF334155),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "KES ${numberFormatter.format(selected.point.kesRate)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color(0xFF0F172A),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -219,8 +309,16 @@ fun ViewRatesScreen(
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(4.dp))
+        if (selectedPoint != null) {
+            Text(
+                text = "Selected: ${formatLocalDateTime(selectedPoint?.point?.timestampRaw.orEmpty())} • KES ${numberFormatter.format(selectedPoint?.point?.kesRate ?: 0.0)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF334155)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+        }
         Text(
-            text = "Last updated: ${generatedAt ?: "unknown"}",
+            text = "Last updated: ${generatedAt?.let(::formatLocalDateTime) ?: "unknown"}",
             style = MaterialTheme.typography.bodySmall,
             color = Color(0xFF64748B)
         )
@@ -230,6 +328,7 @@ fun ViewRatesScreen(
 @Composable
 private fun RatesLineChart(
     points: List<RatePoint>,
+    onPointSelected: (SelectedChartPoint) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (points.size < 2) return
@@ -244,6 +343,30 @@ private fun RatesLineChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
+                .pointerInput(points) {
+                    detectTapGestures { tapOffset ->
+                        val topY = 8f
+                        val bottomY = size.height - 8f
+                        val startX = 10f
+                        val endX = size.width - 10f
+                        if (tapOffset.x < startX || tapOffset.x > endX) return@detectTapGestures
+                        val xStep = (endX - startX) / (points.size - 1).coerceAtLeast(1)
+                        val index = ((tapOffset.x - startX) / xStep)
+                            .toInt()
+                            .coerceIn(0, points.lastIndex)
+                        val selected = points[index]
+                        val ratio = ((selected.kesRate - min) / span).toFloat()
+                        val y = bottomY - ratio * (bottomY - topY)
+                        val x = startX + (index * xStep)
+                        onPointSelected(
+                            SelectedChartPoint(
+                                point = selected,
+                                xPx = x,
+                                yPx = y
+                            )
+                        )
+                    }
+                }
         ) {
             val startX = 10f
             val endX = size.width - 10f
@@ -287,7 +410,7 @@ private fun RatesLineChart(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(text = points.first().timestampLabel, style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
-            Text(text = "7 days", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+            Text(text = "24 hours", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
             Text(text = points.last().timestampLabel, style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
         }
     }

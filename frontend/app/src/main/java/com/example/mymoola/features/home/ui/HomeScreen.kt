@@ -56,6 +56,8 @@ import com.example.mymoola.R
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -125,6 +127,103 @@ fun HomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    fun applyBalance(balance: HomeApiClient.BalanceResponse?) {
+        if (balance == null) return
+        totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}"
+        val preferredCurrencyCode = balance.wallets
+            .firstOrNull { it.total > 0.0 }
+            ?.currency
+
+        val wallets = balance.wallets.map { wallet ->
+            val icon = when (wallet.currency.uppercase(Locale.US)) {
+                "BTC" -> "bitcoin_logo"
+                "ETH" -> "ethereum_logo"
+                "USDC" -> "usdc_logo"
+                else -> "onb_wallet_manage"
+            }
+            BalanceCurrency(
+                iconResName = icon,
+                code = wallet.currency,
+                label = wallet.currency,
+                balance = "${String.format(Locale.US, "%.6f", wallet.total)} ${wallet.currency}"
+            )
+        }
+        if (wallets.isNotEmpty()) {
+            balanceCurrencies = wallets
+            selectedCurrency = wallets.firstOrNull { it.code == preferredCurrencyCode } ?: wallets.first()
+        }
+    }
+
+    fun applyTransactions(all: List<HomeApiClient.UserTransaction>, userId: String) {
+        if (userId.isBlank()) return
+        val txs = all
+            .filter { tx ->
+                tx.initiatorUserId.equals(userId, ignoreCase = true) ||
+                    tx.counterpartyUserId.equals(userId, ignoreCase = true)
+            }
+            .groupBy { it.id }
+            .map { (_, group) ->
+                group.firstOrNull { it.counterpartyUserId.equals(userId, ignoreCase = true) }
+                    ?: group.firstOrNull { it.initiatorUserId.equals(userId, ignoreCase = true) }
+                    ?: group.first()
+            }
+            .sortedByDescending { it.createdAt }
+
+        activities = txs.map { tx ->
+            val isSendType = tx.type.equals("Send", ignoreCase = true)
+            val isInitiator = tx.initiatorUserId.equals(userId, ignoreCase = true)
+            val isReceiver = tx.counterpartyUserId.equals(userId, ignoreCase = true)
+
+            val displayType = when {
+                isSendType && isInitiator -> "Send"
+                isSendType && isReceiver -> "Receive"
+                else -> tx.type.replaceFirstChar {
+                    if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
+                }
+            }
+
+            val isCredit = when {
+                isSendType && isReceiver -> true
+                isSendType && isInitiator -> false
+                else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
+            }
+
+            val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+            val amountPrefix = if (isCredit) "+" else "-"
+            HomeActivity(
+                type = displayType,
+                status = tx.status.lowercase(Locale.US),
+                detail = buildString {
+                    append(tx.currency)
+                    append(" • ")
+                    append(formatHomeTime(tx.createdAt))
+                    tx.interactedPhone?.takeIf { it.isNotBlank() }?.let {
+                        append(" • ")
+                        append(it)
+                    }
+                    append(" • ")
+                    append(tx.referenceCode)
+                },
+                amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
+                amountColor = amountColor,
+                marketRateSnapshot = tx.marketRateSnapshot,
+                onChainConfirmations = tx.onChainConfirmations,
+                mpesaReference = tx.mpesaReference
+            )
+        }
+    }
+
+    fun applyCachedHomeData() {
+        HomeApiClient.getCachedMe()?.let {
+            userName = it.fullName.ifBlank { "User" }
+            currentUserId = it.id
+        }
+        applyBalance(HomeApiClient.getCachedBalance())
+        HomeApiClient.getCachedTransactions()?.let { cachedTxs ->
+            applyTransactions(cachedTxs, currentUserId)
+        }
+    }
+
     suspend fun reloadHomeData() {
         val token = AuthSession.accessToken
         if (token.isNullOrBlank()) {
@@ -134,109 +233,34 @@ fun HomeScreen(
 
         loadError = null
 
-        val meResult = HomeApiClient.getMe()
+        val (meResult, balanceResult, transactionsResult) = coroutineScope {
+            val meDeferred = async { HomeApiClient.getMe() }
+            val balanceDeferred = async { HomeApiClient.getBalance() }
+            val txDeferred = async { HomeApiClient.getAllTransactions() }
+            Triple(meDeferred.await(), balanceDeferred.await(), txDeferred.await())
+        }
+
         if (meResult.isSuccess) {
             userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
             currentUserId = meResult.data?.id.orEmpty()
         } else {
             loadError = meResult.errorMessage
         }
-
-        val balanceResult = HomeApiClient.getBalance()
         if (balanceResult.isSuccess) {
-            val balance = balanceResult.data
-            if (balance != null) {
-                totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}"
-                val preferredCurrencyCode = balance.wallets
-                    .firstOrNull { it.total > 0.0 }
-                    ?.currency
-
-                val wallets = balance.wallets.map { wallet ->
-                    val icon = when (wallet.currency.uppercase(Locale.US)) {
-                        "BTC" -> "bitcoin_logo"
-                        "ETH" -> "ethereum_logo"
-                        "USDC" -> "usdc_logo"
-                        else -> "onb_wallet_manage"
-                    }
-                    BalanceCurrency(
-                        iconResName = icon,
-                        code = wallet.currency,
-                        label = wallet.currency,
-                        balance = "${String.format(Locale.US, "%.6f", wallet.total)} ${wallet.currency}"
-                    )
-                }
-                if (wallets.isNotEmpty()) {
-                    balanceCurrencies = wallets
-                    selectedCurrency = wallets.firstOrNull { it.code == preferredCurrencyCode }
-                        ?: wallets.first()
-                }
-            }
+            applyBalance(balanceResult.data)
         } else {
             loadError = balanceResult.errorMessage
         }
 
-        val transactionsResult = HomeApiClient.getAllTransactions()
         if (transactionsResult.isSuccess) {
-            val txs = transactionsResult.data.orEmpty()
-                .filter { tx ->
-                    tx.initiatorUserId.equals(currentUserId, ignoreCase = true) ||
-                        tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-                }
-                .groupBy { it.id }
-                .map { (_, group) ->
-                    group.firstOrNull { it.counterpartyUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.firstOrNull { it.initiatorUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.first()
-                }
-                .sortedByDescending { it.createdAt }
-            activities = txs.map { tx ->
-                val isSendType = tx.type.equals("Send", ignoreCase = true)
-                val isInitiator = tx.initiatorUserId.equals(currentUserId, ignoreCase = true)
-                val isReceiver = tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-
-                val displayType = when {
-                    isSendType && isInitiator -> "Send"
-                    isSendType && isReceiver -> "Receive"
-                    else -> tx.type.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
-                    }
-                }
-
-                val isCredit = when {
-                    isSendType && isReceiver -> true
-                    isSendType && isInitiator -> false
-                    else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
-                }
-
-                val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
-                val amountPrefix = if (isCredit) "+" else "-"
-                HomeActivity(
-                    type = displayType,
-                    status = tx.status.lowercase(Locale.US),
-                    detail = buildString {
-                        append(tx.currency)
-                        append(" • ")
-                        append(formatHomeTime(tx.createdAt))
-                        tx.interactedPhone?.takeIf { it.isNotBlank() }?.let {
-                            append(" • ")
-                            append(it)
-                        }
-                        append(" • ")
-                        append(tx.referenceCode)
-                    },
-                    amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
-                    amountColor = amountColor,
-                    marketRateSnapshot = tx.marketRateSnapshot,
-                    onChainConfirmations = tx.onChainConfirmations,
-                    mpesaReference = tx.mpesaReference
-                )
-            }
+            applyTransactions(transactionsResult.data.orEmpty(), currentUserId)
         } else {
             loadError = transactionsResult.errorMessage ?: loadError
         }
     }
 
     LaunchedEffect(Unit) {
+        applyCachedHomeData()
         reloadHomeData()
     }
 
