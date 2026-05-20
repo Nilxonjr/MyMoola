@@ -34,6 +34,21 @@ public sealed class ExchangeRateRepository(AppDbContext db) : IExchangeRateRepos
         return result;
     }
 
+    public async Task<IReadOnlyList<ExchangeRate>> GetHistoryAsync(
+        IReadOnlyCollection<Currency> currencies,
+        DateTimeOffset fromInclusive,
+        DateTimeOffset toInclusive,
+        CancellationToken ct = default)
+        => await db.ExchangeRates
+            .AsNoTracking()
+            .Where(r =>
+                currencies.Contains(r.Currency) &&
+                r.FetchedAt >= fromInclusive &&
+                r.FetchedAt <= toInclusive)
+            .OrderBy(r => r.Currency)
+            .ThenBy(r => r.FetchedAt)
+            .ToListAsync(ct);
+
     public async Task AddAsync(ExchangeRate rate, CancellationToken ct = default)
         => await db.ExchangeRates.AddAsync(rate, ct);
 

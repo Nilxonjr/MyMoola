@@ -95,6 +95,7 @@ fun HomeScreen(
     onPayWithMpesaClick: () -> Unit = {},
     onSendToUserClick: () -> Unit = {},
     onViewRecordsClick: () -> Unit = {},
+    onViewRatesClick: () -> Unit = {},
     onActivityClick: (HomeActivity) -> Unit = {}
 ) {
     val pageBackground = Color(0xFFF8FAFC)
@@ -255,7 +256,8 @@ fun HomeScreen(
         HomeAction("onb_sell_kes", "S", "Sell Crypto"),
         HomeAction("onb_pay_till", "P", "Pay with MPESA"),
         HomeAction("onb_send_crypto", "M", "Send to Other Users"),
-        HomeAction("onb_payment_records", "V", "View Records")
+        HomeAction("onb_payment_records", "V", "View Records"),
+        HomeAction("onb_view_rates", "R", "View Rates")
     )
     Box(
         modifier = modifier
@@ -489,6 +491,7 @@ fun HomeScreen(
                                         "Pay with MPESA" -> onPayWithMpesaClick
                                         "Send to Other Users" -> onSendToUserClick
                                         "View Records" -> onViewRecordsClick
+                                        "View Rates" -> onViewRatesClick
                                         else -> ({})
                                     }
                                     Card(

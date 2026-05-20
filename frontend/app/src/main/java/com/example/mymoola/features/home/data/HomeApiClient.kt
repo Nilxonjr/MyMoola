@@ -58,6 +58,23 @@ object HomeApiClient {
         val message: String
     )
 
+    data class RateHistoryPoint(
+        val timestamp: String,
+        val kesRate: Double
+    )
+
+    data class RateHistorySeries(
+        val currency: String,
+        val points: List<RateHistoryPoint>
+    )
+
+    data class RateHistoryResponse(
+        val generatedAt: String,
+        val range: String,
+        val interval: String,
+        val series: List<RateHistorySeries>
+    )
+
     data class UserTransaction(
         val id: String,
         val referenceCode: String,
@@ -263,6 +280,69 @@ object HomeApiClient {
             ApiResult(data = collected)
         }.getOrElse {
             ApiResult(errorMessage = "Network error while loading transactions.")
+        }
+    }
+
+    suspend fun getRatesHistory(
+        currencies: List<String>,
+        range: String = "7d",
+        interval: String = "day"
+    ): ApiResult<RateHistoryResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val currenciesParam = URLEncoder.encode(currencies.joinToString(","), Charsets.UTF_8.name())
+            val rangeParam = URLEncoder.encode(range, Charsets.UTF_8.name())
+            val intervalParam = URLEncoder.encode(interval, Charsets.UTF_8.name())
+            val path = "/api/rates/history?currencies=$currenciesParam&range=$rangeParam&interval=$intervalParam"
+
+            val firstAttempt = executeAuthorizedGet(path)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedGet(path)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code == HttpURLConnection.HTTP_OK) {
+                val json = JSONObject(body)
+                val seriesJson = json.optJSONArray("series") ?: JSONArray()
+                val series = buildList {
+                    for (i in 0 until seriesJson.length()) {
+                        val seriesItem = seriesJson.getJSONObject(i)
+                        val pointsJson = seriesItem.optJSONArray("points") ?: JSONArray()
+                        val points = buildList {
+                            for (j in 0 until pointsJson.length()) {
+                                val point = pointsJson.getJSONObject(j)
+                                add(
+                                    RateHistoryPoint(
+                                        timestamp = point.optString("timestamp", ""),
+                                        kesRate = point.optDouble("kesRate", 0.0)
+                                    )
+                                )
+                            }
+                        }
+                        add(
+                            RateHistorySeries(
+                                currency = seriesItem.optString("currency", ""),
+                                points = points
+                            )
+                        )
+                    }
+                }
+
+                ApiResult(
+                    data = RateHistoryResponse(
+                        generatedAt = json.optString("generatedAt", ""),
+                        range = json.optString("range", range),
+                        interval = json.optString("interval", interval),
+                        series = series
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code))
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while loading rates.")
         }
     }
 

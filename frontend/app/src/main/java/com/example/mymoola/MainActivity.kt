@@ -26,6 +26,7 @@ import com.example.mymoola.features.home.ui.HomeScreen
 import com.example.mymoola.features.home.ui.PayWithMpesaScreen
 import com.example.mymoola.features.home.ui.SellCryptoScreen
 import com.example.mymoola.features.home.ui.SendToUserScreen
+import com.example.mymoola.features.home.ui.ViewRatesScreen
 import com.example.mymoola.features.home.ui.ViewRecordsScreen
 import com.example.mymoola.features.onboarding.ui.OnboardingFeature
 import com.example.mymoola.features.onboarding.ui.OnboardingScreen
@@ -129,6 +130,7 @@ class MainActivity : ComponentActivity() {
                                 onPayWithMpesaClick = { navController.navigate("pay_with_mpesa") },
                                 onSendToUserClick = { navController.navigate("send_to_user") },
                                 onViewRecordsClick = { navController.navigate("view_records") },
+                                onViewRatesClick = { navController.navigate("view_rates") },
                                 onActivityClick = { activity ->
                                     navController.currentBackStackEntry
                                         ?.savedStateHandle
@@ -221,6 +223,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("view_records") {
                             ViewRecordsScreen(onBackClick = { navController.popBackStack() })
+                        }
+                        composable("view_rates") {
+                            ViewRatesScreen(onBackClick = { navController.popBackStack() })
                         }
                         composable("activity_details") {
                             val state = navController.previousBackStackEntry?.savedStateHandle
