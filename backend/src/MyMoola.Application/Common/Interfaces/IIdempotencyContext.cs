@@ -2,5 +2,5 @@
 
 public interface IIdempotencyContext
 {
-    string? IdempotencyKey { get; }
+    string? IdempotencyKey { get; } 
 }
