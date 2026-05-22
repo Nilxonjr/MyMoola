@@ -59,18 +59,8 @@ public sealed class AppDbContext : DbContext
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
-        // 1. AUTOMATIC AUDIT STAMPS
-        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
-        {
-            var now = DateTimeOffset.UtcNow;
-            if (entry.State == EntityState.Added)
-                entry.Entity.SetCreatedAt(now);
 
-            if (entry.State == EntityState.Modified || entry.State == EntityState.Added)
-                entry.Entity.SetUpdatedAt(now);
-        }
-
-        // 2. DOMAIN EVENT DISPATCHING
+        // 1. DOMAIN EVENT DISPATCHING
         var entitiesWithEvents = ChangeTracker
             .Entries<BaseEntity>()
             .Select(e => e.Entity)
@@ -85,12 +75,23 @@ public sealed class AppDbContext : DbContext
         // triggers another SaveChangesAsync
         entitiesWithEvents.ForEach(e => e.ClearDomainEvents());
 
-        // 3. PUBLISH EVENTS BEFORE SAVE
+        // 2. PUBLISH EVENTS BEFORE SAVE
         // Handlers (e.g. LedgerEntryHandler) add records to the ChangeTracker here.
         // AuditInterceptor fires AFTER this, inside base.SaveChangesAsync,
         // so it will also see those handler-created entities if they are auditable.
         foreach (var domainEvent in domainEvents)
             await _publisher.Publish(domainEvent, ct);
+
+        // 3. AUTOMATIC AUDIT STAMPS
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (entry.State == EntityState.Added)
+                entry.Entity.SetCreatedAt(now);
+
+            if (entry.State == EntityState.Modified || entry.State == EntityState.Added)
+                entry.Entity.SetUpdatedAt(now);
+        }
 
         // 4. THE ATOMIC COMMIT
         // AuditInterceptor.SavingChangesAsync runs here, before the SQL is sent.
