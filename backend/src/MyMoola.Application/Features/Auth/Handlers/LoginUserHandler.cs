@@ -40,12 +40,6 @@ public sealed class LoginUserHandler(
             throw new InvalidCredentialsException();
         }
 
-        //user.RecordSuccessfulLogin();
-        //await uow.SaveChangesAsync(ct);
-
-        //var token = tokens.GenerateToken(user.Id, user.PhoneNumberValue, user.FullName);
-        //return new AuthTokenResponse(token);
-
         var otp = GenerateOtp();
         await otpCache.SetAsync($"login-otp:{cmd.PhoneNumber}", otp, OtpTtl, ct);
 

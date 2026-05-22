@@ -10,10 +10,10 @@ namespace MyMoola.API.Controllers.Transactions;
 
 [ApiController]
 [Route("api/transactions")]
+[Authorize]
 public sealed class TransactionsController(ISender sender) : ControllerBase
 {
 
-    [Authorize]
     [HttpPost("send")]
     [Idempotency]
     [EnableRateLimiting("transactions")]
