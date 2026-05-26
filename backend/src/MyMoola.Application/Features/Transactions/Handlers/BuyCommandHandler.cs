@@ -142,7 +142,7 @@ public sealed class BuyCommandHandler(
         //     STK push has not been fired. Outbox handler sets it after Safaricom responds.
         var mpesaTx = MpesaTransaction.Create(
             transactionId: transaction.Id,
-            phoneNumber: user.PhoneNumber.Value, // caller encrypts before storing
+            phoneNumber: user.PhoneNumberValue, // caller encrypts before storing
             amountKes: command.GrossKes,
             direction: "inbound");
 
@@ -156,7 +156,7 @@ public sealed class BuyCommandHandler(
             new StkPushPayload(
                 MpesaTransactionId: mpesaTx.Id,
                 TransactionId: transaction.Id,
-                PhoneNumber: user.PhoneNumber.Value,
+                PhoneNumber: user.PhoneNumberValue,
                 AmountKes: (int)command.GrossKes,
                 ReferenceCode: referenceCode,
                 Currency: command.Currency,

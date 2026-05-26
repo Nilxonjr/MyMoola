@@ -33,12 +33,6 @@ public sealed class ExceptionHandlingMiddleware(
 
     private async Task HandleAsync(HttpContext context, Exception exception)
     {
-        // Temporary — remove after debugging
-        logger.LogError(
-            "RAW EXCEPTION TYPE={Type} MESSAGE={Message} INNER={Inner}",
-            exception.GetType().FullName,
-            exception.Message,
-            exception.InnerException?.GetType().FullName ?? "none");
 
         var (status, title, errors) = Map(exception);
 
