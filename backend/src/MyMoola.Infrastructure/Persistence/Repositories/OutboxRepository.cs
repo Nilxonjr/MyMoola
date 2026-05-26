@@ -27,16 +27,16 @@ public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
         // Two processor instances cannot claim the same row simultaneously.
 
         var messages = await db.OutboxMessages
-            .FromSql(
-                $"""
-                 SELECT * FROM "OutboxMessages"
-                 WHERE "Status" = {OutboxMessageStatus.Pending}
-                   AND ("LockedUntil" IS NULL OR "LockedUntil" < {now})
-                 ORDER BY "CreatedAt"
-                 LIMIT {batchSize}
-                 FOR UPDATE SKIP LOCKED
-                 """)
-            .ToListAsync(ct);
+        .FromSql(
+            $"""
+            SELECT * FROM "outbox_messages"
+            WHERE "status" = {OutboxMessageStatus.Pending}
+              AND ("locked_until" IS NULL OR "locked_until" < {now})
+            ORDER BY "created_at"
+            LIMIT {batchSize}
+            FOR UPDATE SKIP LOCKED
+            """)
+        .ToListAsync(ct);
 
         if (messages.Count == 0)
             return messages;
