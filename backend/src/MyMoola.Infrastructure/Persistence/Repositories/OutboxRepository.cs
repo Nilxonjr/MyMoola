@@ -30,7 +30,7 @@ public sealed class OutboxRepository(AppDbContext db) : IOutboxRepository
         .FromSql(
             $"""
             SELECT * FROM "outbox_messages"
-            WHERE "status" = {OutboxMessageStatus.Pending}
+            WHERE "status" = {OutboxMessageStatus.Pending.ToString()}
               AND ("locked_until" IS NULL OR "locked_until" < {now})
             ORDER BY "created_at"
             LIMIT {batchSize}
