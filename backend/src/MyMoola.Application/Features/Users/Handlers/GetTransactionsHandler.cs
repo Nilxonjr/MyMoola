@@ -32,14 +32,22 @@ public sealed class GetTransactionsHandler(
         // Collect all user IDs referenced in these transactions
         // Exclude system wallet users — they are platform internals
         // and should never be shown to end users as counterparties
+        var systemUserIds = new HashSet<Guid>
+            {
+                SystemWallets.TreasuryAccountUserId,
+                SystemWallets.RevenueAccountUserId,
+                SystemWallets.SpreadRevenueAccountUserId,
+                SystemWallets.SettlementAccountUserId,
+                SystemWallets.SuspenseAccountUserId
+            };
+
         var relatedUserIds = items
-            .SelectMany(t => new[] { t.InitiatorUserId, t.CounterpartyUserId })
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Where(id => id != SystemWallets.OperationalBufferUserId
-                      && id != SystemWallets.PlatformFeeUserId)
-            .Distinct()
-            .ToList();
+                .SelectMany(t => new[] { t.InitiatorUserId, t.CounterpartyUserId })
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Where(id => !systemUserIds.Contains(id))
+                .Distinct()
+                .ToList();
 
         // Single batch query — not one query per transaction
         var relatedUsers = await users.GetByIdsAsync(relatedUserIds, ct);

@@ -10,6 +10,9 @@ public sealed class TransactionRepository(AppDbContext db) : ITransactionReposit
     public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
         => await db.Transactions.AddAsync(transaction, ct);
 
+    public async Task<Transaction?> FindByIdAsync(Guid id, CancellationToken ct = default)
+        => await db.Transactions.FirstOrDefaultAsync(t => t.Id == id, ct);
+
     public async Task<(IReadOnlyList<Transaction> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId, int page, int pageSize, CancellationToken ct = default)
     {

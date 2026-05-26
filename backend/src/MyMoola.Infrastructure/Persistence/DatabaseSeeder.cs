@@ -26,12 +26,16 @@ public sealed class DatabaseSeeder(
         await SeedSystemUsersAsync(ct);
         await SeedSystemWalletsAsync(ct);
     }
+
     private async Task SeedSystemUsersAsync(CancellationToken ct)
     {
         var systemUsers = new[]
         {
-            (SystemWallets.OperationalBufferUserId, "Operational Buffer", "+000000000001"),
-            (SystemWallets.PlatformFeeUserId, "Platform Fee", "+000000000002")
+            (SystemWallets.TreasuryAccountUserId,      "Treasury Account",       "+000000000001"),
+            (SystemWallets.RevenueAccountUserId,       "Revenue Account",        "+000000000002"),
+            (SystemWallets.SpreadRevenueAccountUserId, "Spread Revenue Account", "+000000000003"),
+            (SystemWallets.SettlementAccountUserId,    "Settlement Account",     "+000000000004"),
+            (SystemWallets.SuspenseAccountUserId,      "Suspense Account",       "+000000000005"),
         };
 
         foreach (var (id, name, phoneNumber) in systemUsers)
@@ -48,9 +52,68 @@ public sealed class DatabaseSeeder(
             await users.AddAsync(user, ct);
             await uow.SaveChangesAsync(ct);
 
-            logger.LogInformation("System user seeded. Name={Name} Id={Id}", name, id);
+            logger.LogInformation(
+                "System user seeded. Name={Name} Id={Id}", name, id);
         }
     }
+
+    private async Task SeedSystemWalletsAsync(CancellationToken ct)
+    {
+        // Treasury — KES + all crypto
+        await SeedWalletIfMissingAsync(
+            SystemWallets.TreasuryAccountUserId, Currency.KES, ct);
+
+        foreach (var currency in CryptoCurrencies)
+            await SeedWalletIfMissingAsync(
+                SystemWallets.TreasuryAccountUserId, currency, ct);
+
+        // Revenue — KES only (fee income from buys and sells)
+        await SeedWalletIfMissingAsync(
+            SystemWallets.RevenueAccountUserId, Currency.KES, ct);
+
+        // SpreadRevenue — KES (sells) + all crypto (buys)
+        await SeedWalletIfMissingAsync(
+            SystemWallets.SpreadRevenueAccountUserId, Currency.KES, ct);
+
+        foreach (var currency in CryptoCurrencies)
+            await SeedWalletIfMissingAsync(
+                SystemWallets.SpreadRevenueAccountUserId, currency, ct);
+
+        // Settlement — KES only (M-Pesa in, B2C out)
+        await SeedWalletIfMissingAsync(
+            SystemWallets.SettlementAccountUserId, Currency.KES, ct);
+
+        // Suspense — KES only (B2C floor residuals)
+        await SeedWalletIfMissingAsync(
+            SystemWallets.SuspenseAccountUserId, Currency.KES, ct);
+
+        await uow.SaveChangesAsync(ct);
+    }
+
+    private async Task SeedWalletIfMissingAsync(
+        Guid userId, Currency currency, CancellationToken ct)
+    {
+        var existing = await wallets.FindByUserAndCurrencyAsync(userId, currency, ct);
+        if (existing is not null)
+        {
+            logger.LogInformation(
+                "System wallet already exists. Skipping. UserId={UserId} Currency={Currency}",
+                userId, currency);
+            return;
+        }
+
+        var wallet = Wallet.Create(userId, currency);
+        await wallets.AddAsync(wallet, ct);
+
+        logger.LogInformation(
+            "System wallet seeded. UserId={UserId} Currency={Currency}",
+            userId, currency);
+    }
+
+    private static readonly Currency[] CryptoCurrencies =
+        [Currency.BTC, Currency.ETH, Currency.USDC];
+
+    // --- unchanged methods below ---
 
     private async Task SeedSuperAdminAsync(CancellationToken ct)
     {
@@ -146,37 +209,5 @@ public sealed class DatabaseSeeder(
 
             logger.LogInformation("System control seeded. Key={Key}", key);
         }
-    }
-
-    private async Task SeedSystemWalletsAsync(CancellationToken ct)
-    {
-        var currencies = new[] { Currency.BTC, Currency.ETH, Currency.USDC };
-
-        foreach (var currency in currencies)
-        {
-            var existingBuffer = await wallets.FindByUserAndCurrencyAsync(
-                SystemWallets.OperationalBufferUserId, currency, ct);
-
-            if (existingBuffer is null)
-            {
-                var buffer = Wallet.Create(SystemWallets.OperationalBufferUserId, currency);
-                await wallets.AddAsync(buffer, ct);
-                logger.LogInformation(
-                    "Operational buffer wallet seeded. Currency={Currency}", currency);
-            }
-
-            var existingFee = await wallets.FindByUserAndCurrencyAsync(
-                SystemWallets.PlatformFeeUserId, currency, ct);
-
-            if (existingFee is null)
-            {
-                var fee = Wallet.Create(SystemWallets.PlatformFeeUserId, currency);
-                await wallets.AddAsync(fee, ct);
-                logger.LogInformation(
-                    "Platform fee wallet seeded. Currency={Currency}", currency);
-            }
-        }
-
-        await uow.SaveChangesAsync(ct);
     }
 }

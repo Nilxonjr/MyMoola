@@ -5,6 +5,7 @@ namespace MyMoola.Domain.Events;
 
 public sealed record WalletCreditedEvent(
     Guid WalletId,
+    Guid UserId,
     Guid TransactionId,
     decimal Amount,
     decimal AvailableBalanceBefore,

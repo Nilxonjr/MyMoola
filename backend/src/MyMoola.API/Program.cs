@@ -13,7 +13,7 @@ using MyMoola.Infrastructure.Persistence;
 using MyMoola.Infrastructure.Persistence.Repositories;
 using MyMoola.Infrastructure.Services;
 using System.Text;
-using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Extensions.Http;
 using System.Text.Json.Serialization;
@@ -128,6 +128,8 @@ builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 builder.Services.AddScoped<IOtpCache, RedisOtpCache>();
+builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
+builder.Services.AddScoped<IMpesaTransactionRepository, MpesaTransactionRepository>();
 // ── Unit of Work ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -139,6 +141,9 @@ builder.Services.AddScoped<IAdminTokenService, AdminTokenService>();
 builder.Services.AddScoped<ICurrentAdminService, CurrentAdminService>();
 builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddScoped<IOutboxService, OutboxService>();
+builder.Services.AddHostedService<OutboxProcessor>();
+builder.Services.AddScoped<IExchangeRateQuoteService, ExchangeRateQuoteService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -149,6 +154,17 @@ builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 
 
 builder.Services.AddHttpClient();
+
+builder.Services.AddHttpClient<IMpesaService, MpesaService>(
+    (sp, client) =>
+    {
+        var opts = sp.GetRequiredService<IOptions<MpesaOptions>>().Value;
+        client.BaseAddress = new Uri(opts.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    })
+    .AddTransientHttpErrorPolicy(p =>
+        p.WaitAndRetryAsync(3, retry =>
+            TimeSpan.FromSeconds(Math.Pow(2, retry))));
 
 builder.Services.AddHttpClient<ResendEmailService>(client =>
 {
@@ -161,6 +177,13 @@ builder.Services.AddHttpClient<ResendEmailService>(client =>
 
 builder.Services.AddTransient<IEmailService>(
     sp => sp.GetRequiredService<ResendEmailService>());
+
+builder.Services.Configure<MpesaOptions>(
+    builder.Configuration.GetSection(MpesaOptions.SectionName));
+
+builder.Services.Configure<OutboxProcessorOptions>(
+    builder.Configuration.GetSection(OutboxProcessorOptions.SectionName));
+
 
 builder.Services.Configure<ExchangeRateSettings>(
     builder.Configuration.GetSection(ExchangeRateSettings.Section));
@@ -196,10 +219,10 @@ builder.Services.AddHttpClient<AfricasTalkingSmsService>(client =>
     EnableMultipleHttp2Connections = false,
     SslOptions = new System.Net.Security.SslClientAuthenticationOptions
     {
-        ApplicationProtocols = new List<System.Net.Security.SslApplicationProtocol>
-        {
+        ApplicationProtocols =
+        [
             System.Net.Security.SslApplicationProtocol.Http11
-        }
+        ]
     }
 })
 .AddTransientHttpErrorPolicy(policy =>
