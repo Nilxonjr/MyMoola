@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MyMoola.Application;
+using MyMoola.Application.Features.Transactions.OutboxHandlers;
 using MyMoola.Application.Common.Behaviours;
 using MyMoola.Application.Common.Interfaces;
 using MyMoola.API.Middleware;
@@ -147,6 +148,9 @@ builder.Services.AddScoped<IExchangeRateQuoteService, ExchangeRateQuoteService>(
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+builder.Services.AddScoped<IOutboxMessageHandler, StkPushOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, StkCallbackOutboxHandler>();
 
 // Idempotency
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();
