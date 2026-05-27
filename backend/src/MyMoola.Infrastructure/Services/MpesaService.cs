@@ -173,7 +173,7 @@ public sealed class MpesaService(
                 "Safaricom returned null token response.");
 
         // Cache in Redis — expire 300 seconds early
-        var ttl = TimeSpan.FromSeconds(result.ExpiresIn - 300);
+        var ttl = TimeSpan.FromSeconds(int.Parse(result.ExpiresIn) - 300);
         await db.StringSetAsync(cacheKey, result.AccessToken, ttl);
 
         logger.LogInformation("Safaricom OAuth token refreshed and cached in Redis.");
@@ -227,7 +227,7 @@ public sealed class MpesaService(
 
     private sealed record MpesaTokenResponse(
         [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("expires_in")] int ExpiresIn);
+        [property: JsonPropertyName("expires_in")] string ExpiresIn);
 
     private sealed record StkPushResponse(
         [property: JsonPropertyName("MerchantRequestID")] string MerchantRequestId,
