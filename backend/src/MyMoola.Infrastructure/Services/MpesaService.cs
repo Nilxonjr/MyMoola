@@ -57,6 +57,15 @@ public sealed class MpesaService(
             TransactionDesc = transactionDesc
         };
 
+        //
+        var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
+
+        logger.LogInformation(
+            "STK Push payload: {Payload}", payloadJson);
+
+        logger.LogInformation(
+            "STK Push payload: {Payload}", payloadJson);
+
         var response = await SendAsync(
             HttpMethod.Post,
             "mpesa/stkpush/v1/processrequest",
@@ -107,15 +116,6 @@ public sealed class MpesaService(
             ResultURL = _opts.B2CCallbackUrl,
             Occasion = string.Empty
         };
-
-        //
-        var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
-
-        logger.LogInformation(
-            "STK Push payload: {Payload}", payloadJson);
-
-        logger.LogInformation(
-            "STK Push payload: {Payload}", payloadJson);
 
         var response = await SendAsync(
             HttpMethod.Post,
