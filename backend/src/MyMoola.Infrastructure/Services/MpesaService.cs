@@ -108,6 +108,11 @@ public sealed class MpesaService(
             Occasion = string.Empty
         };
 
+        var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
+
+        logger.LogInformation(
+            "STK Push payload: {Payload}", payloadJson);
+
         var response = await SendAsync(
             HttpMethod.Post,
             "mpesa/b2c/v3/paymentrequest",
