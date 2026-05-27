@@ -145,6 +145,11 @@ public sealed class MpesaService(
 
     private async Task<string> GetAccessTokenAsync(CancellationToken ct)
     {
+        logger.LogInformation(
+        "MpesaOptions check. ShortCode='{ShortCode}' BaseUrl='{BaseUrl}'",
+        _opts.ShortCode,
+        _opts.BaseUrl);
+
         const string cacheKey = "mpesa:access_token";
         var db = redis.GetDatabase();
 
