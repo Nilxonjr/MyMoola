@@ -25,6 +25,11 @@ public sealed class MpesaService(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    private static readonly JsonSerializerOptions SafaricomJsonOptions = new()
+    {
+        // No PropertyNamingPolicy — preserves PascalCase as written
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
     // -------------------------------------------------------------------------
     // Public interface
     // -------------------------------------------------------------------------
@@ -205,7 +210,7 @@ public sealed class MpesaService(
         var request = new HttpRequestMessage(method, endpoint)
         {
             Content = new StringContent(
-                JsonSerializer.Serialize(payload, JsonOptions),
+                JsonSerializer.Serialize(payload, SafaricomJsonOptions),
                 Encoding.UTF8,
                 "application/json")
         };
