@@ -108,6 +108,7 @@ public sealed class MpesaService(
             Occasion = string.Empty
         };
 
+        //
         var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
 
         logger.LogInformation(
