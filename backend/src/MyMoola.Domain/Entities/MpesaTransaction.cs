@@ -8,7 +8,9 @@ public sealed class MpesaTransaction : BaseEntity
     public string? CheckoutRequestId { get; private set; }
     public string? MerchantRequestId { get; private set; }
     public string? MpesaReceiptNumber { get; private set; }
-    public string PhoneNumber { get; private set; } = null!;   // Encrypted at application layer
+    public string? ConversationId { get; private set; }
+    public string? OriginatorConversationId { get; private set; }
+    public string PhoneNumber { get; private set; } = null!;   
     public decimal AmountKes { get; private set; }
     public string Direction { get; private set; } = null!;     // inbound | outbound
     public string Status { get; private set; } = null!;        // initiated | confirmed | failed | timeout
@@ -18,7 +20,7 @@ public sealed class MpesaTransaction : BaseEntity
 
     public static MpesaTransaction Create(
         Guid transactionId,
-        string encryptedPhoneNumber,
+        string phoneNumber,
         decimal amountKes,
         string direction,
         string? checkoutRequestId = null,
@@ -27,7 +29,7 @@ public sealed class MpesaTransaction : BaseEntity
         return new MpesaTransaction
         {
             TransactionId = transactionId,
-            PhoneNumber = encryptedPhoneNumber,
+            PhoneNumber = phoneNumber,
             AmountKes = amountKes,
             Direction = direction,
             Status = "initiated",
@@ -52,5 +54,17 @@ public sealed class MpesaTransaction : BaseEntity
     public void Timeout()
     {
         Status = "timeout";
+    }
+
+    public void SetCheckoutIds(string checkoutRequestId, string merchantRequestId)
+    {
+        CheckoutRequestId = checkoutRequestId;
+        MerchantRequestId = merchantRequestId;
+    }
+
+    public void SetConversationIds(string conversationId, string originatorConversationId)
+    {
+        ConversationId = conversationId;
+        OriginatorConversationId = originatorConversationId;
     }
 }

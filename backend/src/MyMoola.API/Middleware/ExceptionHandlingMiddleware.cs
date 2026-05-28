@@ -33,6 +33,7 @@ public sealed class ExceptionHandlingMiddleware(
 
     private async Task HandleAsync(HttpContext context, Exception exception)
     {
+
         var (status, title, errors) = Map(exception);
 
         if (status >= 500)

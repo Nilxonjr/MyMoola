@@ -9,8 +9,8 @@ public sealed class ExchangeRateSettings
     public BinanceSettings Binance { get; init; } = null!;
     public CoinGeckoSettings CoinGecko { get; init; } = null!;
     public string ForexBaseUrl { get; init; } = null!;
-    public int RateRefreshIntervalMinutes { get; init; } = 3;
-    public int RateStalenessThresholdMinutes { get; init; } = 5;
+    public double RateRefreshIntervalMinutes { get; init; } = 1.5;
+    public double RateStalenessThresholdMinutes { get; init; } = 5;
     public decimal SpreadPercent { get; init; } = 1.5m;
 }
 
