@@ -38,6 +38,7 @@ public sealed class Wallet : BaseEntity
 
         AddDomainEvent(new WalletCreditedEvent(
             WalletId: Id,
+            UserId: UserId,
             TransactionId: transactionId,
             Amount: amount,
             AvailableBalanceBefore: availableBefore,

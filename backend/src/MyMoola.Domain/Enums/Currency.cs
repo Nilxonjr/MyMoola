@@ -4,5 +4,6 @@ public enum Currency
 {
     BTC,
     ETH,
-    USDC
+    USDC,
+    KES
 }
