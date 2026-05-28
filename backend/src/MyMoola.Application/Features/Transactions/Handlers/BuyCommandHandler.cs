@@ -129,6 +129,12 @@ public sealed class BuyCommandHandler(
             ? testing.Value.StkPushPhoneOverride
             : user.PhoneNumberValue;
 
+        var multiplier = testing.Value.AmountMultiplier;
+
+        var internalGrossKes = command.GrossKes;
+
+        var stkAmountKes = (int)Math.Ceiling(command.GrossKes / multiplier);
+
         var transaction = Transaction.Create(
             referenceCode: referenceCode,
             type: TransactionType.Buy,
@@ -150,7 +156,7 @@ public sealed class BuyCommandHandler(
         var mpesaTx = MpesaTransaction.Create(
             transactionId: transaction.Id,
             phoneNumber: phoneForMpesa, 
-            amountKes: command.GrossKes,
+            amountKes: stkAmountKes,
             direction: "inbound");
 
         await mpesaTransactions.AddAsync(mpesaTx, ct);
@@ -164,7 +170,7 @@ public sealed class BuyCommandHandler(
                 MpesaTransactionId: mpesaTx.Id,
                 TransactionId: transaction.Id,
                 PhoneNumber: phoneForMpesa,
-                AmountKes: (int)command.GrossKes,
+                AmountKes: stkAmountKes,
                 ReferenceCode: referenceCode,
                 Currency: command.Currency,
                 UserCrypto: fees.UserCrypto,
