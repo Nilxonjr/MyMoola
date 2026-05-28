@@ -25,7 +25,8 @@ object HomeApiClient {
 
     data class ApiResult<out T>(
         val data: T? = null,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
+        val statusCode: Int? = null
     ) {
         val isSuccess: Boolean get() = data != null
     }
@@ -60,6 +61,29 @@ object HomeApiClient {
     )
 
     data class SendToUserResponse(
+        val transactionId: String,
+        val referenceCode: String,
+        val message: String
+    )
+
+    data class QuoteResponse(
+        val quoteId: String,
+        val currency: String,
+        val rateKes: Double,
+        val buyRateKes: Double,
+        val sellRateKes: Double,
+        val spreadPercent: Double,
+        val expiresAt: String
+    )
+
+    data class BuyCryptoRequest(
+        val currency: String,
+        val grossKes: Double,
+        val quoteId: String,
+        val pin: String
+    )
+
+    data class BuyCryptoResponse(
         val transactionId: String,
         val referenceCode: String,
         val message: String
@@ -123,7 +147,7 @@ object HomeApiClient {
                     )
                 ).also { cachedMe = it.data }
             } else {
-                ApiResult(errorMessage = extractErrorMessage(body, code))
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
             }
         }.getOrElse {
             ApiResult(errorMessage = "Network error while loading profile.")
@@ -164,7 +188,7 @@ object HomeApiClient {
                     )
                 ).also { cachedBalance = it.data }
             } else {
-                ApiResult(errorMessage = extractErrorMessage(body, code))
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
             }
         }.getOrElse {
             ApiResult(errorMessage = "Network error while loading balances.")
@@ -203,7 +227,7 @@ object HomeApiClient {
                             rawMessage.replace("user with key", "user with phone number", ignoreCase = true)
                         else -> rawMessage
                     }
-                    ApiResult(errorMessage = normalizedMessage)
+                    ApiResult(errorMessage = normalizedMessage, statusCode = code)
                 }
             }.getOrElse {
                 ApiResult(errorMessage = "Network error while looking up recipient.")
@@ -232,7 +256,7 @@ object HomeApiClient {
                         )
                     )
                 } else {
-                    ApiResult(errorMessage = extractErrorMessage(body, code))
+                    ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
                 }
             }.getOrElse {
                 ApiResult(errorMessage = "Network error while sending funds.")
@@ -258,7 +282,7 @@ object HomeApiClient {
                 val code = finalAttempt.statusCode
                 val body = finalAttempt.body
                 if (code != HttpURLConnection.HTTP_OK) {
-                    return@runCatching ApiResult(errorMessage = extractErrorMessage(body, code))
+                    return@runCatching ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
                 }
 
                 val json = JSONObject(body)
@@ -349,11 +373,129 @@ object HomeApiClient {
                         series = series
                     )
                 )
+            } else if (code == HttpURLConnection.HTTP_NOT_FOUND) {
+                // Some environments may not have history records yet.
+                // Treat this as an empty dataset so the UI can render a clean empty state.
+                ApiResult(
+                    data = RateHistoryResponse(
+                        generatedAt = "",
+                        range = range,
+                        interval = interval,
+                        series = emptyList()
+                    )
+                )
             } else {
-                ApiResult(errorMessage = extractErrorMessage(body, code))
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
             }
         }.getOrElse {
             ApiResult(errorMessage = "Network error while loading rates.")
+        }
+    }
+
+    suspend fun getQuote(currency: String): ApiResult<QuoteResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val normalized = currency.trim().uppercase()
+            val path = "/api/transactions/quote/$normalized"
+
+            val firstAttempt = executeAuthorizedGet(path)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedGet(path)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code == HttpURLConnection.HTTP_OK) {
+                val json = JSONObject(body)
+                ApiResult(
+                    data = QuoteResponse(
+                        quoteId = json.optString("quoteId", ""),
+                        currency = json.optString("currency", normalized),
+                        rateKes = json.optDouble("rateKes", 0.0),
+                        buyRateKes = json.optDouble("buyRateKes", 0.0),
+                        sellRateKes = json.optDouble("sellRateKes", 0.0),
+                        spreadPercent = json.optDouble("spreadPercent", 0.0),
+                        expiresAt = json.optString("expiresAt", "")
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while loading quote.")
+        }
+    }
+
+    suspend fun buyCrypto(
+        request: BuyCryptoRequest,
+        idempotencyKey: String
+    ): ApiResult<BuyCryptoResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val firstAttempt = executeAuthorizedBuy(request, idempotencyKey)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedBuy(request, idempotencyKey)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code in 200..299) {
+                val json = runCatching { JSONObject(body) }.getOrNull()
+                val nested = json?.optJSONObject("data")
+                    ?: json?.optJSONObject("result")
+                    ?: json?.optJSONObject("payload")
+
+                fun stringFrom(vararg keys: String): String {
+                    keys.forEach { key ->
+                        val direct = json?.optString(key).orEmpty()
+                        if (direct.isNotBlank()) return direct
+                        val fromNested = nested?.optString(key).orEmpty()
+                        if (fromNested.isNotBlank()) return fromNested
+                    }
+                    return ""
+                }
+
+                val transactionId = stringFrom(
+                    "transactionId",
+                    "TransactionId",
+                    "transactionID",
+                    "id"
+                ).ifBlank {
+                    Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val referenceCode = stringFrom(
+                    "referenceCode",
+                    "ReferenceCode",
+                    "reference",
+                    "transactionReference"
+                ).ifBlank {
+                    Regex("TXN-[A-Za-z0-9-]+")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val message = stringFrom("message", "Message")
+                    .ifBlank { "Payment initiated. Enter your M-Pesa PIN when prompted." }
+
+                ApiResult(
+                    data = BuyCryptoResponse(
+                        transactionId = transactionId,
+                        referenceCode = referenceCode,
+                        message = message
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while initiating buy.")
         }
     }
 
@@ -385,6 +527,45 @@ object HomeApiClient {
             put("recipientPhone", request.recipientPhone)
             put("currency", request.currency)
             put("amount", request.amount)
+            put("pin", request.pin)
+        }
+
+        OutputStreamWriter(connection.outputStream).use { writer ->
+            writer.write(payload.toString())
+            writer.flush()
+        }
+
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
+    }
+
+    private fun executeAuthorizedBuy(
+        request: BuyCryptoRequest,
+        idempotencyKey: String
+    ): RawResponse {
+        val accessToken = AuthSession.accessToken
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/transactions/buy")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+            setRequestProperty("Idempotency-Key", idempotencyKey)
+        }
+
+        val payload = JSONObject().apply {
+            put("currency", request.currency)
+            put("grossKes", request.grossKes)
+            put("quoteId", request.quoteId)
             put("pin", request.pin)
         }
 
