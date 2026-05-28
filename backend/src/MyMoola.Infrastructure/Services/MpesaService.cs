@@ -119,7 +119,8 @@ public sealed class MpesaService(
             Remarks = remarks,
             QueueTimeOutURL = _opts.B2CQueueTimeOutUrl,
             ResultURL = _opts.B2CCallbackUrl,
-            Occasion = string.Empty
+            Occasion = string.Empty,
+            OriginatorConversationID = Guid.NewGuid().ToString("N")
         };
 
         var response = await SendAsync(
