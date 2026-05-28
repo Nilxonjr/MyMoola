@@ -25,7 +25,7 @@ namespace MyMoola.Application.Common.Helpers;
 public static class FeeCalculator
 {
     public const decimal PlatformFeeRate = 0.015m;  // 1.5%
-    public const decimal SpreadRate = 0.005m;  // 0.5%
+    //public const decimal SpreadRate = 0.005m;  // 0.5%
 
     // -------------------------------------------------------------------------
     // Buy
@@ -76,9 +76,12 @@ public static class FeeCalculator
     // -------------------------------------------------------------------------
 
     public static SellFeeResult CalculateSell(
-        decimal cryptoAmount,
-        decimal marketRate)
+    decimal cryptoAmount,
+    decimal marketRate,
+    decimal spreadPercent)
     {
+        var spreadRate = spreadPercent / 100;
+
         // Gross KES at MarketRate — this is the fee base for both fees
         var grossKes = decimal.Round(
             cryptoAmount * marketRate,
@@ -93,7 +96,7 @@ public static class FeeCalculator
 
         // Spread on gross KES — independent of fee
         var spreadKes = decimal.Round(
-            grossKes * SpreadRate,
+            grossKes * spreadRate,
             4,
             MidpointRounding.AwayFromZero);
 

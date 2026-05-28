@@ -8,6 +8,8 @@ using MyMoola.Application.Features.Transactions.Commands;
 using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
 using MyMoola.Domain.Exceptions;
+using Microsoft.Extensions.Options;
+using MyMoola.Application.Common.Options;
 
 namespace MyMoola.Application.Features.Transactions.Handlers;
 
@@ -22,6 +24,7 @@ public sealed class BuyCommandHandler(
     IOutboxService outbox,
     IUnitOfWork uow,
     IExchangeRateQuoteService quoteService,
+    IOptions<TestingOptions> testing,
     ILogger<BuyCommandHandler> logger) : IRequestHandler<BuyCommand, BuyResponse>
 {
     public async Task<BuyResponse> Handle(BuyCommand command, CancellationToken ct)
@@ -122,6 +125,10 @@ public sealed class BuyCommandHandler(
         // 11. Create transaction record
         var referenceCode = ReferenceCodeGenerator.Generate();
 
+        var phoneForMpesa = !string.IsNullOrWhiteSpace(testing.Value.StkPushPhoneOverride)
+            ? testing.Value.StkPushPhoneOverride
+            : user.PhoneNumberValue;
+
         var transaction = Transaction.Create(
             referenceCode: referenceCode,
             type: TransactionType.Buy,
@@ -142,7 +149,7 @@ public sealed class BuyCommandHandler(
         //     STK push has not been fired. Outbox handler sets it after Safaricom responds.
         var mpesaTx = MpesaTransaction.Create(
             transactionId: transaction.Id,
-            phoneNumber: user.PhoneNumberValue, // caller encrypts before storing
+            phoneNumber: phoneForMpesa, 
             amountKes: command.GrossKes,
             direction: "inbound");
 
@@ -156,7 +163,7 @@ public sealed class BuyCommandHandler(
             new StkPushPayload(
                 MpesaTransactionId: mpesaTx.Id,
                 TransactionId: transaction.Id,
-                PhoneNumber: user.PhoneNumberValue,
+                PhoneNumber: phoneForMpesa,
                 AmountKes: (int)command.GrossKes,
                 ReferenceCode: referenceCode,
                 Currency: command.Currency,

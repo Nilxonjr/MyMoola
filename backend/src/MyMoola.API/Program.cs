@@ -16,17 +16,17 @@ using MyMoola.Infrastructure.Services;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Polly;
-using Polly.Extensions.Http;
 using System.Text.Json.Serialization;
 using MyMoola.Application.Interfaces;
 using StackExchange.Redis;
 using MyMoola.API.Filters;
 using MyMoola.Application.Common.Services;
-using MyMoola.Domain.Entities;
-using MyMoola.Domain.Enums;
 using MyMoola.Infrastructure.Settings;
 using MyMoola.Infrastructure.BackgroundJobs;
 using MyMoola.Infrastructure.Persistence.Interceptors;
+using Polly.Extensions.Http;
+using MyMoola.Application.Common.Options;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -159,6 +159,9 @@ builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 
 builder.Services.AddHttpClient();
 
+builder.Services.Configure<MpesaOptions>(
+    builder.Configuration.GetSection(MpesaOptions.SectionName));
+
 builder.Services.AddHttpClient<IMpesaService, MpesaService>(
     (sp, client) =>
     {
@@ -182,15 +185,16 @@ builder.Services.AddHttpClient<ResendEmailService>(client =>
 builder.Services.AddTransient<IEmailService>(
     sp => sp.GetRequiredService<ResendEmailService>());
 
-builder.Services.Configure<MpesaOptions>(
-    builder.Configuration.GetSection(MpesaOptions.SectionName));
+
 
 builder.Services.Configure<OutboxProcessorOptions>(
     builder.Configuration.GetSection(OutboxProcessorOptions.SectionName));
 
-
 builder.Services.Configure<ExchangeRateSettings>(
     builder.Configuration.GetSection(ExchangeRateSettings.Section));
+
+builder.Services.Configure<TestingOptions>(
+    builder.Configuration.GetSection(TestingOptions.SectionName));
 
 builder.Services.AddHttpClient<BinanceRateFetcher>(client =>
 {
