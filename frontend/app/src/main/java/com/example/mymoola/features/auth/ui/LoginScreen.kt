@@ -42,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.auth.data.AuthApiClient
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
 import kotlinx.coroutines.launch
@@ -187,6 +188,7 @@ fun LoginScreen(
 
                             if (result.isSuccess) {
                                 successMessage = result.data?.message ?: "OTP sent to your phone number."
+                                AuthSession.setPendingPin(pin)
                                 onLoginSuccess(normalizedPhone)
                             } else {
                                 errors = listOf(result.errorMessage ?: "Login failed.")

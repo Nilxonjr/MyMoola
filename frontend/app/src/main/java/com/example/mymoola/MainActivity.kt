@@ -202,7 +202,15 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("buy_crypto") {
-                            BuyCryptoScreen(onBackClick = { navController.popBackStack() })
+                            BuyCryptoScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onDoneClick = {
+                                    navController.navigate("home") {
+                                        popUpTo("home") { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
                         }
                         composable("sell_crypto") {
                             SellCryptoScreen(onBackClick = { navController.popBackStack() })
