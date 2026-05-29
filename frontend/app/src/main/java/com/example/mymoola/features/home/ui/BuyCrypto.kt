@@ -1,6 +1,7 @@
 package com.example.mymoola.features.home.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -64,10 +68,11 @@ fun BuyCryptoScreen(
     onDoneClick: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val localContext = LocalContext.current
     val buyViewModel: BuyViewModel = viewModel()
     val buyUiState by buyViewModel.uiState.collectAsState()
-    val supportedCurrencies = listOf("USDC", "BTC", "ETH")
-    var selectedCurrency by rememberSaveable { mutableStateOf("USDC") }
+    val supportedCurrencies = listOf("BTC", "ETH", "USDC")
+    var selectedCurrency by rememberSaveable { mutableStateOf("BTC") }
     var amountInput by rememberSaveable { mutableStateOf("1000") }
     var quote by remember { mutableStateOf<HomeApiClient.QuoteResponse?>(null) }
     var loadingQuote by remember { mutableStateOf(false) }
@@ -191,17 +196,43 @@ fun BuyCryptoScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             supportedCurrencies.forEach { currency ->
                 val isSelected = currency == selectedCurrency
-                Text(
-                    text = currency,
-                    color = if (isSelected) Color.White else Color(0xFF0F172A),
+                val iconResName = when (currency) {
+                    "USDC" -> "usdc_logo"
+                    "BTC" -> "bitcoin_logo"
+                    "ETH" -> "ethereum_logo"
+                    else -> "onb_wallet_manage"
+                }
+                val iconResId = remember(iconResName) {
+                    localContext.resources.getIdentifier(
+                        iconResName,
+                        "drawable",
+                        localContext.packageName
+                    )
+                }
+                Row(
                     modifier = Modifier
                         .background(
                             color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
                             shape = RoundedCornerShape(999.dp)
                         )
                         .clickable { selectedCurrency = currency }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (iconResId != 0) {
+                        Image(
+                            painter = painterResource(id = iconResId),
+                            contentDescription = "$currency logo",
+                            modifier = Modifier.width(16.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                    Text(
+                        text = currency,
+                        color = if (isSelected) Color.White else Color(0xFF0F172A)
+                    )
+                }
             }
         }
 
@@ -277,7 +308,7 @@ fun BuyCryptoScreen(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "You receive: ${String.format(Locale.US, "%.6f", receiveAmount)} $selectedCurrency",
+            text = "You receive ≈ ${String.format(Locale.US, "%.6f", receiveAmount)} $selectedCurrency",
             color = Color(0xFF0F172A),
             fontWeight = FontWeight.Medium
         )

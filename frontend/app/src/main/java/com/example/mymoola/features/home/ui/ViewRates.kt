@@ -1,6 +1,7 @@
 package com.example.mymoola.features.home.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,7 +36,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -65,6 +68,7 @@ private data class SelectedChartPoint(
 fun ViewRatesScreen(
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val currencies = listOf("BTC", "ETH", "USDC")
     var selectedCurrency by remember { mutableStateOf(currencies.first()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -166,6 +170,19 @@ fun ViewRatesScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             currencies.forEach { currency ->
                 val isSelected = currency == selectedCurrency
+                val iconResName = when (currency) {
+                    "USDC" -> "usdc_logo"
+                    "BTC" -> "bitcoin_logo"
+                    "ETH" -> "ethereum_logo"
+                    else -> "onb_wallet_manage"
+                }
+                val iconResId = remember(iconResName) {
+                    context.resources.getIdentifier(
+                        iconResName,
+                        "drawable",
+                        context.packageName
+                    )
+                }
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
@@ -177,12 +194,24 @@ fun ViewRatesScreen(
                             shape = RoundedCornerShape(10.dp)
                         )
                 ) {
-                    Text(
-                        text = currency,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        color = if (isSelected) Color.White else Color(0xFF334155),
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (iconResId != 0) {
+                            Image(
+                                painter = painterResource(id = iconResId),
+                                contentDescription = "$currency logo",
+                                modifier = Modifier.height(16.dp)
+                            )
+                        }
+                        Text(
+                            text = currency,
+                            color = if (isSelected) Color.White else Color(0xFF334155),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         }

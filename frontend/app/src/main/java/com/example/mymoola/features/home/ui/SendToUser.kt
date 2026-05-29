@@ -398,7 +398,7 @@ fun SendToUserScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        placeholder = { Text("e.g. 2500") },
+                        placeholder = { Text("e.g. 100") },
                         shape = RoundedCornerShape(12.dp),
                         colors = myMoolaOutlinedTextFieldColors()
                     )
