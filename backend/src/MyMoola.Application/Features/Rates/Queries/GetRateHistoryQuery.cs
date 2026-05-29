@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 
 namespace MyMoola.Application.Features.Rates.Queries;
 

@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -34,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,8 +56,11 @@ import com.example.mymoola.R
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 data class HomeAction(
@@ -66,7 +74,10 @@ data class HomeActivity(
     val status: String,
     val detail: String,
     val amount: String,
-    val amountColor: Color
+    val amountColor: Color,
+    val marketRateSnapshot: Double?,
+    val onChainConfirmations: Int,
+    val mpesaReference: String?
 )
 
 data class BalanceCurrency(
@@ -76,7 +87,7 @@ data class BalanceCurrency(
     val balance: String
 )
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterialApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -86,6 +97,7 @@ fun HomeScreen(
     onPayWithMpesaClick: () -> Unit = {},
     onSendToUserClick: () -> Unit = {},
     onViewRecordsClick: () -> Unit = {},
+    onViewRatesClick: () -> Unit = {},
     onActivityClick: (HomeActivity) -> Unit = {}
 ) {
     val pageBackground = Color(0xFFF8FAFC)
@@ -112,125 +124,171 @@ fun HomeScreen(
     var selectedCurrency by remember { mutableStateOf(balanceCurrencies.first()) }
     var balanceMenuExpanded by remember { mutableStateOf(false) }
     var activities by remember { mutableStateOf<List<HomeActivity>>(emptyList()) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
+    fun applyBalance(balance: HomeApiClient.BalanceResponse?) {
+        if (balance == null) return
+        totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}"
+        val preferredCurrencyCode = balance.wallets
+            .firstOrNull { it.total > 0.0 }
+            ?.currency
+
+        val wallets = balance.wallets.map { wallet ->
+            val icon = when (wallet.currency.uppercase(Locale.US)) {
+                "BTC" -> "bitcoin_logo"
+                "ETH" -> "ethereum_logo"
+                "USDC" -> "usdc_logo"
+                else -> "onb_wallet_manage"
+            }
+            BalanceCurrency(
+                iconResName = icon,
+                code = wallet.currency,
+                label = wallet.currency,
+                balance = "${String.format(Locale.US, "%.6f", wallet.total)} ${wallet.currency}"
+            )
+        }
+        if (wallets.isNotEmpty()) {
+            balanceCurrencies = wallets
+            selectedCurrency = wallets.firstOrNull { it.code == preferredCurrencyCode } ?: wallets.first()
+        }
+    }
+
+    fun applyTransactions(all: List<HomeApiClient.UserTransaction>, userId: String) {
+        if (userId.isBlank()) return
+        val txs = all
+            .filter { tx ->
+                tx.initiatorUserId.equals(userId, ignoreCase = true) ||
+                    tx.counterpartyUserId.equals(userId, ignoreCase = true)
+            }
+            .groupBy { it.id }
+            .map { (_, group) ->
+                group.firstOrNull { it.counterpartyUserId.equals(userId, ignoreCase = true) }
+                    ?: group.firstOrNull { it.initiatorUserId.equals(userId, ignoreCase = true) }
+                    ?: group.first()
+            }
+            .sortedByDescending { it.createdAt }
+
+        activities = txs.map { tx ->
+            val isSendType = tx.type.equals("Send", ignoreCase = true)
+            val isInitiator = tx.initiatorUserId.equals(userId, ignoreCase = true)
+            val isReceiver = tx.counterpartyUserId.equals(userId, ignoreCase = true)
+
+            val displayType = when {
+                isSendType && isInitiator -> "Send"
+                isSendType && isReceiver -> "Receive"
+                else -> tx.type.replaceFirstChar {
+                    if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
+                }
+            }
+
+            val isCredit = when {
+                isSendType && isReceiver -> true
+                isSendType && isInitiator -> false
+                else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
+            }
+
+            val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+            val amountPrefix = if (isCredit) "+" else "-"
+            HomeActivity(
+                type = displayType,
+                status = tx.status.lowercase(Locale.US),
+                detail = buildString {
+                    append(tx.currency)
+                    append(" • ")
+                    append(formatHomeTime(tx.createdAt))
+                    tx.interactedPhone?.takeIf { it.isNotBlank() }?.let {
+                        append(" • ")
+                        append(it)
+                    }
+                    append(" • ")
+                    append(tx.referenceCode)
+                },
+                amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
+                amountColor = amountColor,
+                marketRateSnapshot = tx.marketRateSnapshot,
+                onChainConfirmations = tx.onChainConfirmations,
+                mpesaReference = tx.mpesaReference
+            )
+        }
+    }
+
+    fun applyCachedHomeData() {
+        HomeApiClient.getCachedMe()?.let {
+            userName = it.fullName.ifBlank { "User" }
+            currentUserId = it.id
+        }
+        applyBalance(HomeApiClient.getCachedBalance())
+        HomeApiClient.getCachedTransactions()?.let { cachedTxs ->
+            applyTransactions(cachedTxs, currentUserId)
+        }
+    }
+
+    suspend fun reloadHomeData() {
         val token = AuthSession.accessToken
         if (token.isNullOrBlank()) {
             loadError = "Session missing. Please log in again."
-            return@LaunchedEffect
+            return
         }
 
-        val meResult = HomeApiClient.getMe()
+        loadError = null
+
+        val (meResult, balanceResult, transactionsResult) = coroutineScope {
+            val meDeferred = async { HomeApiClient.getMe() }
+            val balanceDeferred = async { HomeApiClient.getBalance() }
+            val txDeferred = async { HomeApiClient.getAllTransactions() }
+            Triple(meDeferred.await(), balanceDeferred.await(), txDeferred.await())
+        }
+
         if (meResult.isSuccess) {
             userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
             currentUserId = meResult.data?.id.orEmpty()
         } else {
             loadError = meResult.errorMessage
         }
-
-        val balanceResult = HomeApiClient.getBalance()
         if (balanceResult.isSuccess) {
-            val balance = balanceResult.data
-            if (balance != null) {
-                totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}"
-                val preferredCurrencyCode = balance.wallets
-                    .firstOrNull { it.total > 0.0 }
-                    ?.currency
-
-                val wallets = balance.wallets.map { wallet ->
-                    val icon = when (wallet.currency.uppercase(Locale.US)) {
-                        "BTC" -> "bitcoin_logo"
-                        "ETH" -> "ethereum_logo"
-                        "USDC" -> "usdc_logo"
-                        else -> "onb_wallet_manage"
-                    }
-                    BalanceCurrency(
-                        iconResName = icon,
-                        code = wallet.currency,
-                        label = wallet.currency,
-                        balance = "${String.format(Locale.US, "%.6f", wallet.total)} ${wallet.currency}"
-                    )
-                }
-                if (wallets.isNotEmpty()) {
-                    balanceCurrencies = wallets
-                    selectedCurrency = wallets.firstOrNull { it.code == preferredCurrencyCode }
-                        ?: wallets.first()
-                }
-            }
+            applyBalance(balanceResult.data)
         } else {
             loadError = balanceResult.errorMessage
         }
 
-        val transactionsResult = HomeApiClient.getAllTransactions()
         if (transactionsResult.isSuccess) {
-            val txs = transactionsResult.data.orEmpty()
-                .filter { tx ->
-                    tx.initiatorUserId.equals(currentUserId, ignoreCase = true) ||
-                        tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-                }
-                .groupBy { it.id }
-                .map { (_, group) ->
-                    group.firstOrNull { it.counterpartyUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.firstOrNull { it.initiatorUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.first()
-                }
-                .sortedByDescending { it.createdAt }
-            activities = txs.map { tx ->
-                val isSendType = tx.type.equals("Send", ignoreCase = true)
-                val isInitiator = tx.initiatorUserId.equals(currentUserId, ignoreCase = true)
-                val isReceiver = tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-
-                val displayType = when {
-                    isSendType && isInitiator -> "Send"
-                    isSendType && isReceiver -> "Receive"
-                    else -> tx.type.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
-                    }
-                }
-
-                val isCredit = when {
-                    isSendType && isReceiver -> true
-                    isSendType && isInitiator -> false
-                    else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
-                }
-
-                val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
-                val amountPrefix = if (isCredit) "+" else "-"
-                HomeActivity(
-                    type = displayType,
-                    status = tx.status.lowercase(Locale.US),
-                    detail = buildString {
-                        append(tx.currency)
-                        append(" • ")
-                        append(formatHomeTime(tx.createdAt))
-                        tx.interactedPhone?.takeIf { it.isNotBlank() }?.let {
-                            append(" • ")
-                            append(it)
-                        }
-                        append(" • ")
-                        append(tx.referenceCode)
-                    },
-                    amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
-                    amountColor = amountColor
-                )
-            }
+            applyTransactions(transactionsResult.data.orEmpty(), currentUserId)
         } else {
             loadError = transactionsResult.errorMessage ?: loadError
         }
     }
+
+    LaunchedEffect(Unit) {
+        applyCachedHomeData()
+        reloadHomeData()
+    }
+
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            scope.launch {
+                isRefreshing = true
+                reloadHomeData()
+                isRefreshing = false
+            }
+        }
+    )
 
     val quickActions = listOf(
         HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
         HomeAction("onb_sell_kes", "S", "Sell Crypto"),
         HomeAction("onb_pay_till", "P", "Pay with MPESA"),
         HomeAction("onb_send_crypto", "M", "Send to Other Users"),
-        HomeAction("onb_payment_records", "V", "View Records")
+        HomeAction("onb_payment_records", "V", "View Records"),
+        HomeAction("onb_view_rates", "R", "View Rates")
     )
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(pageBackground)
             .statusBarsPadding()
+            .pullRefresh(pullRefreshState)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -457,6 +515,7 @@ fun HomeScreen(
                                         "Pay with MPESA" -> onPayWithMpesaClick
                                         "Send to Other Users" -> onSendToUserClick
                                         "View Records" -> onViewRecordsClick
+                                        "View Rates" -> onViewRatesClick
                                         else -> ({})
                                     }
                                     Card(
@@ -555,7 +614,7 @@ fun HomeScreen(
                 }
             }
 
-            items(activities) { activity ->
+            items(activities.take(3)) { activity ->
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = panelBackground),
@@ -609,17 +668,28 @@ fun HomeScreen(
                 }
             }
         }
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
 private fun formatHomeTime(raw: String): String {
-    return runCatching {
-        OffsetDateTime.parse(raw)
-            .toLocalTime()
-            .format(DateTimeFormatter.ofPattern("HH:mm"))
-    }.getOrElse {
-        raw.take(16)
+    val parsers = listOf(
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+    )
+    val outputFormat = SimpleDateFormat("dd-MM-yyyy", Locale.US)
+    for (parser in parsers) {
+        val parsed = runCatching { parser.parse(raw) }.getOrNull()
+        if (parsed != null) {
+            return outputFormat.format(parsed)
+        }
     }
+    return raw
 }
 
 @Preview(showBackground = true, showSystemUi = true)

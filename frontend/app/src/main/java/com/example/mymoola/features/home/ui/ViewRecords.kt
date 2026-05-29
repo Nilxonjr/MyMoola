@@ -32,8 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.home.data.HomeApiClient
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Composable
@@ -188,6 +187,29 @@ fun ViewRecordsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF64748B)
                                 )
+                                tx.marketRateSnapshot?.let { snapshot ->
+                                    Text(
+                                        text = "Market rate snapshot: ${String.format(Locale.US, "%,.4f", snapshot)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                                if (tx.onChainConfirmations > 0) {
+                                    Text(
+                                        text = "On-chain confirmations: ${tx.onChainConfirmations}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                                tx.mpesaReference
+                                    ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                                    ?.let { mpesaRef ->
+                                    Text(
+                                        text = "M-PESA reference: $mpesaRef",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    }
                             }
                         }
                     }
@@ -198,8 +220,17 @@ fun ViewRecordsScreen(
 }
 
 private fun formatRecordDate(raw: String): String {
-    return runCatching {
-        OffsetDateTime.parse(raw)
-            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-    }.getOrElse { raw }
+    val parsers = listOf(
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+    )
+    val outputFormat = SimpleDateFormat("dd-MM-yyyy", Locale.US)
+    for (parser in parsers) {
+        val parsed = runCatching { parser.parse(raw) }.getOrNull()
+        if (parsed != null) {
+            return outputFormat.format(parsed)
+        }
+    }
+    return raw
 }

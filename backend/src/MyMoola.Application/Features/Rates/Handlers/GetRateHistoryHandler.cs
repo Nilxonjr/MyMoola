@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using MyMoola.Application.Common.Interfaces;
 using MyMoola.Application.Features.Rates.Queries;
 using MyMoola.Domain.Enums;

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import java.util.Locale
 
 @Composable
 fun ActivityDetailsScreen(
@@ -28,11 +29,13 @@ fun ActivityDetailsScreen(
     status: String,
     detail: String,
     amount: String,
+    marketRateSnapshot: Double?,
+    onChainConfirmations: Int,
+    mpesaReference: String?,
     onBackClick: () -> Unit
 ) {
     val isCredit = amount.trim().startsWith("+")
     val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -91,6 +94,29 @@ fun ActivityDetailsScreen(
                 fontWeight = FontWeight.SemiBold,
                 color = amountColor
             )
+            marketRateSnapshot?.let { snapshot ->
+                Text(
+                    text = "Market rate snapshot: ${String.format(Locale.US, "%,.4f", snapshot)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
+            }
+            if (onChainConfirmations > 0) {
+                Text(
+                    text = "On-chain confirmations: $onChainConfirmations",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
+            }
+            mpesaReference
+                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                ?.let { mpesaRef ->
+                    Text(
+                        text = "M-PESA reference: $mpesaRef",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                }
         }
     }
 }
