@@ -59,6 +59,8 @@ import com.example.mymoola.ui.theme.MyMoolaTheme
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -145,7 +147,7 @@ fun HomeScreen(
                 iconResName = icon,
                 code = wallet.currency,
                 label = wallet.currency,
-                balance = "${String.format(Locale.US, "%.6f", wallet.total)} ${wallet.currency}"
+                balance = "${formatMeaningfulAmount(wallet.total)} ${wallet.currency}"
             )
         }
         if (wallets.isNotEmpty()) {
@@ -188,7 +190,12 @@ fun HomeScreen(
                 else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
             }
 
-            val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+            val isFailed = tx.status.equals("Failed", ignoreCase = true)
+            val amountColor = when {
+                isFailed -> Color(0xFFDC2626)
+                isCredit -> Color(0xFF10B981)
+                else -> Color(0xFFEF4444)
+            }
             val amountPrefix = if (isCredit) "+" else "-"
             HomeActivity(
                 type = displayType,
@@ -204,7 +211,7 @@ fun HomeScreen(
                     append(" • ")
                     append(tx.referenceCode)
                 },
-                amount = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
+                amount = "$amountPrefix${formatMeaningfulAmount(tx.amount)} ${tx.currency}",
                 amountColor = amountColor,
                 marketRateSnapshot = tx.marketRateSnapshot,
                 onChainConfirmations = tx.onChainConfirmations,
@@ -643,7 +650,7 @@ fun HomeScreen(
                                 )
                                 Text(
                                     activity.status,
-                                    color = brandAccent,
+                                    color = if (activity.status.equals("failed", ignoreCase = true)) Color(0xFFDC2626) else brandAccent,
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -690,6 +697,11 @@ private fun formatHomeTime(raw: String): String {
         }
     }
     return raw
+}
+
+private fun formatMeaningfulAmount(amount: Double): String {
+    val formatter = DecimalFormat("#,##0.######", DecimalFormatSymbols(Locale.US))
+    return formatter.format(amount)
 }
 
 @Preview(showBackground = true, showSystemUi = true)

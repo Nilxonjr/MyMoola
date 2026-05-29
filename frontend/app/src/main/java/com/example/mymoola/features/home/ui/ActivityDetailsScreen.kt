@@ -36,6 +36,11 @@ fun ActivityDetailsScreen(
 ) {
     val isCredit = amount.trim().startsWith("+")
     val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+    val statusColor = when {
+        status.equals("completed", ignoreCase = true) -> Color(0xFF0A7C6A)
+        status.equals("failed", ignoreCase = true) -> Color(0xFFDC2626)
+        else -> Color(0xFF334155)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -81,7 +86,7 @@ fun ActivityDetailsScreen(
             Text(
                 text = "Status: ${status.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF334155)
+                color = statusColor
             )
             Text(
                 text = detail,

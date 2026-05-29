@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.home.data.HomeApiClient
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -129,7 +131,12 @@ fun ViewRecordsScreen(
                             isSendType && isInitiator -> false
                             else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
                         }
-                        val amountColor = if (isCredit) Color(0xFF10B981) else Color(0xFFEF4444)
+                        val isFailed = tx.status.equals("Failed", ignoreCase = true)
+                        val amountColor = when {
+                            isFailed -> Color(0xFFDC2626)
+                            isCredit -> Color(0xFF10B981)
+                            else -> Color(0xFFEF4444)
+                        }
                         val amountPrefix = if (isCredit) "+" else "-"
 
                         Card(
@@ -159,7 +166,7 @@ fun ViewRecordsScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "$amountPrefix${String.format(Locale.US, "%.6f", tx.amount)} ${tx.currency}",
+                                        text = "$amountPrefix${formatMeaningfulAmount(tx.amount)} ${tx.currency}",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = amountColor,
                                         fontWeight = FontWeight.SemiBold
@@ -168,7 +175,7 @@ fun ViewRecordsScreen(
                                 Text(
                                     text = "Status: ${tx.status.lowercase(Locale.US)}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF0A7C6A)
+                                    color = if (isFailed) Color(0xFFDC2626) else Color(0xFF0A7C6A)
                                 )
                                 Text(
                                     text = "Reference: ${tx.referenceCode}",
@@ -233,4 +240,9 @@ private fun formatRecordDate(raw: String): String {
         }
     }
     return raw
+}
+
+private fun formatMeaningfulAmount(amount: Double): String {
+    val formatter = DecimalFormat("#,##0.######", DecimalFormatSymbols(Locale.US))
+    return formatter.format(amount)
 }
