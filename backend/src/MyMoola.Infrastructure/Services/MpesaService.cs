@@ -123,6 +123,9 @@ public sealed class MpesaService(
             OriginatorConversationID = Guid.NewGuid().ToString("N")
         };
 
+        var payloadJson = JsonSerializer.Serialize(payload, SafaricomJsonOptions);
+        logger.LogInformation("B2C payload: {Payload}", payloadJson);
+
         var response = await SendAsync(
             HttpMethod.Post,
             "mpesa/b2c/v3/paymentrequest",
