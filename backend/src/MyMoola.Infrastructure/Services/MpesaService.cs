@@ -114,7 +114,7 @@ public sealed class MpesaService(
             SecurityCredential = _opts.B2CSecurityCredential,
             CommandID = "BusinessPayment",
             Amount = amountKes,
-            PartyA = _opts.ShortCode,
+            PartyA = _opts.B2CShortCode,
             PartyB = formatted,
             Remarks = remarks,
             QueueTimeOutURL = _opts.B2CQueueTimeOutUrl,
@@ -122,6 +122,9 @@ public sealed class MpesaService(
             Occasion = string.Empty,
             OriginatorConversationID = Guid.NewGuid().ToString("N")
         };
+
+        var payloadJson = JsonSerializer.Serialize(payload, SafaricomJsonOptions);
+        logger.LogInformation("B2C payload: {Payload}", payloadJson);
 
         var response = await SendAsync(
             HttpMethod.Post,

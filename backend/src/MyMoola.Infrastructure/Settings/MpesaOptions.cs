@@ -15,4 +15,6 @@ public sealed class MpesaOptions
     public string StkCallbackUrl { get; init; } = default!;
     public string B2CCallbackUrl { get; init; } = default!;
     public string B2CQueueTimeOutUrl { get; init; } = default!;
+
+    public string B2CShortCode { get; init; } = default!;
 }
