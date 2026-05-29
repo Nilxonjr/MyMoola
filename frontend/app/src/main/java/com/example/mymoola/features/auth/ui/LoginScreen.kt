@@ -42,7 +42,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.auth.data.AuthApiClient
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
 import kotlinx.coroutines.launch
 
 private const val KenyaPrefix = "+254"
@@ -133,7 +135,8 @@ fun LoginScreen(
                     label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = myMoolaOutlinedTextFieldColors()
                 )
                 OutlinedTextField(
                     value = pin,
@@ -146,7 +149,8 @@ fun LoginScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = myMoolaOutlinedTextFieldColors()
                 )
 
                 OutlinedButton(
@@ -184,6 +188,7 @@ fun LoginScreen(
 
                             if (result.isSuccess) {
                                 successMessage = result.data?.message ?: "OTP sent to your phone number."
+                                AuthSession.setPendingPin(pin)
                                 onLoginSuccess(normalizedPhone)
                             } else {
                                 errors = listOf(result.errorMessage ?: "Login failed.")
