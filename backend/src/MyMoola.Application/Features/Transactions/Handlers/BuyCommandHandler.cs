@@ -125,9 +125,11 @@ public sealed class BuyCommandHandler(
         // 11. Create transaction record
         var referenceCode = ReferenceCodeGenerator.Generate();
 
-        var phoneForMpesa = !string.IsNullOrWhiteSpace(testing.Value.StkPushPhoneOverride)
-            ? testing.Value.StkPushPhoneOverride
-            : user.PhoneNumberValue;
+        //var phoneForMpesa = !string.IsNullOrWhiteSpace(testing.Value.StkPushPhoneOverride)
+        //    ? testing.Value.StkPushPhoneOverride
+        //    : user.PhoneNumberValue;  only when not using real numbers
+
+        var phoneForMpesa =  user.PhoneNumberValue;
 
         var multiplier = testing.Value.AmountMultiplier;
 
