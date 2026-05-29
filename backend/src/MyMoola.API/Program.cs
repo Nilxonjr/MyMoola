@@ -151,6 +151,9 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 builder.Services.AddScoped<IOutboxMessageHandler, StkPushOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, StkCallbackOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, B2COutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, B2CCallbackOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, B2CTimeoutOutboxHandler>();
 
 // Idempotency
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();

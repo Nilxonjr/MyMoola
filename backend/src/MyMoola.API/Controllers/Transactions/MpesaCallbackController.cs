@@ -34,37 +34,37 @@ public sealed class MpesaCallbackController(
         return Ok();
     }
 
-    //[HttpPost("b2c")]
-    //public async Task<IActionResult> B2CCallback(
-    //    [FromBody] B2CCallbackPayload callback,
-    //    CancellationToken ct)
-    //{
-    //    try
-    //    {
-    //        await sender.Send(new ProcessB2CCallbackCommand(callback), ct);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        logger.LogError(ex, "B2C callback handler failed.");
-    //    }
+    [HttpPost("b2c")]
+    public async Task<IActionResult> B2CCallback(
+        [FromBody] B2CCallbackPayload callback,
+        CancellationToken ct)
+    {
+        try
+        {
+            await sender.Send(new ProcessB2CCallbackCommand(callback), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "B2C callback handler failed.");
+        }
 
-    //    return Ok();
-    //}
+        return Ok();
+    }
 
-    //[HttpPost("b2c-timeout")]
-    //public async Task<IActionResult> B2CTimeout(
-    //    [FromBody] B2CCallbackPayload callback,
-    //    CancellationToken ct)
-    //{
-    //    try
-    //    {
-    //        await sender.Send(new ProcessB2CTimeoutCommand(callback), ct);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        logger.LogError(ex, "B2C timeout handler failed.");
-    //    }
+    [HttpPost("b2c-timeout")]
+    public async Task<IActionResult> B2CTimeout(
+        [FromBody] B2CCallbackPayload callback,
+        CancellationToken ct)
+    {
+        try
+        {
+            await sender.Send(new ProcessB2CTimeoutCommand(callback), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "B2C timeout handler failed.");
+        }
 
-    //    return Ok();
-    //}
+        return Ok();
+    }
 }

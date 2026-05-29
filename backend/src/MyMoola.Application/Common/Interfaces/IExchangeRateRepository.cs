@@ -1,4 +1,4 @@
-﻿// MyMoola.Application/Common/Interfaces/IExchangeRateRepository.cs
+// MyMoola.Application/Common/Interfaces/IExchangeRateRepository.cs
 using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
 
