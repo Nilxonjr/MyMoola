@@ -67,4 +67,36 @@ public sealed class MpesaCallbackController(
 
         return Ok();
     }
+
+    [HttpPost("b2b")]
+    public async Task<IActionResult> B2BCallback(
+    [FromBody] B2BCallbackPayload callback,
+    CancellationToken ct)
+    {
+        try
+        {
+            await sender.Send(new ProcessB2BCallbackCommand(callback), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "B2B callback handler failed.");
+        }
+        return Ok();
+    }
+
+    [HttpPost("b2b-timeout")]
+    public async Task<IActionResult> B2BTimeout(
+        [FromBody] B2BCallbackPayload callback,
+        CancellationToken ct)
+    {
+        try
+        {
+            await sender.Send(new ProcessB2BTimeoutCommand(callback), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "B2B timeout handler failed.");
+        }
+        return Ok();
+    }
 }

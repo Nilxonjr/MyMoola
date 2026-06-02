@@ -78,4 +78,23 @@ public sealed class TransactionsController(ISender sender) : ControllerBase
         var response = await sender.Send(command, ct);
         return Accepted(response);
     }
+
+    [HttpPost("pay-merchant")]
+    [Authorize]
+    [Idempotency]
+    [EnableRateLimiting("transactions")]
+    [ProducesResponseType(typeof(PayMerchantResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PayMerchant(
+    [FromBody] PayMerchantCommand command,
+    CancellationToken ct)
+    {
+        var response = await sender.Send(command, ct);
+        return Accepted(response);
+    }
 }
