@@ -3,6 +3,7 @@ using MyMoola.Application.Common.Interfaces;
 using MyMoola.Application.Features.Auth.Commands;
 using MyMoola.Domain.Entities;
 using MyMoola.Domain.Exceptions;
+using MyMoola.Application.Common.Helpers;
 
 namespace MyMoola.Application.Features.Auth.Handlers;
 
@@ -40,7 +41,7 @@ public sealed class LoginUserHandler(
             throw new InvalidCredentialsException();
         }
 
-        var otp = GenerateOtp();
+        var otp = OtpGenerator.Generate();
         await otpCache.SetAsync($"login-otp:{cmd.PhoneNumber}", otp, OtpTtl, ct);
 
         await sms.SendAsync(
@@ -49,13 +50,5 @@ public sealed class LoginUserHandler(
             ct);
 
         return new LoginInitiatedResponse("OTP sent to your phone number.");
-    }
-
-    private static string GenerateOtp()
-    {
-        var bytes = new byte[4];
-        System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
-        var number = Math.Abs(BitConverter.ToInt32(bytes, 0)) % 1_000_000;
-        return number.ToString("D6");
     }
 }

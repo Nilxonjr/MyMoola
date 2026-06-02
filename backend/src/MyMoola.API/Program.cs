@@ -26,6 +26,7 @@ using MyMoola.Infrastructure.BackgroundJobs;
 using MyMoola.Infrastructure.Persistence.Interceptors;
 using Polly.Extensions.Http;
 using MyMoola.Application.Common.Options;
+using Microsoft.AspNetCore.HttpOverrides;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -384,6 +385,19 @@ builder.Services.AddRateLimiter(limiter =>
                 QueueLimit = 0
             }));
 
+    // Resend OTP — strict per IP, prevents SMS bombing
+    limiter.AddPolicy("resend-otp", context =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(15),
+                SegmentsPerWindow = 3,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+
     // ── Transaction Endpoints (user ID-based) ─────────────────────────────────
     // Keyed by authenticated user ID from JWT sub claim.
     // Unauthenticated requests share a single "unauthenticated" bucket which
@@ -480,6 +494,10 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 app.UseRateLimiter();
 app.UseMiddleware<IdempotencyMiddleware>();
 
