@@ -193,343 +193,347 @@ fun BuyCryptoScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            supportedCurrencies.forEach { currency ->
-                val isSelected = currency == selectedCurrency
-                val iconResName = when (currency) {
-                    "USDC" -> "usdc_logo"
-                    "BTC" -> "bitcoin_logo"
-                    "ETH" -> "ethereum_logo"
-                    else -> "onb_wallet_manage"
-                }
-                val iconResId = remember(iconResName) {
-                    localContext.resources.getIdentifier(
-                        iconResName,
-                        "drawable",
-                        localContext.packageName
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .background(
-                            color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
-                            shape = RoundedCornerShape(999.dp)
-                        )
-                        .clickable { selectedCurrency = currency }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (iconResId != 0) {
-                        Image(
-                            painter = painterResource(id = iconResId),
-                            contentDescription = "$currency logo",
-                            modifier = Modifier.width(16.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                    Text(
-                        text = currency,
-                        color = if (isSelected) Color.White else Color(0xFF0F172A)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (loadingQuote && quote == null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Loading quote...", color = Color(0xFF334155))
-            }
-        } else if (quote != null) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = "Buy rate: ${String.format(Locale.US, "%.2f", buyRateKes)} KES",
-                    color = Color(0xFF0F172A),
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Quote refreshes in ${refreshSecondsRemaining}s",
-                    color = if (refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
-        if (!quoteError.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = quoteError ?: "",
-                color = Color(0xFFB91C1C),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        if (!quoteRefreshPrompt.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = quoteRefreshPrompt ?: "",
-                color = Color(0xFF1D4ED8),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = amountInput,
-            onValueChange = { input ->
-                amountInput = input.filter { it.isDigit() || it == '.' }
-            },
-            label = { Text("Amount (KES)") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions.Default.copy(autoCorrectEnabled = false)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "You pay: ${String.format(Locale.US, "%,.2f", grossKes)} KES",
-            color = Color(0xFF0F172A)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "Platform fee: ${String.format(Locale.US, "%,.2f", platformFee)} KES (1.5%)",
-            color = Color(0xFF334155)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "You receive ≈ ${String.format(Locale.US, "%.6f", receiveAmount)} $selectedCurrency",
-            color = Color(0xFF0F172A),
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (showPendingScreen) {
-            StatePanel(
-                title = "Payment Pending",
-                message = "Check your phone — enter your M-Pesa PIN to complete payment.",
-                reference = buyUiState.pendingReference,
-                statusLine = "Status: ${buyUiState.pendingStatus ?: "Pending"} (auto-checking)",
-                actionLabel = "Refresh now",
-                onAction = { buyViewModel.refreshNow() }
-            )
-            return@Column
-        }
-
-        if (showSuccessScreen) {
-            StatePanel(
-                title = "Purchase Successful",
-                message = buyUiState.finalOutcome ?: "Crypto credited to your wallet.",
-                reference = buyUiState.pendingReference,
-                statusLine = "Status: Completed",
-                statusColor = Color(0xFF166534),
-                actionLabel = "Done",
-                onAction = {
-                    buyViewModel.clearTerminalOutcome()
-                    onDoneClick()
-                }
-            )
-            return@Column
-        }
-
-        if (showFailedScreen) {
-            StatePanel(
-                title = "Purchase Failed",
-                message = buyUiState.finalOutcome ?: "Payment did not complete.",
-                reference = buyUiState.pendingReference,
-                statusLine = "Status: Failed",
-                statusColor = Color(0xFFB91C1C),
-                actionLabel = "Try Again",
-                onAction = { buyViewModel.clearTerminalOutcome() }
-            )
-            return@Column
-        }
-
-        OutlinedTextField(
-            value = pin,
-            onValueChange = { input -> pin = input.filter(Char::isDigit).take(4) },
-            label = { Text("PIN (4 digits)") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions.Default.copy(
-                autoCorrectEnabled = false,
-                keyboardType = KeyboardType.NumberPassword
-            ),
-            visualTransformation = PasswordVisualTransformation(),
-            enabled = !submitting && buyUiState.pendingTransactionId.isNullOrBlank()
-        )
-
-        if (!formError.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = formError ?: "",
-                color = Color(0xFFB91C1C),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        val holdEnabledColor = if (canSubmit) Color(0xFF0F172A) else Color(0xFF94A3B8)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(holdEnabledColor, RoundedCornerShape(12.dp))
-                .pointerInput(canSubmit, grossKes, pin, quote?.quoteId, selectedCurrency) {
-                    detectTapGestures(
-                        onPress = {
-                            if (!canSubmit) return@detectTapGestures
-
-                            formError = null
-                            holdProgress = 0f
-                            coroutineScope {
-                                var triggered = false
-                                val holdJob = launch {
-                                    val totalMs = 3000
-                                    val stepMs = 50
-                                    var elapsed = 0
-                                    while (elapsed < totalMs) {
-                                        delay(stepMs.toLong())
-                                        elapsed += stepMs
-                                        holdProgress = (elapsed.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f)
-                                    }
-
-                                    triggered = true
-                                    submitting = true
-                                    try {
-                                        val sessionPin = AuthSession.sessionPin
-                                        if (sessionPin.isNullOrBlank()) {
-                                            formError = "Session PIN unavailable. Please log in again."
-                                            return@launch
-                                        }
-                                        if (pin != sessionPin) {
-                                            formError = "Incorrect PIN. Enter your account PIN to continue."
-                                            return@launch
-                                        }
-
-                                        val activeQuote = quote
-                                        if (activeQuote == null) {
-                                            formError = "Quote is unavailable. Please refresh and try again."
-                                            return@launch
-                                        }
-
-                                        val expiresMs = parseExpiryMillis(activeQuote.expiresAt)
-                                        if (expiresMs <= System.currentTimeMillis()) {
-                                            val refreshed = HomeApiClient.getQuote(selectedCurrency)
-                                            if (refreshed.isSuccess && refreshed.data != null) {
-                                                quote = refreshed.data
-                                                quoteRefreshPrompt = "Rate updated. Please review new price and hold Buy again."
-                                                formError = null
-                                            } else {
-                                                formError = refreshed.errorMessage ?: "Quote expired. Unable to refresh rate right now."
-                                            }
-                                            return@launch
-                                        }
-
-                                        val key = activeAttemptKey ?: UUID.randomUUID().toString().also { activeAttemptKey = it }
-                                        val result = try {
-                                            withTimeout(20_000) {
-                                                HomeApiClient.buyCrypto(
-                                                    request = HomeApiClient.BuyCryptoRequest(
-                                                        currency = selectedCurrency,
-                                                        grossKes = grossKes,
-                                                        quoteId = activeQuote.quoteId,
-                                                        pin = pin
-                                                    ),
-                                                    idempotencyKey = key
-                                                )
-                                            }
-                                        } catch (_: Exception) {
-                                            formError = null
-                                            quoteRefreshPrompt = null
-                                            buyViewModel.onBuyInitiated(
-                                                transactionId = null,
-                                                referenceCode = null,
-                                                message = "Payment request sent. Waiting for confirmation."
-                                            )
-                                            return@launch
-                                        }
-
-                                        if (result.isSuccess) {
-                                            buyViewModel.onBuyInitiated(
-                                                transactionId = result.data?.transactionId,
-                                                referenceCode = result.data?.referenceCode,
-                                                message = result.data?.message
-                                            )
-                                            quoteRefreshPrompt = null
-                                            formError = null
-                                        } else {
-                                            val mappedError = when (result.statusCode) {
-                                                400 -> result.errorMessage ?: "Please check your inputs and try again."
-                                                401 -> "Session expired. Please sign in again."
-                                                403 -> result.errorMessage ?: "This operation is currently disabled for your account."
-                                                404 -> "User or wallet not found."
-                                                422 -> "Quote expired. Fetching latest rate..."
-                                                429 -> "Too many requests. Please wait 30 seconds and try again."
-                                                else -> result.errorMessage ?: "Unable to initiate payment."
-                                            }
-                                            val error = mappedError
-                                            formError = error
-                                            buyViewModel.onBuyInitiationFailed(error)
-
-                                            if (result.statusCode == 422) {
-                                                val refreshed = HomeApiClient.getQuote(selectedCurrency)
-                                                if (refreshed.isSuccess && refreshed.data != null) {
-                                                    quote = refreshed.data
-                                                    quoteRefreshPrompt = "Quote expired. New rate loaded. Review and hold Buy again."
-                                                }
-                                            }
-                                        }
-                                    } finally {
-                                        submitting = false
-                                        holdProgress = 0f
-                                    }
-                                }
-
-                                val released = tryAwaitRelease()
-                                if (released && !triggered) {
-                                    holdJob.cancel()
-                                    holdProgress = 0f
-                                }
-                            }
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+                .background(Color.White, RoundedCornerShape(16.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    text = "Buy Details",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0F172A)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    supportedCurrencies.forEach { currency ->
+                        val isSelected = currency == selectedCurrency
+                        val iconResName = when (currency) {
+                            "USDC" -> "usdc_logo"
+                            "BTC" -> "bitcoin_logo"
+                            "ETH" -> "ethereum_logo"
+                            else -> "onb_wallet_manage"
                         }
+                        val iconResId = remember(iconResName) {
+                            localContext.resources.getIdentifier(
+                                iconResName,
+                                "drawable",
+                                localContext.packageName
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .background(
+                                    color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                                    shape = RoundedCornerShape(999.dp)
+                                )
+                                .clickable { selectedCurrency = currency }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (iconResId != 0) {
+                                Image(
+                                    painter = painterResource(id = iconResId),
+                                    contentDescription = "$currency logo",
+                                    modifier = Modifier.width(16.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+                            Text(
+                                text = currency,
+                                color = if (isSelected) Color.White else Color(0xFF0F172A)
+                            )
+                        }
+                    }
+                }
+
+                if (loadingQuote && quote == null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Loading quote...", color = Color(0xFF334155))
+                    }
+                } else if (quote != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Buy rate: ${String.format(Locale.US, "%.2f", buyRateKes)} KES",
+                            color = Color(0xFF0F172A),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Quote refreshes in ${refreshSecondsRemaining}s",
+                            color = if (refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                if (!quoteError.isNullOrBlank()) {
+                    Text(
+                        text = quoteError ?: "",
+                        color = Color(0xFFB91C1C),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (submitting) "Submitting..." else "Hold 3 seconds to Buy",
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
 
-        if (holdProgress > 0f) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .background(Color(0xFFE2E8F0), RoundedCornerShape(999.dp))
-            ) {
+                if (!quoteRefreshPrompt.isNullOrBlank()) {
+                    Text(
+                        text = quoteRefreshPrompt ?: "",
+                        color = Color(0xFF1D4ED8),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                OutlinedTextField(
+                    value = amountInput,
+                    onValueChange = { input ->
+                        amountInput = input.filter { it.isDigit() || it == '.' }
+                    },
+                    label = { Text("Amount (KES)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(autoCorrectEnabled = false)
+                )
+
+                Text(
+                    text = "You pay: ${String.format(Locale.US, "%,.2f", grossKes)} KES",
+                    color = Color(0xFF0F172A)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Platform fee: ${String.format(Locale.US, "%,.2f", platformFee)} KES (1.5%)",
+                    color = Color(0xFF334155)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "You receive ≈ ${String.format(Locale.US, "%.6f", receiveAmount)} $selectedCurrency",
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Medium
+                )
+
+                if (showPendingScreen) {
+                    StatePanel(
+                        title = "Payment Pending",
+                        message = "Check your phone — enter your M-Pesa PIN to complete payment.",
+                        reference = buyUiState.pendingReference,
+                        statusLine = "Status: ${buyUiState.pendingStatus ?: "Pending"} (auto-checking)",
+                        actionLabel = "Refresh now",
+                        onAction = { buyViewModel.refreshNow() }
+                    )
+                    return@Column
+                }
+
+                if (showSuccessScreen) {
+                    StatePanel(
+                        title = "Purchase Successful",
+                        message = buyUiState.finalOutcome ?: "Crypto credited to your wallet.",
+                        reference = buyUiState.pendingReference,
+                        statusLine = "Status: Completed",
+                        statusColor = Color(0xFF166534),
+                        actionLabel = "Done",
+                        onAction = {
+                            buyViewModel.clearTerminalOutcome()
+                            onDoneClick()
+                        }
+                    )
+                    return@Column
+                }
+
+                if (showFailedScreen) {
+                    StatePanel(
+                        title = "Purchase Failed",
+                        message = buyUiState.finalOutcome ?: "Payment did not complete.",
+                        reference = buyUiState.pendingReference,
+                        statusLine = "Status: Failed",
+                        statusColor = Color(0xFFB91C1C),
+                        actionLabel = "Try Again",
+                        onAction = { buyViewModel.clearTerminalOutcome() }
+                    )
+                    return@Column
+                }
+
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { input -> pin = input.filter(Char::isDigit).take(4) },
+                    label = { Text("PIN (4 digits)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        autoCorrectEnabled = false,
+                        keyboardType = KeyboardType.NumberPassword
+                    ),
+                    visualTransformation = PasswordVisualTransformation(),
+                    enabled = !submitting && buyUiState.pendingTransactionId.isNullOrBlank()
+                )
+
+                if (!formError.isNullOrBlank()) {
+                    Text(
+                        text = formError ?: "",
+                        color = Color(0xFFB91C1C),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                val holdEnabledColor = if (canSubmit) Color(0xFF0F172A) else Color(0xFF94A3B8)
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(holdProgress)
-                        .height(8.dp)
-                        .background(Color(0xFF0F172A), RoundedCornerShape(999.dp))
-                )
+                        .fillMaxWidth()
+                        .background(holdEnabledColor, RoundedCornerShape(12.dp))
+                        .pointerInput(canSubmit, grossKes, pin, quote?.quoteId, selectedCurrency) {
+                            detectTapGestures(
+                                onPress = {
+                                    if (!canSubmit) return@detectTapGestures
+
+                                    formError = null
+                                    holdProgress = 0f
+                                    coroutineScope {
+                                        var triggered = false
+                                        val holdJob = launch {
+                                            val totalMs = 3000
+                                            val stepMs = 50
+                                            var elapsed = 0
+                                            while (elapsed < totalMs) {
+                                                delay(stepMs.toLong())
+                                                elapsed += stepMs
+                                                holdProgress = (elapsed.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f)
+                                            }
+
+                                            triggered = true
+                                            submitting = true
+                                            try {
+                                                val sessionPin = AuthSession.sessionPin
+                                                if (sessionPin.isNullOrBlank()) {
+                                                    formError = "Session PIN unavailable. Please log in again."
+                                                    return@launch
+                                                }
+                                                if (pin != sessionPin) {
+                                                    formError = "Incorrect PIN. Enter your account PIN to continue."
+                                                    return@launch
+                                                }
+
+                                                val activeQuote = quote
+                                                if (activeQuote == null) {
+                                                    formError = "Quote is unavailable. Please refresh and try again."
+                                                    return@launch
+                                                }
+
+                                                val expiresMs = parseExpiryMillis(activeQuote.expiresAt)
+                                                if (expiresMs <= System.currentTimeMillis()) {
+                                                    val refreshed = HomeApiClient.getQuote(selectedCurrency)
+                                                    if (refreshed.isSuccess && refreshed.data != null) {
+                                                        quote = refreshed.data
+                                                        quoteRefreshPrompt = "Rate updated. Please review new price and hold Buy again."
+                                                        formError = null
+                                                    } else {
+                                                        formError = refreshed.errorMessage ?: "Quote expired. Unable to refresh rate right now."
+                                                    }
+                                                    return@launch
+                                                }
+
+                                                val key = activeAttemptKey ?: UUID.randomUUID().toString().also { activeAttemptKey = it }
+                                                val result = try {
+                                                    withTimeout(20_000) {
+                                                        HomeApiClient.buyCrypto(
+                                                            request = HomeApiClient.BuyCryptoRequest(
+                                                                currency = selectedCurrency,
+                                                                grossKes = grossKes,
+                                                                quoteId = activeQuote.quoteId,
+                                                                pin = pin
+                                                            ),
+                                                            idempotencyKey = key
+                                                        )
+                                                    }
+                                                } catch (_: Exception) {
+                                                    formError = null
+                                                    quoteRefreshPrompt = null
+                                                    buyViewModel.onBuyInitiated(
+                                                        transactionId = null,
+                                                        referenceCode = null,
+                                                        message = "Payment request sent. Waiting for confirmation."
+                                                    )
+                                                    return@launch
+                                                }
+
+                                                if (result.isSuccess) {
+                                                    buyViewModel.onBuyInitiated(
+                                                        transactionId = result.data?.transactionId,
+                                                        referenceCode = result.data?.referenceCode,
+                                                        message = result.data?.message
+                                                    )
+                                                    quoteRefreshPrompt = null
+                                                    formError = null
+                                                } else {
+                                                    val mappedError = when (result.statusCode) {
+                                                        400 -> result.errorMessage ?: "Please check your inputs and try again."
+                                                        401 -> "Session expired. Please sign in again."
+                                                        403 -> result.errorMessage ?: "This operation is currently disabled for your account."
+                                                        404 -> "User or wallet not found."
+                                                        422 -> "Quote expired. Fetching latest rate..."
+                                                        429 -> "Too many requests. Please wait 30 seconds and try again."
+                                                        else -> result.errorMessage ?: "Unable to initiate payment."
+                                                    }
+                                                    val error = mappedError
+                                                    formError = error
+                                                    buyViewModel.onBuyInitiationFailed(error)
+
+                                                    if (result.statusCode == 422) {
+                                                        val refreshed = HomeApiClient.getQuote(selectedCurrency)
+                                                        if (refreshed.isSuccess && refreshed.data != null) {
+                                                            quote = refreshed.data
+                                                            quoteRefreshPrompt = "Quote expired. New rate loaded. Review and hold Buy again."
+                                                        }
+                                                    }
+                                                }
+                                            } finally {
+                                                submitting = false
+                                                holdProgress = 0f
+                                            }
+                                        }
+
+                                        val released = tryAwaitRelease()
+                                        if (released && !triggered) {
+                                            holdJob.cancel()
+                                            holdProgress = 0f
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (submitting) "Submitting..." else "Hold 3 seconds to Buy",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (holdProgress > 0f) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .background(Color(0xFFE2E8F0), RoundedCornerShape(999.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(holdProgress)
+                                .height(8.dp)
+                                .background(Color(0xFF0F172A), RoundedCornerShape(999.dp))
+                        )
+                    }
+                }
             }
         }
 
