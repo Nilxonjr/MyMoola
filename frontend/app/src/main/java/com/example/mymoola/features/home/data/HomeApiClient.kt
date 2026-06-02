@@ -89,6 +89,19 @@ object HomeApiClient {
         val message: String
     )
 
+    data class SellCryptoRequest(
+        val currency: String,
+        val cryptoAmount: Double,
+        val quoteId: String,
+        val pin: String
+    )
+
+    data class SellCryptoResponse(
+        val transactionId: String,
+        val referenceCode: String,
+        val message: String
+    )
+
     data class RateHistoryPoint(
         val timestamp: String,
         val kesRate: Double
@@ -499,6 +512,78 @@ object HomeApiClient {
         }
     }
 
+    suspend fun sellCrypto(
+        request: SellCryptoRequest,
+        idempotencyKey: String
+    ): ApiResult<SellCryptoResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val firstAttempt = executeAuthorizedSell(request, idempotencyKey)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedSell(request, idempotencyKey)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code in 200..299) {
+                val json = runCatching { JSONObject(body) }.getOrNull()
+                val nested = json?.optJSONObject("data")
+                    ?: json?.optJSONObject("result")
+                    ?: json?.optJSONObject("payload")
+
+                fun stringFrom(vararg keys: String): String {
+                    keys.forEach { key ->
+                        val direct = json?.optString(key).orEmpty()
+                        if (direct.isNotBlank()) return direct
+                        val fromNested = nested?.optString(key).orEmpty()
+                        if (fromNested.isNotBlank()) return fromNested
+                    }
+                    return ""
+                }
+
+                val transactionId = stringFrom(
+                    "transactionId",
+                    "TransactionId",
+                    "transactionID",
+                    "id"
+                ).ifBlank {
+                    Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val referenceCode = stringFrom(
+                    "referenceCode",
+                    "ReferenceCode",
+                    "reference",
+                    "transactionReference"
+                ).ifBlank {
+                    Regex("SELL-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val message = stringFrom("message", "Message")
+                    .ifBlank { "Sell initiated. M-Pesa payment will arrive shortly." }
+
+                ApiResult(
+                    data = SellCryptoResponse(
+                        transactionId = transactionId,
+                        referenceCode = referenceCode,
+                        message = message
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while initiating sell.")
+        }
+    }
+
     private data class RawResponse(
         val statusCode: Int,
         val body: String
@@ -565,6 +650,45 @@ object HomeApiClient {
         val payload = JSONObject().apply {
             put("currency", request.currency)
             put("grossKes", request.grossKes)
+            put("quoteId", request.quoteId)
+            put("pin", request.pin)
+        }
+
+        OutputStreamWriter(connection.outputStream).use { writer ->
+            writer.write(payload.toString())
+            writer.flush()
+        }
+
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
+    }
+
+    private fun executeAuthorizedSell(
+        request: SellCryptoRequest,
+        idempotencyKey: String
+    ): RawResponse {
+        val accessToken = AuthSession.accessToken
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/transactions/sell")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+            setRequestProperty("Idempotency-Key", idempotencyKey)
+        }
+
+        val payload = JSONObject().apply {
+            put("currency", request.currency)
+            put("cryptoAmount", request.cryptoAmount)
             put("quoteId", request.quoteId)
             put("pin", request.pin)
         }

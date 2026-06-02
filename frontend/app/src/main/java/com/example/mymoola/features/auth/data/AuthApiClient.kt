@@ -34,12 +34,21 @@ object AuthApiClient {
         val purpose: OtpPurpose
     )
 
+    data class ResendOtpRequest(
+        val phoneNumber: String,
+        val purpose: OtpPurpose
+    )
+
     data class LoginRequest(
         val phoneNumber: String,
         val pin: String
     )
 
     data class LoginInitiatedResponse(
+        val message: String
+    )
+
+    data class ResendOtpResponse(
         val message: String
     )
 
@@ -184,6 +193,48 @@ object AuthApiClient {
                     ApiResult(
                         data = LoginInitiatedResponse(
                             message = json.optString("message", "OTP sent to your phone number.")
+                        )
+                    )
+                } else {
+                    ApiResult(errorMessage = extractErrorMessage(body, code))
+                }
+            }.getOrElse {
+                ApiResult(errorMessage = "Network error. Check API URL/server and try again.")
+            }
+        }
+
+    suspend fun resendOtp(request: ResendOtpRequest): ApiResult<ResendOtpResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/auth/otp/resend")
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15_000
+                    readTimeout = 15_000
+                    doInput = true
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+
+                val payload = JSONObject().apply {
+                    put("phoneNumber", request.phoneNumber)
+                    put("purpose", request.purpose.name)
+                }
+
+                OutputStreamWriter(connection.outputStream).use { writer ->
+                    writer.write(payload.toString())
+                    writer.flush()
+                }
+
+                val code = connection.responseCode
+                val body = readBody(connection, code in 200..299)
+
+                if (code == HttpURLConnection.HTTP_OK) {
+                    val json = JSONObject(body)
+                    ApiResult(
+                        data = ResendOtpResponse(
+                            message = json.optString("message", "OTP resent to your phone number.")
                         )
                     )
                 } else {
