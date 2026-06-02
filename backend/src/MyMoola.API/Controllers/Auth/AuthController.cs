@@ -94,4 +94,28 @@ public sealed class AuthController(ISender sender) : ControllerBase
         var result = await sender.Send(command, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Resends OTP to the provided phone number.
+    /// For Registration — only if phone is not yet verified.
+    /// For Login — only if PIN was already validated.
+    /// New OTP immediately invalidates the previous one.
+    /// </summary>
+    /// <response code="200">OTP resent or generic message if phone not found.</response>
+    /// <response code="400">Validation error.</response>
+    /// <response code="409">Phone already verified.</response>
+    /// <response code="429">Too many requests.</response>
+    [HttpPost("otp/resend")]
+    [EnableRateLimiting("resend-otp")]
+    [ProducesResponseType(typeof(ResendOtpResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ResendOtp(
+        [FromBody] ResendOtpCommand command,
+        CancellationToken ct)
+    {
+        var result = await sender.Send(command, ct);
+        return Ok(result);
+    }
 }
