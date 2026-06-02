@@ -238,10 +238,10 @@ class MainActivity : ComponentActivity() {
                             SendToUserScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onGoHomeClick = {
-                                    navController.navigate("home") {
-                                        popUpTo("home") { inclusive = false }
-                                        launchSingleTop = true
-                                    }
+                                    navController.previousBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack()
                                 }
                             )
                         }
