@@ -35,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,6 +94,7 @@ data class BalanceCurrency(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    refreshNonce: Long = 0L,
     onSettingsClick: () -> Unit = {},
     onBuyClick: () -> Unit = {},
     onSellClick: () -> Unit = {},
@@ -269,6 +271,12 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         applyCachedHomeData()
         reloadHomeData()
+    }
+
+    LaunchedEffect(refreshNonce) {
+        if (refreshNonce != 0L) {
+            reloadHomeData()
+        }
     }
 
     val pullRefreshState = rememberPullRefreshState(

@@ -8,6 +8,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import androidx.navigation.NavType
@@ -123,7 +125,13 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("home") {
+                            val refreshNonce by navController.currentBackStackEntry
+                                ?.savedStateHandle
+                                ?.getStateFlow("home_force_refresh", 0L)
+                                ?.collectAsState()
+                                ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
                             HomeScreen(
+                                refreshNonce = refreshNonce,
                                 onSettingsClick = { navController.navigate("settings") },
                                 onBuyClick = { navController.navigate("buy_crypto") },
                                 onSellClick = { navController.navigate("sell_crypto") },
@@ -205,15 +213,23 @@ class MainActivity : ComponentActivity() {
                             BuyCryptoScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onDoneClick = {
-                                    navController.navigate("home") {
-                                        popUpTo("home") { inclusive = false }
-                                        launchSingleTop = true
-                                    }
+                                    navController.previousBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack()
                                 }
                             )
                         }
                         composable("sell_crypto") {
-                            SellCryptoScreen(onBackClick = { navController.popBackStack() })
+                            SellCryptoScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onDoneClick = {
+                                    navController.previousBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack()
+                                }
+                            )
                         }
                         composable("pay_with_mpesa") {
                             PayWithMpesaScreen(onBackClick = { navController.popBackStack() })
@@ -270,12 +286,6 @@ class MainActivity : ComponentActivity() {
                                 phoneNumber = phone,
                                 purpose = purpose,
                                 onBackClick = { navController.popBackStack() },
-                                onResendClick = {
-                                    navController.navigate("login") {
-                                        popUpTo("login") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                },
                                 onVerified = { tokenResponse ->
                                     AuthSession.setTokens(
                                         tokenResponse.accessToken,

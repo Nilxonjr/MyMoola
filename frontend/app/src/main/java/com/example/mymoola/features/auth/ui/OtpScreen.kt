@@ -59,13 +59,13 @@ fun OtpScreen(
     purpose: AuthApiClient.OtpPurpose,
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
-    onResendClick: () -> Unit = {},
     onVerified: (AuthApiClient.AuthTokenResponse) -> Unit = {}
 ) {
     var otp by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var isVerifying by remember { mutableStateOf(false) }
+    var isResending by remember { mutableStateOf(false) }
     var secondsRemaining by remember { mutableIntStateOf(30) }
     val scope = rememberCoroutineScope()
 
@@ -152,16 +152,35 @@ fun OtpScreen(
 
                 OutlinedButton(
                     onClick = {
-                        onResendClick()
+                        scope.launch {
+                            isResending = true
+                            error = null
+                            successMessage = null
+
+                            val result = AuthApiClient.resendOtp(
+                                AuthApiClient.ResendOtpRequest(
+                                    phoneNumber = phoneNumber,
+                                    purpose = purpose
+                                )
+                            )
+
+                            isResending = false
+                            if (result.isSuccess) {
+                                successMessage = result.data?.message ?: "OTP resent to your phone number."
+                                secondsRemaining = 30
+                            } else {
+                                error = result.errorMessage ?: "Unable to resend OTP right now."
+                            }
+                        }
                     },
-                    enabled = secondsRemaining == 0,
+                    enabled = secondsRemaining == 0 && !isResending && !isVerifying,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp),
                     shape = buttonShape,
                     border = BorderStroke(1.dp, panelBorder)
                 ) {
-                    Text("Resend Code")
+                    Text(if (isResending) "Resending..." else "Resend Code")
                 }
 
                 Button(
