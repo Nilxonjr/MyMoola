@@ -37,7 +37,7 @@ public sealed class ProcessB2BCallbackHandler(
             result.ConversationID, result.ResultCode);
 
         logger.LogInformation(
-            "Sending payload: {rawjson}", rawJson);
+            "B2B payload: {rawjson}", rawJson);
 
         var mpesaTx = await mpesaTransactions
             .FindByConversationIDAsync(result.ConversationID, ct)
