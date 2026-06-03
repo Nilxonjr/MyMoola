@@ -182,17 +182,24 @@ public sealed class PayMerchantCommandHandler(
             ?? throw new NotFoundException("SuspenseWallet", Currency.KES);
 
         // 12. Resolve merchant details
+
+        var phoneForMpesa = !string.IsNullOrWhiteSpace(
+            testing.Value.StkPushPhoneOverride)
+            ? testing.Value.StkPushPhoneOverride
+            : command.PhoneNumber;
+
         var (merchantNumber, accountRef) = command.MerchantType switch
         {
             MerchantPaymentType.Paybill => (command.PaybillNumber!, command.AccountNumber!),
             MerchantPaymentType.Till => (command.TillNumber!, string.Empty),
-            MerchantPaymentType.Pochi => (command.PhoneNumber!, string.Empty),
-            MerchantPaymentType.SendMoney => (command.PhoneNumber!, string.Empty),
+            MerchantPaymentType.Pochi => (phoneForMpesa!, string.Empty),
+            MerchantPaymentType.SendMoney => (phoneForMpesa!, string.Empty),
             _ => throw new ArgumentOutOfRangeException(nameof(command.MerchantType))
         };
 
         // 13. Create transaction record
         var referenceCode = ReferenceCodeGenerator.Generate("PAY");
+
 
         var transaction = Transaction.Create(
             referenceCode: referenceCode,
