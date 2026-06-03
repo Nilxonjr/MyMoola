@@ -9,4 +9,10 @@ public static class OutboxMessageTypes
     public const string B2CCallback = "mpesa.b2c_callback.v1";
     public const string B2CTimeout = "mpesa.b2c_timeout.v1";
     public const string Sms = "sms.v1";
+    public const string B2BPayment = "mpesa.b2b_payment.v1";
+    public const string B2BCallback = "mpesa.b2b_callback.v1";
+    public const string B2BTimeout = "mpesa.b2b_timeout.v1";
+    public const string PochiPayment = "mpesa.pochi_payment.v1";
+    public const string PochiCallbackPayment = "mpesa.pochi_callback.v1";
+    public const string PochiTimeout = "mpesa.pochi_timeout.v1";
 }

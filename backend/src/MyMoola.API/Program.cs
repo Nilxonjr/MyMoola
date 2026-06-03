@@ -155,6 +155,10 @@ builder.Services.AddScoped<IOutboxMessageHandler, StkCallbackOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, B2COutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, B2CCallbackOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, B2CTimeoutOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, B2BOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, B2BCallbackOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, B2BTimeoutOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, PochiOutboxHandler>();
 
 // Idempotency
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();

@@ -154,12 +154,222 @@ public sealed class MpesaService(
         return new B2CResult(result.ConversationId, result.OriginatorConversationId);
     }
 
+    // Add to existing MpesaService
+    public async Task<B2BResult> InitiateB2BPaybillAsync(
+        string paybillNumber,
+        string accountNumber,
+        int amountKes,
+        string remarks,
+        CancellationToken ct = default)
+    {
+        var token = await GetAccessTokenAsync(ct);
+
+        var payload = new
+        {
+            Initiator = _opts.B2CInitiatorName,
+            SecurityCredential = _opts.B2CSecurityCredential,
+            CommandID = "BusinessPayBill",
+            SenderIdentifierType = "4",
+            RecieverIdentifierType = "4",
+            Amount = amountKes,
+            PartyA = _opts.B2BShortCode,
+            PartyB = paybillNumber,
+            AccountReference = accountNumber,
+            Remarks = remarks,
+            QueueTimeOutURL = _opts.B2BQueueTimeOutUrl,
+            ResultURL = _opts.B2BCallbackUrl,
+            OriginatorConversationID = Guid.NewGuid().ToString("N")
+        };
+
+        logger.LogInformation(
+            "Initiating B2B Paybill. PartyB={PartyB} Account={Account} Amount={Amount}",
+            paybillNumber, accountNumber, amountKes);
+
+        var response = await SendAsync(
+            HttpMethod.Post,
+            "mpesa/b2b/v1/paymentrequest",
+            payload,
+            token,
+            ct);
+
+        var result = Deserialize<B2BResponse>(response)
+            ?? throw new InvalidOperationException(
+                "Safaricom returned null B2B response.");
+
+        if (result.ResponseCode != "0")
+        {
+            logger.LogError(
+                "B2B Paybill rejected. Code={Code} Description={Desc}",
+                result.ResponseCode, result.ResponseDescription);
+
+            throw new InvalidOperationException(
+                $"Safaricom B2B rejected: {result.ResponseDescription}");
+        }
+
+        logger.LogInformation(
+            "B2B Paybill accepted. ConversationId={ConversationId}",
+            result.ConversationId);
+
+        return new B2BResult(result.ConversationId, result.OriginatorConversationId);
+    }
+
+    public async Task<B2CStatusResult> QueryB2CStatusAsync(
+    string conversationId,
+    CancellationToken ct = default)
+    {
+        var token = await GetAccessTokenAsync(ct);
+
+        var payload = new
+        {
+            Initiator = _opts.B2CInitiatorName,
+            SecurityCredential = _opts.B2CSecurityCredential,
+            CommandID = "QueryB2CTransactionStatus",
+            PartyA = _opts.B2CShortCode,
+            IdentifierType = "4",
+            TransactionID = conversationId,
+            ResultURL = _opts.B2CCallbackUrl,
+            QueueTimeOutURL = _opts.B2CQueueTimeOutUrl,
+            Remarks = "Query",
+            Occasion = string.Empty
+        };
+
+        var response = await SendAsync(
+            HttpMethod.Post,
+            "mpesa/transactionstatus/v1/query",
+            payload,
+            token,
+            ct);
+
+        var result = Deserialize<B2CStatusResponse>(response)
+            ?? throw new InvalidOperationException("Null B2C status response.");
+
+        return new B2CStatusResult(
+            conversationId,
+            int.Parse(result.ResponseCode),
+            result.ResponseDescription);
+    }
+
+    public async Task<B2BResult> InitiateB2BTillAsync(
+    string tillNumber,
+    int amountKes,
+    string remarks,
+    CancellationToken ct = default)
+    {
+        var token = await GetAccessTokenAsync(ct);
+
+        var payload = new
+        {
+            Initiator = _opts.B2CInitiatorName,
+            SecurityCredential = _opts.B2CSecurityCredential,
+            CommandID = "BusinessBuyGoods",
+            SenderIdentifierType = "4",
+            RecieverIdentifierType = "2",  // 2 = Till
+            Amount = amountKes,
+            PartyA = _opts.B2CShortCode,
+            PartyB = tillNumber,
+            Remarks = remarks,
+            QueueTimeOutURL = _opts.B2BQueueTimeOutUrl,
+            ResultURL = _opts.B2BCallbackUrl,
+            OriginatorConversationID = Guid.NewGuid().ToString("N")
+        };
+
+        logger.LogInformation(
+            "Initiating B2B Till. TillNumber={TillNumber} Amount={Amount}",
+            tillNumber, amountKes);
+
+        var response = await SendAsync(
+            HttpMethod.Post,
+            "mpesa/b2b/v1/paymentrequest",
+            payload,
+            token,
+            ct);
+
+        var result = Deserialize<B2BResponse>(response)
+            ?? throw new InvalidOperationException(
+                "Safaricom returned null B2B Till response.");
+
+        if (result.ResponseCode != "0")
+        {
+            logger.LogError(
+                "B2B Till rejected. Code={Code} Description={Desc}",
+                result.ResponseCode, result.ResponseDescription);
+
+            throw new InvalidOperationException(
+                $"Safaricom B2B Till rejected: {result.ResponseDescription}");
+        }
+
+        logger.LogInformation(
+            "B2B Till accepted. ConversationId={ConversationId}",
+            result.ConversationId);
+
+        return new B2BResult(result.ConversationId, result.OriginatorConversationId);
+    }
+
+    public async Task<B2BResult> InitiatePochiAsync(
+    string phoneNumber,
+    int amountKes,
+    string remarks,
+    CancellationToken ct = default)
+    {
+        var token = await GetAccessTokenAsync(ct);
+        var formatted = FormatPhone(phoneNumber);
+
+        var payload = new
+        {
+            InitiatorName = _opts.B2CInitiatorName,
+            SecurityCredential = _opts.B2CSecurityCredential,
+            CommandID = "BusinessPayment",
+            Amount = amountKes,
+            PartyA = _opts.B2CShortCode,
+            PartyB = formatted,
+            Remarks = remarks,
+            QueueTimeOutURL = _opts.B2BQueueTimeOutUrl,
+            ResultURL = _opts.B2BCallbackUrl,
+            OriginatorConversationID = Guid.NewGuid().ToString("N")
+        };
+
+        logger.LogInformation(
+            "Initiating Pochi payment. Phone={Phone} Amount={Amount}",
+            formatted, amountKes);
+
+        var response = await SendAsync(
+            HttpMethod.Post,
+            "mpesa/b2pochi/v1/paymentrequest",  // ← Pochi specific endpoint
+            payload,
+            token,
+            ct);
+
+        var result = Deserialize<B2BResponse>(response)
+            ?? throw new InvalidOperationException(
+                "Safaricom returned null Pochi response.");
+
+        if (result.ResponseCode != "0")
+        {
+            logger.LogError(
+                "Pochi rejected. Code={Code} Description={Desc}",
+                result.ResponseCode, result.ResponseDescription);
+
+            throw new InvalidOperationException(
+                $"Safaricom Pochi rejected: {result.ResponseDescription}");
+        }
+
+        logger.LogInformation(
+            "Pochi accepted. ConversationId={ConversationId}",
+            result.ConversationId);
+
+        return new B2BResult(result.ConversationId, result.OriginatorConversationId);
+    }
+
+    public async Task<B2CResult> InitiateSendMoneyAsync(
+        string phoneNumber,
+        int amountKes,
+        string remarks,
+        CancellationToken ct = default)
+        => await InitiateB2CAsync(phoneNumber, amountKes, remarks, ct);
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
-
-    // MyMoola.Infrastructure/Services/MpesaService.cs
-    // Replace GetAccessTokenAsync private method
 
     private async Task<string> GetAccessTokenAsync(CancellationToken ct)
     {
@@ -247,7 +457,9 @@ public sealed class MpesaService(
     // -------------------------------------------------------------------------
     // Private response DTOs
     // -------------------------------------------------------------------------
-
+    private sealed record B2CStatusResponse(
+    [property: JsonPropertyName("ResponseCode")] string ResponseCode,
+    [property: JsonPropertyName("ResponseDescription")] string ResponseDescription);
     private sealed record MpesaTokenResponse(
         [property: JsonPropertyName("access_token")] string AccessToken,
         [property: JsonPropertyName("expires_in")] string ExpiresIn);
@@ -259,6 +471,12 @@ public sealed class MpesaService(
         [property: JsonPropertyName("ResponseDescription")] string ResponseDescription);
 
     private sealed record B2CResponse(
+        [property: JsonPropertyName("ConversationID")] string ConversationId,
+        [property: JsonPropertyName("OriginatorConversationID")] string OriginatorConversationId,
+        [property: JsonPropertyName("ResponseCode")] string ResponseCode,
+        [property: JsonPropertyName("ResponseDescription")] string ResponseDescription);
+
+    private sealed record B2BResponse(
         [property: JsonPropertyName("ConversationID")] string ConversationId,
         [property: JsonPropertyName("OriginatorConversationID")] string OriginatorConversationId,
         [property: JsonPropertyName("ResponseCode")] string ResponseCode,
