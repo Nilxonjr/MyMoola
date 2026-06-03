@@ -29,5 +29,6 @@ public sealed record TransactionDto(
     string? OnChainTxHash,
     int OnChainConfirmations,
     string? MpesaReference,
+    string? Metadata,
     DateTimeOffset CreatedAt,
     DateTimeOffset? CompletedAt);
