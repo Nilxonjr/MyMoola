@@ -70,6 +70,7 @@ public sealed class GetTransactionsHandler(
             OnChainTxHash: t.OnChainTxHash,
             OnChainConfirmations: t.OnChainConfirmations,
             MpesaReference: t.MpesaReference,
+            Metadata: t.Metadata,
             CreatedAt: t.CreatedAt,
             CompletedAt: t.CompletedAt))
             .ToList();
