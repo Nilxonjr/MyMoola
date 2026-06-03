@@ -173,6 +173,7 @@ public sealed class MpesaService(
             PartyA = _opts.B2BShortCode,
             PartyB = paybillNumber,
             AccountReference = accountNumber,
+            Requester = _opts.B2BRequester,
             Remarks = remarks,
             QueueTimeOutURL = _opts.B2BQueueTimeOutUrl,
             ResultURL = _opts.B2BCallbackUrl,
