@@ -95,7 +95,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
+    ///<summary>
     /// Resends OTP to the provided phone number.
     /// For Registration — only if phone is not yet verified.
     /// For Login — only if PIN was already validated.
