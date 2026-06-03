@@ -110,8 +110,14 @@ class SendToUserViewModel(
         val txId = current.pendingTransactionId
         val reference = current.pendingReference
         val startedAtMs = current.pendingStartedAtMs
+        val status = current.pendingStatus
 
-        if (txId.isNullOrBlank() && reference.isNullOrBlank() && startedAtMs == null) return
+        if (txId.isNullOrBlank() &&
+            reference.isNullOrBlank() &&
+            startedAtMs == null &&
+            !status.equals("Pending", ignoreCase = true) &&
+            !status.equals("Processing", ignoreCase = true)
+        ) return
         if (pollingJob?.isActive == true) return
 
         pollingJob = viewModelScope.launch {
@@ -132,7 +138,13 @@ class SendToUserViewModel(
         val txId = current.pendingTransactionId
         val reference = current.pendingReference
         val startedAtMs = current.pendingStartedAtMs
-        if (txId.isNullOrBlank() && reference.isNullOrBlank() && startedAtMs == null) return
+        val status = current.pendingStatus
+        if (txId.isNullOrBlank() &&
+            reference.isNullOrBlank() &&
+            startedAtMs == null &&
+            !status.equals("Pending", ignoreCase = true) &&
+            !status.equals("Processing", ignoreCase = true)
+        ) return
 
         viewModelScope.launch {
             refreshAndResolve(txId, reference, startedAtMs, current.pendingMode)

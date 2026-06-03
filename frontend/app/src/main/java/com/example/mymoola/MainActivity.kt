@@ -27,6 +27,7 @@ import com.example.mymoola.features.home.ui.ActivityDetailsScreen
 import com.example.mymoola.features.home.ui.HomeScreen
 import com.example.mymoola.features.home.ui.PayWithMpesaScreen
 import com.example.mymoola.features.home.ui.SellCryptoScreen
+import com.example.mymoola.features.home.ui.SendToUserChoiceScreen
 import com.example.mymoola.features.home.ui.SendToUserScreen
 import com.example.mymoola.features.home.ui.ViewRatesScreen
 import com.example.mymoola.features.home.ui.ViewRecordsScreen
@@ -243,13 +244,35 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("send_to_user") {
+                            SendToUserChoiceScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onSendCryptoClick = { navController.navigate("send_crypto") },
+                                onSendMpesaClick = { navController.navigate("send_mpesa") }
+                            )
+                        }
+                        composable("send_crypto") {
                             SendToUserScreen(
+                                initialMode = "crypto",
+                                allowModeSwitch = false,
                                 onBackClick = { navController.popBackStack() },
                                 onGoHomeClick = {
-                                    navController.previousBackStackEntry
-                                        ?.savedStateHandle
-                                        ?.set("home_force_refresh", System.currentTimeMillis())
-                                    navController.popBackStack()
+                                    navController.getBackStackEntry("home")
+                                        .savedStateHandle
+                                        .set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack("home", false)
+                                }
+                            )
+                        }
+                        composable("send_mpesa") {
+                            SendToUserScreen(
+                                initialMode = "mpesa",
+                                allowModeSwitch = false,
+                                onBackClick = { navController.popBackStack() },
+                                onGoHomeClick = {
+                                    navController.getBackStackEntry("home")
+                                        .savedStateHandle
+                                        .set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack("home", false)
                                 }
                             )
                         }

@@ -90,7 +90,83 @@ private fun normalizeKenyanPhone(raw: String): String {
 }
 
 @Composable
+fun SendToUserChoiceScreen(
+    onBackClick: () -> Unit,
+    onSendCryptoClick: () -> Unit,
+    onSendMpesaClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            BackIconButton(onClick = onBackClick)
+            Text(
+                text = "Send To User",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0F172A),
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+                .background(Color.White, RoundedCornerShape(16.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = "Choose Transfer Type",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0F172A)
+            )
+            SendMode.entries.forEach { mode ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                        .clickable {
+                            if (mode == SendMode.Crypto) onSendCryptoClick() else onSendMpesaClick()
+                        }
+                        .padding(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = mode.label,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = mode.helper,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun SendToUserScreen(
+    initialMode: String = "crypto",
+    allowModeSwitch: Boolean = true,
     onBackClick: () -> Unit,
     onGoHomeClick: () -> Unit = {}
 ) {
@@ -112,7 +188,9 @@ fun SendToUserScreen(
     val sendViewModel: SendToUserViewModel = viewModel()
     val sendUiState by sendViewModel.uiState.collectAsState()
     var selectedCurrency by remember { mutableStateOf<CurrencyOption?>(null) }
-    var selectedMode by remember { mutableStateOf(SendMode.Crypto) }
+    var selectedMode by remember(initialMode) {
+        mutableStateOf(if (initialMode.equals("mpesa", ignoreCase = true)) SendMode.Mpesa else SendMode.Crypto)
+    }
     var amount by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
     var recipientName by remember { mutableStateOf<String?>(null) }
@@ -165,7 +243,9 @@ fun SendToUserScreen(
         !isLookingUp
     val hasPendingLocator =
         !sendUiState.pendingTransactionId.isNullOrBlank() || !sendUiState.pendingReference.isNullOrBlank()
-    val showPendingScreen = hasPendingLocator &&
+    val hasPendingSession =
+        sendUiState.pendingStartedAtMs != null || hasPendingLocator
+    val showPendingScreen = hasPendingSession &&
         (sendUiState.pendingStatus.equals("Pending", ignoreCase = true) ||
             sendUiState.pendingStatus.equals("Processing", ignoreCase = true))
     val showSuccessScreen =
@@ -236,6 +316,12 @@ fun SendToUserScreen(
         }
     }
 
+    LaunchedEffect(showPendingScreen, showSuccessScreen, showFailedScreen) {
+        if (showPendingScreen || showSuccessScreen || showFailedScreen) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -252,7 +338,7 @@ fun SendToUserScreen(
         ) {
             BackIconButton(onClick = onBackClick)
             Text(
-                text = "Send To User",
+                text = if (selectedMode == SendMode.Crypto) "Send Crypto" else "Send M-PESA",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF0F172A),
@@ -276,41 +362,43 @@ fun SendToUserScreen(
                     color = Color(0xFF0F172A)
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SendMode.entries.forEach { mode ->
-                        val isSelected = selectedMode == mode
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clickable {
-                                    selectedMode = mode
-                                    errorMessage = null
-                                    transferSuccessMessage = null
-                                    transferSuccessSummary = null
+                if (allowModeSwitch) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SendMode.entries.forEach { mode ->
+                            val isSelected = selectedMode == mode
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable {
+                                        selectedMode = mode
+                                        errorMessage = null
+                                        transferSuccessMessage = null
+                                        transferSuccessSummary = null
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = mode.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isSelected) Color.White else Color(0xFF0F172A)
+                                    )
+                                    Text(
+                                        text = mode.helper,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isSelected) Color(0xFFE2E8F0) else Color(0xFF64748B)
+                                    )
                                 }
-                                .padding(horizontal = 12.dp, vertical = 12.dp)
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = mode.label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isSelected) Color.White else Color(0xFF0F172A)
-                                )
-                                Text(
-                                    text = mode.helper,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isSelected) Color(0xFFE2E8F0) else Color(0xFF64748B)
-                                )
                             }
                         }
                     }
@@ -605,59 +693,6 @@ fun SendToUserScreen(
                     )
                 }
 
-                if (showPendingScreen) {
-                    SendStatePanel(
-                        title = if (pendingIsCrypto) "Transfer Pending" else "M-PESA Pending",
-                        message = sendUiState.pendingMessage ?: if (pendingIsCrypto) {
-                            "Your transfer is being processed."
-                        } else {
-                            "Your M-PESA transfer is being processed."
-                        },
-                        reference = sendUiState.pendingReference,
-                        statusLine = "Status: ${sendUiState.pendingStatus ?: "Pending"} (auto-checking)",
-                        actionLabel = "Refresh now",
-                        onAction = { sendViewModel.refreshNow() }
-                    )
-                    return@Column
-                }
-
-                if (showSuccessScreen) {
-                    SendStatePanel(
-                        title = if (pendingIsCrypto) "Transfer Successful" else "M-PESA Successful",
-                        message = sendUiState.finalOutcome ?: if (pendingIsCrypto) {
-                            "Your transfer is complete."
-                        } else {
-                            "Your M-PESA transfer is complete."
-                        },
-                        reference = sendUiState.pendingReference,
-                        statusLine = "Status: Completed",
-                        statusColor = Color(0xFF166534),
-                        actionLabel = "Back to Home",
-                        onAction = {
-                            sendViewModel.clearTerminalOutcome()
-                            onGoHomeClick()
-                        }
-                    )
-                    return@Column
-                }
-
-                if (showFailedScreen) {
-                    SendStatePanel(
-                        title = if (pendingIsCrypto) "Transfer Failed" else "M-PESA Failed",
-                        message = sendUiState.finalOutcome ?: if (pendingIsCrypto) {
-                            "Your transfer did not complete."
-                        } else {
-                            "Your M-PESA transfer did not complete."
-                        },
-                        reference = sendUiState.pendingReference,
-                        statusLine = "Status: Failed",
-                        statusColor = Color(0xFFB91C1C),
-                        actionLabel = "Try Again",
-                        onAction = { sendViewModel.clearTerminalOutcome() }
-                    )
-                    return@Column
-                }
-
                 val holdEnabledColor = if (canSend) Color(0xFF0F172A) else Color(0xFF94A3B8)
                 Box(
                     modifier = Modifier
@@ -836,6 +871,56 @@ fun SendToUserScreen(
                                 .background(Color(0xFF0F172A), RoundedCornerShape(999.dp))
                         )
                     }
+                }
+
+                if (showPendingScreen) {
+                    SendStatePanel(
+                        title = if (pendingIsCrypto) "Transfer Pending" else "M-PESA Pending",
+                        message = sendUiState.pendingMessage ?: if (pendingIsCrypto) {
+                            "Your transfer is being processed."
+                        } else {
+                            "Your M-PESA transfer is being processed."
+                        },
+                        reference = sendUiState.pendingReference,
+                        statusLine = "Status: ${sendUiState.pendingStatus ?: "Pending"} (auto-checking)",
+                        actionLabel = "Refresh now",
+                        onAction = { sendViewModel.refreshNow() }
+                    )
+                }
+
+                if (showSuccessScreen) {
+                    SendStatePanel(
+                        title = if (pendingIsCrypto) "Transfer Successful" else "M-PESA Successful",
+                        message = sendUiState.finalOutcome ?: if (pendingIsCrypto) {
+                            "Your transfer is complete."
+                        } else {
+                            "Your M-PESA transfer is complete."
+                        },
+                        reference = sendUiState.pendingReference,
+                        statusLine = "Status: Completed",
+                        statusColor = Color(0xFF166534),
+                        actionLabel = "Back to Home",
+                        onAction = {
+                            sendViewModel.clearTerminalOutcome()
+                            onGoHomeClick()
+                        }
+                    )
+                }
+
+                if (showFailedScreen) {
+                    SendStatePanel(
+                        title = if (pendingIsCrypto) "Transfer Failed" else "M-PESA Failed",
+                        message = sendUiState.finalOutcome ?: if (pendingIsCrypto) {
+                            "Your transfer did not complete."
+                        } else {
+                            "Your M-PESA transfer did not complete."
+                        },
+                        reference = sendUiState.pendingReference,
+                        statusLine = "Status: Failed",
+                        statusColor = Color(0xFFB91C1C),
+                        actionLabel = "Try Again",
+                        onAction = { sendViewModel.clearTerminalOutcome() }
+                    )
                 }
             }
         }

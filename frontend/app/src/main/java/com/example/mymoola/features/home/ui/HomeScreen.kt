@@ -90,6 +90,14 @@ data class BalanceCurrency(
     val balance: String
 )
 
+private fun merchantPaymentLabel(merchantType: String?): String? = when (merchantType?.trim()?.lowercase(Locale.US)) {
+    "paybill" -> "Paybill"
+    "till" -> "Till"
+    "pochi" -> "Pochi"
+    "sendmoney" -> "Send M-PESA"
+    else -> null
+}
+
 @OptIn(ExperimentalMaterialApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -181,6 +189,8 @@ fun HomeScreen(
             val displayType = when {
                 isSendType && isInitiator -> "Send"
                 isSendType && isReceiver -> "Receive"
+                tx.type.equals("MerchantPayment", ignoreCase = true) ->
+                    merchantPaymentLabel(tx.merchantType) ?: "Merchant Payment"
                 else -> tx.type.replaceFirstChar {
                     if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
                 }
