@@ -1,4 +1,4 @@
-﻿// MyMoola.Application/Features/Transactions/Handlers/ProcessB2CCallbackHandler.cs
+﻿// MyMoola.Application/Features/Transactions/Handlers/ProcessB2BCallbackHandler.cs
 using System.Text.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -10,47 +10,42 @@ using MyMoola.Domain.Exceptions;
 
 namespace MyMoola.Application.Features.Transactions.Handlers;
 
-/// <summary>
-/// Writes B2C callback to outbox atomically and returns immediately.
-/// All ledger execution happens in B2CCallbackOutboxHandler.
-/// </summary>
-public sealed class ProcessB2CCallbackHandler(
+public sealed class ProcessB2BCallbackHandler(
     IMpesaTransactionRepository mpesaTransactions,
     ITransactionRepository transactions,
     IWalletRepository wallets,
     IOutboxService outbox,
     IUnitOfWork uow,
-    ILogger<ProcessB2CCallbackHandler> logger) : IRequestHandler<ProcessB2CCallbackCommand>
+    ILogger<ProcessB2BCallbackHandler> logger) : IRequestHandler<ProcessB2BCallbackCommand>
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true
+
     };
 
     public async Task Handle(
-        ProcessB2CCallbackCommand request,
+        ProcessB2BCallbackCommand request,
         CancellationToken ct)
     {
         var result = request.Callback.Result;
         var rawJson = JsonSerializer.Serialize(request.Callback, JsonOptions);
 
         logger.LogInformation(
-            "B2C callback received. ConversationID={ID} ResultCode={Code}",
+            "B2B callback received. ConversationID={ID} ResultCode={Code}",
             result.ConversationID, result.ResultCode);
 
-        // Load MpesaTransaction by ConversationID
         var mpesaTx = await mpesaTransactions
             .FindByConversationIDAsync(result.ConversationID, ct)
             ?? throw new NotFoundException(
                 nameof(Domain.Entities.MpesaTransaction), result.ConversationID);
 
-        // Load Transaction
         var transaction = await transactions.FindByIdAsync(mpesaTx.TransactionId, ct)
             ?? throw new NotFoundException(
                 nameof(Domain.Entities.Transaction), mpesaTx.TransactionId);
 
-        // Extract receipt — only present on ResultCode 0
+        // Extract receipt from result parameters
         string? receiptNumber = null;
         if (result.ResultCode == 0 && result.ResultParameters is not null)
         {
@@ -59,60 +54,15 @@ public sealed class ProcessB2CCallbackHandler(
                 ?.Value.GetString();
         }
 
-        // Replace the metadata deserialization block in ProcessB2CCallbackHandler
-
         if (string.IsNullOrWhiteSpace(transaction.Metadata))
             throw new InvalidOperationException(
-                $"Transaction metadata missing. TransactionId={transaction.Id}");
+                $"Merchant payment metadata missing. TransactionId={transaction.Id}");
 
-        // Route to correct metadata shape based on transaction type
-        StkCallbackAmounts amounts;
-
-        if (transaction.Type == TransactionType.MerchantPayment)
-        {
-            var meta = JsonSerializer.Deserialize<MerchantPaymentMeta>(
-                transaction.Metadata, JsonOptions)
-                ?? throw new InvalidOperationException(
-                    $"Failed to deserialize merchant metadata. TransactionId={transaction.Id}");
-
-            logger.LogInformation(
-                "Merchant metadata deserialized. MerchantAmount={Amount} " +
-                "GrossKes={Gross} Fee={Fee} Spread={Spread}",
-                meta.MerchantAmountKes, meta.GrossKes,
-                meta.PlatformFeeKes, meta.SpreadKes);
-
-            amounts = new StkCallbackAmounts(
-                GrossKes: meta.GrossKes,
-                PlatformFeeKes: meta.PlatformFeeKes,
-                SpreadKes: meta.SpreadKes,
-                NetKes: meta.MerchantAmountKes,
-                ResidualKes: meta.ResidualKes);
-        }
-        else
-        {
-            var meta = JsonSerializer.Deserialize<SellTransactionMeta>(
-                transaction.Metadata, JsonOptions)
-                ?? throw new InvalidOperationException(
-                    $"Failed to deserialize sell metadata. TransactionId={transaction.Id}");
-
-            logger.LogInformation(
-                "Sell metadata deserialized. GrossKes={Gross} " +
-                "B2CAmount={B2C} Residual={Residual}",
-                meta.GrossKes, meta.B2CAmountKes, meta.ResidualKes);
-
-            amounts = new StkCallbackAmounts(
-                GrossKes: meta.GrossKes,
-                PlatformFeeKes: meta.PlatformFeeKes,
-                SpreadKes: meta.SpreadKes,
-                NetKes: meta.B2CAmountKes,
-                ResidualKes: meta.ResidualKes);
-        }
-
-        // Read metadata stored at sell initiation — never recalculate
-        //var meta = JsonSerializer.Deserialize<SellTransactionMeta>(
-        //    transaction.Metadata!, JsonOptions)
-        //    ?? throw new InvalidOperationException(
-        //        $"Sell metadata missing. TransactionId={transaction.Id}");
+        // Read metadata stored at payment initiation
+        var meta = JsonSerializer.Deserialize<MerchantPaymentMeta>(
+            transaction.Metadata!, JsonOptions)
+            ?? throw new InvalidOperationException(
+                $"Merchant payment metadata missing. TransactionId={transaction.Id}");
 
         // Resolve wallet IDs from SystemWallets constants
         var currency = transaction.Currency;
@@ -153,8 +103,8 @@ public sealed class ProcessB2CCallbackHandler(
             ?? throw new NotFoundException("SuspenseWallet", Currency.KES);
 
         await outbox.EnqueueAsync(
-            OutboxMessageTypes.B2CCallback,
-            new B2CCallbackOutboxPayload(
+            OutboxMessageTypes.B2BCallback,
+            new B2BCallbackOutboxPayload(
                 ConversationID: result.ConversationID,
                 ResultCode: result.ResultCode,
                 ResultDesc: result.ResultDesc,
@@ -168,31 +118,27 @@ public sealed class ProcessB2CCallbackHandler(
                 SettlementWalletId: settlementWallet.Id,
                 SuspenseWalletId: suspenseWallet.Id,
                 CryptoAmount: transaction.Amount,
-                GrossKes: amounts.GrossKes,
-                PlatformFeeKes: amounts.PlatformFeeKes,
-                SpreadKes: amounts.SpreadKes,
-                B2CAmountKes: amounts.NetKes,
-                ResidualKes: amounts.ResidualKes),
+                GrossKes: meta.GrossKes,
+                PlatformFeeKes: meta.PlatformFeeKes,
+                SpreadKes: meta.SpreadKes,
+                MerchantAmountKes: meta.MerchantAmountKes,
+                ResidualKes: meta.ResidualKes),
             ct);
 
         await uow.SaveChangesAsync(ct);
 
         logger.LogInformation(
-            "B2C callback enqueued. TransactionId={TransactionId} ResultCode={Code}",
+            "B2B callback enqueued. TransactionId={TransactionId} ResultCode={Code}",
             transaction.Id, result.ResultCode);
     }
 }
 
-internal sealed record SellTransactionMeta(
-    decimal GrossKes,
-    decimal SpreadKes,
-    decimal PlatformFeeKes,
-    int B2CAmountKes,
-    decimal ResidualKes);
-
-internal sealed record StkCallbackAmounts(
+internal sealed record MerchantPaymentMeta(
+    int MerchantAmountKes,
     decimal GrossKes,
     decimal PlatformFeeKes,
     decimal SpreadKes,
-    int NetKes,
-    decimal ResidualKes);
+    decimal ResidualKes,
+    string MerchantType,
+    string MerchantNumber,
+    string AccountReference);

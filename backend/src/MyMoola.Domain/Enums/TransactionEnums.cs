@@ -12,7 +12,8 @@ public enum TransactionType
     TreasuryIn,
     TreasuryOut,
     Reversal,
-    AdminAdjustment
+    AdminAdjustment,
+    MerchantPayment
 }
 
 public enum TransactionStatus
