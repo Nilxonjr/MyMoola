@@ -37,6 +37,14 @@ import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+private fun merchantPaymentLabel(merchantType: String?): String? = when (merchantType?.trim()?.lowercase(Locale.US)) {
+    "paybill" -> "Paybill"
+    "till" -> "Till"
+    "pochi" -> "Pochi"
+    "sendmoney" -> "Send M-PESA"
+    else -> null
+}
+
 @Composable
 fun ViewRecordsScreen(
     onBackClick: () -> Unit
@@ -122,6 +130,8 @@ fun ViewRecordsScreen(
                         val displayType = when {
                             isSendType && isInitiator -> "Send"
                             isSendType && isReceiver -> "Receive"
+                            tx.type.equals("MerchantPayment", ignoreCase = true) ->
+                                merchantPaymentLabel(tx.merchantType) ?: "Merchant Payment"
                             else -> tx.type.replaceFirstChar {
                                 if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
                             }

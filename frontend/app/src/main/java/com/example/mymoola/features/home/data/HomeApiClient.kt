@@ -141,6 +141,7 @@ object HomeApiClient {
         val id: String,
         val referenceCode: String,
         val type: String,
+        val merchantType: String?,
         val status: String,
         val initiatorUserId: String?,
         val counterpartyUserId: String?,
@@ -321,11 +322,21 @@ object HomeApiClient {
                 val items = json.optJSONArray("items") ?: JSONArray()
                 for (i in 0 until items.length()) {
                     val item = items.getJSONObject(i)
+                    val metadata = item.optString("metadata").ifBlank { null }
+                    val merchantType = metadata
+                        ?.let { raw -> runCatching { JSONObject(raw) }.getOrNull() }
+                        ?.let { meta ->
+                            meta.optString("merchantType").ifBlank {
+                                meta.optString("MerchantType")
+                            }
+                        }
+                        ?.ifBlank { null }
                     collected.add(
                         UserTransaction(
                             id = item.optString("id"),
                             referenceCode = item.optString("referenceCode"),
                             type = item.optString("type"),
+                            merchantType = merchantType,
                             status = item.optString("status"),
                             initiatorUserId = item.optString("initiatorUserId").ifBlank { null },
                             counterpartyUserId = item.optString("counterpartyUserId").ifBlank { null },
