@@ -23,9 +23,6 @@ public sealed class MpesaCallbackController(
         }
         catch (Exception ex)
         {
-            // Always return 200 to Safaricom — non-200 triggers external retry
-            // which risks processing an already-completed callback.
-            // Outbox handles internal retry independently.
             logger.LogError(ex,
                 "STK callback handler failed. CheckoutRequestId={Id}",
                 callback.Body.StkCallback.CheckoutRequestID);
