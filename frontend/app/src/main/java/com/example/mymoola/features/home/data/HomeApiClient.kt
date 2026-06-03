@@ -102,6 +102,24 @@ object HomeApiClient {
         val message: String
     )
 
+    data class PayMerchantRequest(
+        val merchantType: String,
+        val currency: String,
+        val amountKes: Double,
+        val quoteId: String,
+        val pin: String,
+        val paybillNumber: String? = null,
+        val accountNumber: String? = null,
+        val tillNumber: String? = null,
+        val phoneNumber: String? = null
+    )
+
+    data class PayMerchantResponse(
+        val transactionId: String,
+        val referenceCode: String,
+        val message: String
+    )
+
     data class RateHistoryPoint(
         val timestamp: String,
         val kesRate: Double
@@ -584,6 +602,78 @@ object HomeApiClient {
         }
     }
 
+    suspend fun payMerchant(
+        request: PayMerchantRequest,
+        idempotencyKey: String
+    ): ApiResult<PayMerchantResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val firstAttempt = executeAuthorizedPayMerchant(request, idempotencyKey)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedPayMerchant(request, idempotencyKey)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code in 200..299) {
+                val json = runCatching { JSONObject(body) }.getOrNull()
+                val nested = json?.optJSONObject("data")
+                    ?: json?.optJSONObject("result")
+                    ?: json?.optJSONObject("payload")
+
+                fun stringFrom(vararg keys: String): String {
+                    keys.forEach { key ->
+                        val direct = json?.optString(key).orEmpty()
+                        if (direct.isNotBlank()) return direct
+                        val fromNested = nested?.optString(key).orEmpty()
+                        if (fromNested.isNotBlank()) return fromNested
+                    }
+                    return ""
+                }
+
+                val transactionId = stringFrom(
+                    "transactionId",
+                    "TransactionId",
+                    "transactionID",
+                    "id"
+                ).ifBlank {
+                    Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val referenceCode = stringFrom(
+                    "referenceCode",
+                    "ReferenceCode",
+                    "reference",
+                    "transactionReference"
+                ).ifBlank {
+                    Regex("PAY-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val message = stringFrom("message", "Message")
+                    .ifBlank { "Payment initiated. Merchant will receive funds shortly." }
+
+                ApiResult(
+                    data = PayMerchantResponse(
+                        transactionId = transactionId,
+                        referenceCode = referenceCode,
+                        message = message
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while initiating merchant payment.")
+        }
+    }
+
     private data class RawResponse(
         val statusCode: Int,
         val body: String
@@ -691,6 +781,50 @@ object HomeApiClient {
             put("cryptoAmount", request.cryptoAmount)
             put("quoteId", request.quoteId)
             put("pin", request.pin)
+        }
+
+        OutputStreamWriter(connection.outputStream).use { writer ->
+            writer.write(payload.toString())
+            writer.flush()
+        }
+
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
+    }
+
+    private fun executeAuthorizedPayMerchant(
+        request: PayMerchantRequest,
+        idempotencyKey: String
+    ): RawResponse {
+        val accessToken = AuthSession.accessToken
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/transactions/pay-merchant")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+            setRequestProperty("Idempotency-Key", idempotencyKey)
+        }
+
+        val payload = JSONObject().apply {
+            put("merchantType", request.merchantType)
+            put("currency", request.currency)
+            put("amountKes", request.amountKes)
+            put("quoteId", request.quoteId)
+            put("pin", request.pin)
+            put("paybillNumber", request.paybillNumber ?: JSONObject.NULL)
+            put("accountNumber", request.accountNumber ?: JSONObject.NULL)
+            put("tillNumber", request.tillNumber ?: JSONObject.NULL)
+            put("phoneNumber", request.phoneNumber ?: JSONObject.NULL)
         }
 
         OutputStreamWriter(connection.outputStream).use { writer ->
