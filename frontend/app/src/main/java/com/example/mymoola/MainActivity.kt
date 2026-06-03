@@ -232,7 +232,15 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("pay_with_mpesa") {
-                            PayWithMpesaScreen(onBackClick = { navController.popBackStack() })
+                            PayWithMpesaScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onDoneClick = {
+                                    navController.previousBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack()
+                                }
+                            )
                         }
                         composable("send_to_user") {
                             SendToUserScreen(
