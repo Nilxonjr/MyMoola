@@ -316,7 +316,7 @@ public sealed class MpesaService(
         {
             InitiatorName = _opts.B2CInitiatorName,
             SecurityCredential = _opts.B2CSecurityCredential,
-            CommandID = "BusinessPayment",
+            CommandID = "BusinessPayToPochi",
             Amount = amountKes,
             PartyA = _opts.B2CShortCode,
             PartyB = formatted,
