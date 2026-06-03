@@ -172,7 +172,7 @@ public sealed class MpesaService(
             SenderIdentifierType = "4",
             RecieverIdentifierType = "4",
             Amount = amountKes,
-            PartyA = _opts.B2CShortCode,
+            PartyA = _opts.B2BShortCode,
             PartyB = paybillNumber,
             AccountReference = accountNumber,
             Remarks = remarks,
