@@ -21,5 +21,7 @@ public sealed class MpesaOptions
 
     public string B2BShortCode { get; init; } = default!;
 
+    public string B2BRequester { get; init; } = default!;
+
     public string B2CShortCode { get; init; } = default!;
 }
