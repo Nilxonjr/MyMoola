@@ -68,8 +68,6 @@ public sealed class MpesaService(
         logger.LogInformation(
             "STK Push payload: {Payload}", payloadJson);
 
-        logger.LogInformation(
-            "STK Push payload: {Payload}", payloadJson);
 
         var response = await SendAsync(
             HttpMethod.Post,
@@ -421,6 +419,11 @@ public sealed class MpesaService(
         string token,
         CancellationToken ct)
     {
+        var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
+
+        logger.LogInformation(
+            "Sending payload: {Payload}", payloadJson);
+
         var request = new HttpRequestMessage(method, endpoint)
         {
             Content = new StringContent(
