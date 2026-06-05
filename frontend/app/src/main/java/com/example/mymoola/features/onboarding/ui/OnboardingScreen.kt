@@ -189,7 +189,7 @@ fun OnboardingScreen(
                                 .padding(horizontal = 4.dp)
                                 .size(if (isActive) 10.dp else 8.dp)
                                 .background(
-                                    color = if (isActive) Color(0xFF0F172A) else Color(0xFFCBD5E1),
+                                    color = if (isActive) MaterialTheme.colorScheme.primary else Color(0xFFCBD5E1),
                                     shape = RoundedCornerShape(50)
                                 )
                         )
@@ -211,7 +211,7 @@ fun OnboardingScreen(
                             shape = buttonShape,
                             border = BorderStroke(1.dp, panelBorder)
                         ) {
-                            Text(text = "Back", style = MaterialTheme.typography.labelLarge, color = Color(0xFF0F172A))
+                            Text(text = "Back", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         }
                     }
 
@@ -222,7 +222,7 @@ fun OnboardingScreen(
                             .then(if (showBackButton) Modifier.weight(1f) else Modifier.fillMaxWidth()),
                         shape = buttonShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0F172A),
+                            containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = Color.White
                         )
                     ) {
@@ -240,7 +240,7 @@ fun OnboardingScreen(
                         Text(
                             text = buildAnnotatedString {
                                 append("Already have an account? ")
-                                withStyle(style = androidx.compose.ui.text.SpanStyle(color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold)) {
+                                withStyle(style = androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)) {
                                     append("Sign in")
                                 }
                             },

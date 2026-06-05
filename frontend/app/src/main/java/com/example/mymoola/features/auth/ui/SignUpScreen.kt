@@ -215,7 +215,7 @@ fun SignUpScreen(
                         .height(50.dp),
                     shape = buttonShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0F172A),
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = Color.White
                     )
                 ) {
@@ -248,7 +248,7 @@ fun SignUpScreen(
                     Text(
                         text = buildAnnotatedString {
                             append("Already have an account? ")
-                            withStyle(style = androidx.compose.ui.text.SpanStyle(color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold)) {
+                            withStyle(style = androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)) {
                                 append("Sign in")
                             }
                         },

@@ -185,12 +185,12 @@ fun ViewRatesScreen(
                 }
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFF8FAFC),
                     modifier = Modifier
                         .clickable { selectedCurrency = currency }
                         .border(
                             width = 1.dp,
-                            color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE2E8F0),
                             shape = RoundedCornerShape(10.dp)
                         )
                 ) {

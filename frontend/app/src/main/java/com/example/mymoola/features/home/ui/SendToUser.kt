@@ -370,12 +370,12 @@ fun SendToUserScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .background(
-                                        color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFF8FAFC),
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .border(
                                         width = 1.dp,
-                                        color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE2E8F0),
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .clickable {
@@ -417,7 +417,7 @@ fun SendToUserScreen(
                         Row(
                             modifier = Modifier
                                 .background(
-                                    color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE2E8F0),
                                     shape = RoundedCornerShape(999.dp)
                                 )
                                 .border(
@@ -517,7 +517,7 @@ fun SendToUserScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0F172A),
+                            containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = Color.White
                         )
                     ) {
@@ -563,7 +563,7 @@ fun SendToUserScreen(
                                     .height(18.dp)
                                     .width(18.dp),
                                 strokeWidth = 2.dp,
-                                color = Color(0xFF0F172A)
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Loading conversion quote...", color = Color(0xFF334155))
@@ -693,7 +693,7 @@ fun SendToUserScreen(
                     )
                 }
 
-                val holdEnabledColor = if (canSend) Color(0xFF0F172A) else Color(0xFF94A3B8)
+                val holdEnabledColor = if (canSend) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -868,7 +868,7 @@ fun SendToUserScreen(
                             modifier = Modifier
                                 .fillMaxWidth(holdProgress)
                                 .height(8.dp)
-                                .background(Color(0xFF0F172A), RoundedCornerShape(999.dp))
+                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(999.dp))
                         )
                     }
                 }

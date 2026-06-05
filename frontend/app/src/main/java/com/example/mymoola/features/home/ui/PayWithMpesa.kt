@@ -325,7 +325,7 @@ fun PayWithMpesaScreen(
                         Row(
                             modifier = Modifier
                                 .background(
-                                    color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE2E8F0),
                                     shape = RoundedCornerShape(999.dp)
                                 )
                                 .clickable { selectedCurrency = currency.code }
@@ -407,12 +407,12 @@ fun PayWithMpesaScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .background(
-                                        color = if (isSelected) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFF8FAFC),
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .border(
                                         width = 1.dp,
-                                        color = if (isSelected) Color(0xFF0F172A) else Color(0xFFE2E8F0),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE2E8F0),
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .clickable { selectedMerchantType = merchantType }
@@ -593,7 +593,7 @@ fun PayWithMpesaScreen(
                     )
                 }
 
-                val holdEnabledColor = if (canSubmit) Color(0xFF0F172A) else Color(0xFF94A3B8)
+                val holdEnabledColor = if (canSubmit) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -748,7 +748,7 @@ fun PayWithMpesaScreen(
                             modifier = Modifier
                                 .fillMaxWidth(holdProgress)
                                 .height(8.dp)
-                                .background(Color(0xFF0F172A), RoundedCornerShape(999.dp))
+                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(999.dp))
                         )
                     }
                 }

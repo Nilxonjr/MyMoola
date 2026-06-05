@@ -220,7 +220,7 @@ fun OtpScreen(
                         .height(50.dp),
                     shape = buttonShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0F172A),
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = Color.White
                     )
                 ) {
