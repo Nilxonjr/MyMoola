@@ -221,7 +221,7 @@ public sealed class DatabaseSeeder(
 
     private async Task SeedSystemDepositAddressesAsync(CancellationToken ct)
     {
-        var hotWalletAddress = configuration["Crypto__HotWalletAddress"];
+        var hotWalletAddress = configuration["Crypto:HotWalletAddress"];
 
         if (string.IsNullOrWhiteSpace(hotWalletAddress))
             throw new InvalidOperationException(
