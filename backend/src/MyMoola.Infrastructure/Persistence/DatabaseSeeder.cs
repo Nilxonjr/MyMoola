@@ -227,6 +227,12 @@ public sealed class DatabaseSeeder(
         var hotWalletAddress = hdWalletOptions.Value.HotWalletAddress;
         var treasuryAddress = hdWalletOptions.Value.TreasuryAddress;
 
+        logger.LogInformation(
+    "HdWalletOptions values — HotWallet={Hot} Treasury={Treasury} SeedPhrase={Seed}",
+    hdWalletOptions.Value.HotWalletAddress,
+    hdWalletOptions.Value.TreasuryAddress,
+    string.IsNullOrWhiteSpace(hdWalletOptions.Value.HdWalletSeedPhrase) ? "EMPTY" : "SET");
+
         if (string.IsNullOrWhiteSpace(hotWalletAddress))
             throw new InvalidOperationException(
                 "Crypto__HotWalletAddress is not set in HdWalletSettings.");
