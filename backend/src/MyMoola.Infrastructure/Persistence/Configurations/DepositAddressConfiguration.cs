@@ -56,6 +56,12 @@ public sealed class DepositAddressConfiguration : IEntityTypeConfiguration<Depos
             .HasFilter("is_active = true")
             .HasDatabaseName("ix_deposit_addresses_user_chain_active");
 
+        builder.Property(d => d.LastCheckedAt)
+        .HasColumnName("last_checked_at");
+
+        builder.Property(d => d.PendingGasFundingTxHash)
+            .HasColumnName("pending_gas_funding_tx_hash");
+
         builder.Ignore(d => d.DomainEvents);
     }
 }
