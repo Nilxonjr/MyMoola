@@ -221,8 +221,10 @@ public sealed class DatabaseSeeder(
 
     private async Task SeedSystemDepositAddressesAsync(CancellationToken ct)
     {
-        var hotWalletAddress = configuration["Crypto__HotWalletAddress"]
-            ?? throw new InvalidOperationException(
+        var hotWalletAddress = configuration["Crypto__HotWalletAddress"];
+
+        if (string.IsNullOrWhiteSpace(hotWalletAddress))
+            throw new InvalidOperationException(
                 "Crypto__HotWalletAddress is not set. " +
                 "Derive from seed phrase at index 0 and set in environment variables.");
 
