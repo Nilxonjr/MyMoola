@@ -7,6 +7,7 @@ using MyMoola.Application.Features.Users.Queries;
 using MyMoola.Domain.Enums;
 using MyMoola.Infrastructure.Persistence;
 using MyMoola.Application.Features.Users.Commands;
+using MyMoola.Application.Features.Crypto.Queries;
 
 namespace MyMoola.API.Controllers;
 
@@ -50,6 +51,19 @@ public sealed class UsersController(
         CancellationToken ct = default)
     {
         var response = await sender.Send(new GetTransactionsQuery(page, pageSize), ct);
+        return Ok(response);
+    }
+
+    [HttpGet("me/deposit-address")]
+    [Authorize]
+    [ProducesResponseType(typeof(GetDepositAddressResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDepositAddress(
+    [FromQuery] Chain chain = Chain.Ethereum,
+    CancellationToken ct = default)
+    {
+        var response = await sender.Send(new GetDepositAddressQuery(chain), ct);
         return Ok(response);
     }
 

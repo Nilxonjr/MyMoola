@@ -17,6 +17,7 @@ public sealed class DatabaseSeeder(
     IConfiguration configuration,
     IUnitOfWork uow,
     IUserRepository users,
+    IDepositAddressRepository depositAddresses,
     ILogger<DatabaseSeeder> logger)
 {
     public async Task SeedAsync(CancellationToken ct = default)
@@ -25,6 +26,7 @@ public sealed class DatabaseSeeder(
         await SeedSystemControlsAsync(ct);
         await SeedSystemUsersAsync(ct);
         await SeedSystemWalletsAsync(ct);
+        await SeedSystemDepositAddressesAsync(ct);
     }
 
     private async Task SeedSystemUsersAsync(CancellationToken ct)
@@ -36,6 +38,7 @@ public sealed class DatabaseSeeder(
             (SystemWallets.SpreadRevenueAccountUserId, "Spread Revenue Account", "+000000000003"),
             (SystemWallets.SettlementAccountUserId,    "Settlement Account",     "+000000000004"),
             (SystemWallets.SuspenseAccountUserId,      "Suspense Account",       "+000000000005"),
+            (SystemWallets.HotWalletAccountUserId,     "Hot Wallet Account",     "+000000000006"),
         };
 
         foreach (var (id, name, phoneNumber) in systemUsers)
@@ -86,6 +89,11 @@ public sealed class DatabaseSeeder(
         // Suspense — KES only (B2C floor residuals)
         await SeedWalletIfMissingAsync(
             SystemWallets.SuspenseAccountUserId, Currency.KES, ct);
+
+        // HotWallet — all crypto only (never holds KES)
+        foreach (var currency in CryptoCurrencies)
+            await SeedWalletIfMissingAsync(
+                SystemWallets.HotWalletAccountUserId, currency, ct);
 
         await uow.SaveChangesAsync(ct);
     }
@@ -209,5 +217,65 @@ public sealed class DatabaseSeeder(
 
             logger.LogInformation("System control seeded. Key={Key}", key);
         }
+    }
+
+    private async Task SeedSystemDepositAddressesAsync(CancellationToken ct)
+    {
+        var hotWalletAddress = configuration["Crypto__HotWalletAddress"]
+            ?? throw new InvalidOperationException(
+                "Crypto__HotWalletAddress is not set. " +
+                "Derive from seed phrase at index 0 and set in environment variables.");
+
+        var treasuryAddress = configuration["Crypto__TreasuryAddress"]
+            ?? throw new InvalidOperationException(
+                "Crypto__TreasuryAddress is not set. " +
+                "Derive from seed phrase at index 1 and set in environment variables.");
+
+        await SeedDepositAddressIfMissingAsync(
+            userId: SystemWallets.HotWalletAccountUserId,
+            address: hotWalletAddress,
+            derivationPath: "m/44'/60'/0'/0/0",
+            derivationIndex: BlockchainConstants.HotWalletDerivationIndex,
+            ct: ct);
+
+        await SeedDepositAddressIfMissingAsync(
+            userId: SystemWallets.TreasuryAccountUserId,
+            address: treasuryAddress,
+            derivationPath: "m/44'/60'/0'/0/1",
+            derivationIndex: BlockchainConstants.TreasuryDerivationIndex,
+            ct: ct);
+
+        await uow.SaveChangesAsync(ct);
+    }
+
+    private async Task SeedDepositAddressIfMissingAsync(
+        Guid userId,
+        string address,
+        string derivationPath,
+        int derivationIndex,
+        CancellationToken ct)
+    {
+        var existing = await depositAddresses.FindByUserAndChainAsync(
+            userId, Chain.Ethereum, ct);
+
+        if (existing is not null)
+        {
+            logger.LogInformation(
+                "Deposit address already exists. Skipping. UserId={UserId}", userId);
+            return;
+        }
+
+        var depositAddress = DepositAddress.Create(
+            userId: userId,
+            chain: Chain.Ethereum,
+            address: address,
+            derivationPath: derivationPath,
+            derivationIndex: derivationIndex);
+
+        await depositAddresses.AddAsync(depositAddress, ct);
+
+        logger.LogInformation(
+            "System deposit address seeded. UserId={UserId} Address={Address} Index={Index}",
+            userId, address, derivationIndex);
     }
 }

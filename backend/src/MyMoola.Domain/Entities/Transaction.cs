@@ -51,6 +51,27 @@ public sealed class Transaction : BaseEntity
         };
     }
 
+    public static Transaction CreateDeposit(
+    Guid userId,
+    Currency currency,
+    decimal amount,
+    string txHash,
+    string referenceCode)
+    {
+        return new Transaction
+        {
+            ReferenceCode = referenceCode,
+            Type = TransactionType.Deposit,
+            Status = TransactionStatus.Processing,
+            InitiatorUserId = userId,
+            Currency = currency,
+            Amount = amount,
+            OnChainTxHash = txHash,
+            OnChainConfirmations = 0,
+            IdempotencyKey = txHash // tx hash is naturally idempotent
+        };
+    }
+
     public void SetExchangeRates(decimal exchangeRate, decimal marketRate, decimal kesAmount)
     {
         ExchangeRateSnapshot = exchangeRate;
@@ -107,5 +128,20 @@ public sealed class Transaction : BaseEntity
     public void SetMetadata(string metadata)
     {
         Metadata = metadata;
+    }
+
+    public void IncrementConfirmations()
+    {
+        OnChainConfirmations++;
+    }
+
+    public void MarkConfirmed()
+    {
+        Status = TransactionStatus.Confirmed;
+    }
+
+    public void UpdateConfirmations(int confirmations)
+    {
+        OnChainConfirmations = confirmations;
     }
 }

@@ -30,4 +30,9 @@ public sealed class TransactionRepository(AppDbContext db) : ITransactionReposit
 
         return (items, totalCount);
     }
+
+    public async Task<Transaction?> FindByOnChainTxHashAsync(
+    string txHash, CancellationToken ct = default)
+    => await db.Transactions
+        .FirstOrDefaultAsync(t => t.OnChainTxHash == txHash, ct);
 }
