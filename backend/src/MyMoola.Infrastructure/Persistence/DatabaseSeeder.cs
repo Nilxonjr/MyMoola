@@ -2,10 +2,12 @@
 using BCrypt.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MyMoola.Application.Common.Constants;
 using MyMoola.Application.Common.Interfaces;
 using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
+using MyMoola.Infrastructure.Settings; 
 
 namespace MyMoola.Infrastructure.Persistence;
 
@@ -18,6 +20,7 @@ public sealed class DatabaseSeeder(
     IUnitOfWork uow,
     IUserRepository users,
     IDepositAddressRepository depositAddresses,
+    IOptions<HdWalletOptions> hdWalletOptions,
     ILogger<DatabaseSeeder> logger)
 {
     public async Task SeedAsync(CancellationToken ct = default)
@@ -221,17 +224,16 @@ public sealed class DatabaseSeeder(
 
     private async Task SeedSystemDepositAddressesAsync(CancellationToken ct)
     {
-        var hotWalletAddress = configuration["Crypto:HotWalletAddress"];
+        var hotWalletAddress = hdWalletOptions.Value.HotWalletAddress;
+        var treasuryAddress = hdWalletOptions.Value.TreasuryAddress;
 
         if (string.IsNullOrWhiteSpace(hotWalletAddress))
             throw new InvalidOperationException(
-                "Crypto__HotWalletAddress is not set. " +
-                "Derive from seed phrase at index 0 and set in environment variables.");
+                "Crypto__HotWalletAddress is not set in HdWalletSettings.");
 
-        var treasuryAddress = configuration["Crypto__TreasuryAddress"]
-            ?? throw new InvalidOperationException(
-                "Crypto__TreasuryAddress is not set. " +
-                "Derive from seed phrase at index 1 and set in environment variables.");
+        if (string.IsNullOrWhiteSpace(treasuryAddress))
+            throw new InvalidOperationException(
+                "Crypto__TreasuryAddress is not set in HdWalletSettings.");
 
         await SeedDepositAddressIfMissingAsync(
             userId: SystemWallets.HotWalletAccountUserId,

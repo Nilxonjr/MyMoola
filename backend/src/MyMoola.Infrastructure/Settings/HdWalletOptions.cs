@@ -15,4 +15,6 @@ public sealed class HdWalletOptions
     /// User deposit addresses start at index 1.
     /// </summary>
     public int HotWalletDerivationIndex { get; init; } = 0;
+    public string HotWalletAddress { get; init; } = string.Empty;
+    public string TreasuryAddress { get; init; } = string.Empty;
 }
