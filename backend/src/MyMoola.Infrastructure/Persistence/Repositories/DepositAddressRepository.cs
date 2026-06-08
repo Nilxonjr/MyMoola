@@ -16,8 +16,8 @@ public sealed class DepositAddressRepository(AppDbContext db) : IDepositAddressR
             .FirstOrDefaultAsync(d => d.UserId == userId && d.Chain == chain && d.IsActive, ct);
 
     public async Task<DepositAddress?> FindByAddressAsync(string address, CancellationToken ct = default)
-        => await db.DepositAddresses
-            .FirstOrDefaultAsync(d => d.Address == address, ct);
+    => await db.DepositAddresses
+        .FirstOrDefaultAsync(d => d.Address.ToLower() == address.ToLower(), ct);
 
     public async Task<IReadOnlyList<DepositAddress>> GetAllActiveAsync(CancellationToken ct = default)
         => await db.DepositAddresses
