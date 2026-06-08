@@ -232,19 +232,22 @@ public sealed class BlockchainService(
     public async Task<decimal> GetEstimatedGasCostAsync(Currency currency, CancellationToken ct = default)
     {
         var web3 = BuildWeb3();
-        var block = await web3.Eth.Blocks
-            .GetBlockWithTransactionsByNumber
-            .SendRequestAsync(Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest());
 
-        // Base fee is in Wei
-        var baseFeeWei = (decimal)block.BaseFeePerGas.Value;
+        var feeHistory = await web3.Eth.FeeHistory.SendRequestAsync(
+            new Nethereum.Hex.HexTypes.HexBigInteger(1),
+            Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest(),
+            new[] { 50.0m });
 
-        // Add 20% tip buffer on top of base fee
-        var gasPriceWei = baseFeeWei * 1.2m;
+        var nextBaseFeeWei = (decimal)feeHistory.BaseFeePerGas[^1].Value;
 
+        var priorityFeeWei = feeHistory.Reward is not null && feeHistory.Reward.Length > 0
+            ? (decimal)feeHistory.Reward[0][0].Value
+            : 1_500_000_000m;
+
+        var maxGasPriceWei = (nextBaseFeeWei * 2m) + priorityFeeWei;
         var gasLimit = currency == Currency.ETH ? 21_000m : 65_000m;
+        var gasCostWei = maxGasPriceWei * gasLimit;
 
-        var gasCostWei = gasPriceWei * gasLimit;
-        return gasCostWei / 1_000_000_000_000_000_000m; // convert Wei to ETH
+        return gasCostWei / 1_000_000_000_000_000_000m;
     }
 }
