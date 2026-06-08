@@ -179,11 +179,11 @@ public sealed class BlockchainService(
         var payload = new
         {
             webhook_id = _alchemy.WebhookId,
-            addresses_to_add = new[] { address }
+            addresses_to_add = new[] { address },
+            addresses_to_remove = Array.Empty<string>()
         };
 
-        // Alchemy management API requires auth token — different from API key
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        using var request = new HttpRequestMessage(HttpMethod.Patch, url);
         request.Headers.Add("X-Alchemy-Token", _alchemy.AuthToken);
         request.Content = JsonContent.Create(payload);
 
@@ -201,7 +201,6 @@ public sealed class BlockchainService(
             logger.LogInformation("Registered webhook address {Address}", address);
         }
     }
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
