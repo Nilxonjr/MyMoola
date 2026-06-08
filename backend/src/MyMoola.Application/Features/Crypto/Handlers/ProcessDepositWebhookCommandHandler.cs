@@ -6,6 +6,7 @@ using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
 using MyMoola.Application.Common.Helpers;
 using MyMoola.Application.Features.Crypto.DTOs;
+using Microsoft.Extensions.Logging;
 
 namespace MyMoola.Application.Features.Crypto.Commands;
 
@@ -13,6 +14,7 @@ public sealed class ProcessDepositWebhookCommandHandler(
     IDepositAddressRepository depositAddresses,
     ITransactionRepository transactions,
     IOutboxService outbox,
+    ILogger<ProcessDepositWebhookCommandHandler> logger,
     IUnitOfWork uow) : IRequestHandler<ProcessDepositWebhookCommand>
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -28,6 +30,7 @@ public sealed class ProcessDepositWebhookCommandHandler(
 
         // Process each activity independently — one bad activity must not
         // roll back a valid one (Vulnerability 3 fix)
+        logger.LogInformation("Alchemy raw payload: {Payload}", request.RawPayload);
         foreach (var activity in payload.Activity)
         {
             try
