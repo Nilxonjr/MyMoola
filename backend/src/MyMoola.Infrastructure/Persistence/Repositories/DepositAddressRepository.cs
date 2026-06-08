@@ -27,13 +27,17 @@ public sealed class DepositAddressRepository(AppDbContext db) : IDepositAddressR
 
     public async Task<int> GetNextDerivationIndexAsync(CancellationToken ct = default)
     {
-        var result = await db.Database
-            .SqlQuery<long>($"SELECT nextval('deposit_address_index_seq')")
-            .FirstAsync(ct);
+        var connection = db.Database.GetDbConnection();
 
-        return (int)result;
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync(ct);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT nextval('deposit_address_index_seq')";
+
+        var result = await command.ExecuteScalarAsync(ct);
+        return Convert.ToInt32(result);
     }
-
     public async Task<DepositAddress?> FindByIdAsync(Guid id, CancellationToken ct = default)
     => await db.DepositAddresses.FirstOrDefaultAsync(d => d.Id == id, ct);
 }
