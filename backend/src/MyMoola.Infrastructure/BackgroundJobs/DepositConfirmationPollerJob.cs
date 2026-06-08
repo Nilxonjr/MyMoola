@@ -24,7 +24,7 @@ public sealed class DepositConfirmationPollerJob(
     IServiceScopeFactory scopeFactory,
     ILogger<DepositConfirmationPollerJob> logger) : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(0.1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
