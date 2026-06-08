@@ -5,23 +5,34 @@ namespace MyMoola.Domain.Entities;
 
 public sealed class DepositAddress : BaseEntity
 {
-    public Guid UserId { get; private set; }
-    public Currency Currency { get; private set; }
-    public string Address { get; private set; } = null!;
-    public string DerivationPath { get; private set; } = null!;
-    public bool IsActive { get; private set; } = true;
-    public DateTimeOffset? LastUsedAt { get; private set; }
-
     private DepositAddress() { }
 
-    public static DepositAddress Create(Guid userId, Currency currency, string address, string derivationPath)
+    public Guid UserId { get; private set; }
+    public Chain Chain { get; private set; }
+    public string Address { get; private set; } = null!;
+    public string DerivationPath { get; private set; } = null!;
+    public int DerivationIndex { get; private set; }
+    public bool IsActive { get; private set; } = true;
+    public DateTimeOffset? LastUsedAt { get; private set; }
+    public DateTimeOffset? LastCheckedAt { get; private set; }
+
+    public string? PendingGasFundingTxHash { get; private set; }
+
+    public static DepositAddress Create(
+        Guid userId,
+        Chain chain,
+        string address,
+        string derivationPath,
+        int derivationIndex)
     {
         return new DepositAddress
         {
             UserId = userId,
-            Currency = currency,
+            Chain = chain,
             Address = address,
-            DerivationPath = derivationPath
+            DerivationPath = derivationPath,
+            DerivationIndex = derivationIndex,
+            IsActive = true
         };
     }
 
@@ -30,8 +41,24 @@ public sealed class DepositAddress : BaseEntity
         LastUsedAt = DateTimeOffset.UtcNow;
     }
 
+    public void MarkChecked()
+    {
+        LastCheckedAt = DateTimeOffset.UtcNow;
+    }
+
     public void Deactivate()
     {
         IsActive = false;
     }
+
+    public void SetGasFundingTxHash(string txHash)
+    {
+        PendingGasFundingTxHash = txHash;
+    }
+
+    public void ClearGasFundingTxHash()
+    {
+        PendingGasFundingTxHash = null;
+    }
+
 }

@@ -26,4 +26,8 @@ public static class SystemWallets
 
     public static readonly Guid SuspenseAccountUserId =
         new("00000000-0000-0000-0000-000000000005");
+
+    public static readonly Guid HotWalletAccountUserId =
+    new("00000000-0000-0000-0000-000000000006");
+
 }
