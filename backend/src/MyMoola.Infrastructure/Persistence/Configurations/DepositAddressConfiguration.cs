@@ -16,9 +16,8 @@ public sealed class DepositAddressConfiguration : IEntityTypeConfiguration<Depos
 
         builder.Property(d => d.UserId).HasColumnName("user_id").IsRequired();
 
-        builder.Property(d => d.Currency)
-            .HasColumnName("currency")
-            .HasMaxLength(10)
+        builder.Property(d => d.Chain)
+            .HasColumnName("chain")
             .HasConversion<string>()
             .IsRequired();
 
@@ -26,12 +25,20 @@ public sealed class DepositAddressConfiguration : IEntityTypeConfiguration<Depos
             .HasColumnName("address")
             .HasMaxLength(100)
             .IsRequired();
-        builder.HasIndex(d => d.Address).IsUnique();
+
+        builder.HasIndex(d => d.Address)
+            .IsUnique()
+            .HasDatabaseName("ix_deposit_addresses_address");
 
         builder.Property(d => d.DerivationPath)
             .HasColumnName("derivation_path")
             .HasMaxLength(50)
             .IsRequired();
+
+        builder.Property(d => d.DerivationIndex)
+            .HasColumnName("derivation_index")
+            .IsRequired();
+
 
         builder.Property(d => d.IsActive).HasColumnName("is_active").HasDefaultValue(true);
         builder.Property(d => d.LastUsedAt).HasColumnName("last_used_at");
@@ -43,6 +50,17 @@ public sealed class DepositAddressConfiguration : IEntityTypeConfiguration<Depos
             .WithMany()
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(d => new { d.UserId, d.Chain })
+            .IsUnique()
+            .HasFilter("is_active = true")
+            .HasDatabaseName("ix_deposit_addresses_user_chain_active");
+
+        builder.Property(d => d.LastCheckedAt)
+        .HasColumnName("last_checked_at");
+
+        builder.Property(d => d.PendingGasFundingTxHash)
+            .HasColumnName("pending_gas_funding_tx_hash");
 
         builder.Ignore(d => d.DomainEvents);
     }

@@ -15,4 +15,10 @@ public static class OutboxMessageTypes
     public const string PochiPayment = "mpesa.pochi_payment.v1";
     public const string PochiCallbackPayment = "mpesa.pochi_callback.v1";
     public const string PochiTimeout = "mpesa.pochi_timeout.v1";
+    public const string DepositDetected = "crypto.deposit_detected.v1";
+    public const string DepositConfirmed = "crypto.deposit_confirmed.v1";
+    public const string WithdrawalBroadcast = "crypto.withdrawal_broadcast.v1";
+    public const string WithdrawalConfirmed = "crypto.withdrawal_confirmed.v1";
+    public const string WithdrawalFailed = "crypto.withdrawal_failed.v1";
+    public const string AddressSweep = "crypto.address_sweep.v1";
 }

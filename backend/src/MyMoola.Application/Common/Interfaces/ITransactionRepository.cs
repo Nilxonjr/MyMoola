@@ -10,4 +10,6 @@ public interface ITransactionRepository
     Task<Transaction?> FindByIdAsync(Guid id, CancellationToken ct = default);
     Task<(IReadOnlyList<Transaction> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId, int page, int pageSize, CancellationToken ct = default);
+
+    Task<Transaction?> FindByOnChainTxHashAsync(string txHash, CancellationToken ct = default);
 }

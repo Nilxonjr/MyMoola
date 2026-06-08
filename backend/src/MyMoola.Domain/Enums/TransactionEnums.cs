@@ -23,5 +23,9 @@ public enum TransactionStatus
     Completed,
     Failed,
     Reversed,
-    Expired
+    Expired,
+    Deposit,
+    Withdrawal,
+    Sweep,
+    Confirmed
 }

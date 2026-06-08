@@ -27,6 +27,7 @@ using MyMoola.Infrastructure.Persistence.Interceptors;
 using Polly.Extensions.Http;
 using MyMoola.Application.Common.Options;
 using Microsoft.AspNetCore.HttpOverrides;
+using MyMoola.Application.Features.Crypto.OutboxHandlers;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -132,6 +133,7 @@ builder.Services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
 builder.Services.AddScoped<IOtpCache, RedisOtpCache>();
 builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 builder.Services.AddScoped<IMpesaTransactionRepository, MpesaTransactionRepository>();
+builder.Services.AddScoped<IDepositAddressRepository, DepositAddressRepository>();
 // ── Unit of Work ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -145,7 +147,9 @@ builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<IOutboxService, OutboxService>();
 builder.Services.AddHostedService<OutboxProcessor>();
+builder.Services.AddHostedService<DepositConfirmationPollerJob>();
 builder.Services.AddScoped<IExchangeRateQuoteService, ExchangeRateQuoteService>();
+builder.Services.AddScoped<IBlockchainService, BlockchainService>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -159,6 +163,9 @@ builder.Services.AddScoped<IOutboxMessageHandler, B2BOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, B2BCallbackOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, B2BTimeoutOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, PochiOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, DepositDetectedOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, DepositConfirmedOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, AddressSweepOutboxHandler>();
 
 // Idempotency
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();
@@ -166,6 +173,13 @@ builder.Services.AddScoped<IIdempotencyService, RedisIdempotencyService>();
 
 
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<BlockchainService>();
+
+builder.Services.Configure<HdWalletOptions>(
+    builder.Configuration.GetSection(HdWalletOptions.Section));
+
+builder.Services.Configure<AlchemyOptions>(
+    builder.Configuration.GetSection(AlchemyOptions.Section));
 
 builder.Services.Configure<MpesaOptions>(
     builder.Configuration.GetSection(MpesaOptions.SectionName));
@@ -192,7 +206,6 @@ builder.Services.AddHttpClient<ResendEmailService>(client =>
 
 builder.Services.AddTransient<IEmailService>(
     sp => sp.GetRequiredService<ResendEmailService>());
-
 
 
 builder.Services.Configure<OutboxProcessorOptions>(
@@ -504,7 +517,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 app.UseRateLimiter();
 app.UseMiddleware<IdempotencyMiddleware>();
-
+app.UseMiddleware<AlchemyWebhookMiddleware>();
 app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
