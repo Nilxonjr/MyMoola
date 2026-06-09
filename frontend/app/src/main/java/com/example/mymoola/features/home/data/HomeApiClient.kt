@@ -53,6 +53,13 @@ object HomeApiClient {
         val phoneNumber: String
     )
 
+    data class DepositAddressResponse(
+        val chain: String,
+        val address: String,
+        val network: String,
+        val supportedAssets: List<String>
+    )
+
     data class SendToUserRequest(
         val recipientPhone: String,
         val currency: String,
@@ -150,6 +157,7 @@ object HomeApiClient {
         val amount: Double,
         val createdAt: String,
         val marketRateSnapshot: Double?,
+        val onChainTxHash: String?,
         val onChainConfirmations: Int,
         val mpesaReference: String?
     )
@@ -266,6 +274,45 @@ object HomeApiClient {
             }
         }
 
+    suspend fun getDepositAddress(chain: String = "Ethereum"): ApiResult<DepositAddressResponse> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val encodedChain = URLEncoder.encode(chain, Charsets.UTF_8.name())
+                val path = "/api/users/me/deposit-address?chain=$encodedChain"
+
+                val firstAttempt = executeAuthorizedGet(path)
+                val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                    executeAuthorizedGet(path)
+                } else {
+                    firstAttempt
+                }
+
+                val code = finalAttempt.statusCode
+                val body = finalAttempt.body
+                if (code == HttpURLConnection.HTTP_OK) {
+                    val json = JSONObject(body)
+                    val assetsJson = json.optJSONArray("supportedAssets") ?: JSONArray()
+                    val supportedAssets = buildList {
+                        for (i in 0 until assetsJson.length()) {
+                            add(assetsJson.optString(i))
+                        }
+                    }
+                    ApiResult(
+                        data = DepositAddressResponse(
+                            chain = json.optString("chain", chain),
+                            address = json.optString("address", ""),
+                            network = json.optString("network", ""),
+                            supportedAssets = supportedAssets
+                        )
+                    )
+                } else {
+                    ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+                }
+            }.getOrElse {
+                ApiResult(errorMessage = "Network error while loading wallet address.")
+            }
+        }
+
     suspend fun sendToUser(request: SendToUserRequest): ApiResult<SendToUserResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -345,6 +392,7 @@ object HomeApiClient {
                             amount = item.optDouble("amount", 0.0),
                             createdAt = item.optString("createdAt"),
                             marketRateSnapshot = item.optDouble("marketRateSnapshot").takeUnless { item.isNull("marketRateSnapshot") },
+                            onChainTxHash = item.optString("onChainTxHash").ifBlank { null },
                             onChainConfirmations = item.optInt("onChainConfirmations", 0),
                             mpesaReference = item.optString("mpesaReference").ifBlank { null }
                         )

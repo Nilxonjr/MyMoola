@@ -192,7 +192,7 @@ fun ViewRecordsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF475569)
                                 )
-                                if (!tx.interactedPhone.isNullOrBlank()) {
+                                if (!tx.interactedPhone.isNullOrBlank() && !tx.interactedPhone.equals("null", ignoreCase = true)) {
                                     Text(
                                         text = "With: ${tx.interactedPhone}",
                                         style = MaterialTheme.typography.bodySmall,
@@ -211,6 +211,15 @@ fun ViewRecordsScreen(
                                         color = Color(0xFF64748B)
                                     )
                                 }
+                                tx.onChainTxHash
+                                    ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                                    ?.let { txHash ->
+                                    Text(
+                                        text = "Transaction hash: $txHash",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    }
                                 if (tx.onChainConfirmations > 0) {
                                     Text(
                                         text = "On-chain confirmations: ${tx.onChainConfirmations}",
