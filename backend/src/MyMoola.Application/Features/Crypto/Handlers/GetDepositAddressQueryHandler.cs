@@ -43,8 +43,8 @@ public sealed class GetDepositAddressQueryHandler(
             return BuildResponse(existing.Address, request.Chain);
 
         // Fetch user — needed to get a stable identifier for derivation
-        var user = await users.FindByIdAsync(userId, ct)
-            ?? throw new NotFoundException(nameof(User), userId);
+        //var user = await users.FindByIdAsync(userId, ct)
+        //    ?? throw new NotFoundException(nameof(User), userId);
 
         // Allocate next derivation index from dedicated DB sequence
         var derivationIndex = await depositAddresses.GetNextDerivationIndexAsync(ct);

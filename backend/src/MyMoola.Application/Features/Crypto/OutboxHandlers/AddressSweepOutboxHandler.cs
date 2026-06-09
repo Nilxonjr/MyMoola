@@ -79,7 +79,7 @@ public sealed class AddressSweepOutboxHandler(
 
         var sweepAmount = totalBalance - estimatedGas;
 
-        if (sweepAmount <= 0)
+        if (sweepAmount <= 0.00001m)
         {
             logger.LogWarning(
                 "ETH balance too low to cover gas. Skipping sweep. " +

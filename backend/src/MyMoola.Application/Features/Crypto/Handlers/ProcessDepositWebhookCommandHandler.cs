@@ -6,6 +6,7 @@ using MyMoola.Domain.Entities;
 using MyMoola.Domain.Enums;
 using MyMoola.Application.Common.Helpers;
 using MyMoola.Application.Features.Crypto.DTOs;
+using Microsoft.Extensions.Logging;
 
 namespace MyMoola.Application.Features.Crypto.Commands;
 
@@ -13,6 +14,7 @@ public sealed class ProcessDepositWebhookCommandHandler(
     IDepositAddressRepository depositAddresses,
     ITransactionRepository transactions,
     IOutboxService outbox,
+    ILogger<ProcessDepositWebhookCommandHandler> logger,
     IUnitOfWork uow) : IRequestHandler<ProcessDepositWebhookCommand>
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -22,13 +24,13 @@ public sealed class ProcessDepositWebhookCommandHandler(
 
     public async Task Handle(ProcessDepositWebhookCommand request, CancellationToken ct)
     {
-        var payload = JsonSerializer.Deserialize<AlchemyActivityPayload>(
+        logger.LogInformation("Alchemy raw payload: {Payload}", request.RawPayload);
+
+        var payload = JsonSerializer.Deserialize<AlchemyWebhookPayload>(
             request.RawPayload, JsonOptions)
             ?? throw new InvalidOperationException("Failed to deserialize Alchemy webhook payload.");
 
-        // Process each activity independently — one bad activity must not
-        // roll back a valid one (Vulnerability 3 fix)
-        foreach (var activity in payload.Activity)
+        foreach (var activity in payload.Event.Activity)
         {
             try
             {
@@ -36,8 +38,8 @@ public sealed class ProcessDepositWebhookCommandHandler(
             }
             catch (Exception ex)
             {
-                // Log and continue — do not let one activity poison the batch
-                // In production wire ILogger here
+                logger.LogError(ex,
+                "Failed to process activity. TxHash={TxHash}", activity.Hash);
                 _ = ex;
             }
         }
@@ -98,7 +100,15 @@ public sealed class ProcessDepositWebhookCommandHandler(
     };
 }
 
-public sealed record AlchemyActivityPayload(List<AlchemyActivity> Activity);
+public sealed record AlchemyWebhookPayload(
+    string WebhookId,
+    string Id,
+    string Type,
+    AlchemyEvent Event);
+
+public sealed record AlchemyEvent(
+    string Network,
+    List<AlchemyActivity> Activity);
 
 public sealed record AlchemyActivity(
     string FromAddress,
