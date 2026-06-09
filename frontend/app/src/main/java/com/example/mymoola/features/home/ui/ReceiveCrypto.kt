@@ -1,5 +1,8 @@
 package com.example.mymoola.features.home.ui
 
+import android.content.ClipData
+import android.graphics.Bitmap
+import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,17 +30,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,6 +51,10 @@ import com.example.mymoola.BackIconButton
 import com.example.mymoola.R
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import kotlinx.coroutines.launch
+import androidx.core.graphics.set
 
 @Composable
 fun ReceiveCryptoScreen(
@@ -56,7 +65,8 @@ fun ReceiveCryptoScreen(
     val brandDark = Color(0xFF0F172A)
     val brandAccent = MaterialTheme.colorScheme.primary
     val mutedText = Color(0xFF64748B)
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     var isLoading by remember { mutableStateOf(true) }
@@ -177,12 +187,49 @@ fun ReceiveCryptoScreen(
 
                     addressResponse != null -> {
                         val response = addressResponse!!
+                        val qrBitmap = remember(response.address) {
+                            generateQrBitmap(response.address, 720)
+                        }
                         InfoRow(label = "Chain", value = response.chain)
                         InfoRow(label = "Network", value = response.network)
                         InfoRow(
                             label = "Supported assets",
                             value = response.supportedAssets.joinToString(", ").ifBlank { "None provided" }
                         )
+
+                        Text(
+                            text = "QR code",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = mutedText
+                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, panelBorder)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (qrBitmap != null) {
+                                    Image(
+                                        bitmap = qrBitmap.asImageBitmap(),
+                                        contentDescription = "Wallet address QR code",
+                                        modifier = Modifier.size(220.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Unable to generate QR code.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
 
                         Text(
                             text = "Wallet address",
@@ -214,8 +261,12 @@ fun ReceiveCryptoScreen(
                         ) {
                             Button(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(response.address))
-                                    copiedMessage = "Wallet address copied."
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipData.newPlainText("wallet address", response.address).toClipEntry()
+                                        )
+                                        copiedMessage = "Wallet address copied."
+                                    }
                                 },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = brandAccent)
@@ -268,6 +319,22 @@ private fun InfoRow(label: String, value: String) {
             color = Color(0xFF0F172A)
         )
     }
+}
+
+private fun generateQrBitmap(content: String, size: Int): Bitmap? {
+    if (content.isBlank()) return null
+
+    return runCatching {
+        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
+        val bitmap = createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bitmap[x, y] =
+                    if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            }
+        }
+        bitmap
+    }.getOrNull()
 }
 
 @Preview(showBackground = true)
