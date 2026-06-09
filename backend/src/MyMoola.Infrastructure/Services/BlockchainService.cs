@@ -130,12 +130,21 @@ public sealed class BlockchainService(
             var contract = web3.Eth.GetContract(Erc20Abi, contractAddress);
             var transfer = contract.GetFunction("transfer");
 
+            var gas = new Nethereum.Hex.HexTypes.HexBigInteger(100_000);
+
             // Fix A: convert decimal to BigInteger via string — no long cast
             var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
 
             // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
+            //var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
+            //    from: account.Address,
+            //    receiptRequestCancellationToken: ct,
+            //    functionInput: new object[] { toAddress, tokenUnits });
+
             var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
                 from: account.Address,
+                gas: gas,
+                value: null,
                 receiptRequestCancellationToken: ct,
                 functionInput: new object[] { toAddress, tokenUnits });
 
