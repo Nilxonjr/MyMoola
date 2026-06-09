@@ -136,8 +136,15 @@ public sealed class BlockchainService(
             var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
 
             // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
+            //var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
+            //    from: account.Address,
+            //    receiptRequestCancellationToken: ct,
+            //    functionInput: new object[] { toAddress, tokenUnits });
+
             var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
                 from: account.Address,
+                gas: gas,
+                value: null,
                 receiptRequestCancellationToken: ct,
                 functionInput: new object[] { toAddress, tokenUnits });
 
