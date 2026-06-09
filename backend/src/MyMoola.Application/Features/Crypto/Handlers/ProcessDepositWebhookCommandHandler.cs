@@ -14,6 +14,7 @@ public sealed class ProcessDepositWebhookCommandHandler(
     IDepositAddressRepository depositAddresses,
     ITransactionRepository transactions,
     IOutboxService outbox,
+    IWalletRepository wallets,
     ILogger<ProcessDepositWebhookCommandHandler> logger,
     IUnitOfWork uow) : IRequestHandler<ProcessDepositWebhookCommand>
 {
@@ -47,50 +48,63 @@ public sealed class ProcessDepositWebhookCommandHandler(
 
     private async Task ProcessActivityAsync(AlchemyActivity activity, CancellationToken ct)
     {
-        // Ignore zero-value or unrecognised asset transfers
+        // Ignore zero or negative value transfers
         var currency = MapAssetToCurrency(activity.Asset);
         if (currency is null || activity.Value <= 0) return;
 
+        // Only process INCOMING transfers — toAddress must be a registered deposit address
+        // Outgoing sweeps and withdrawals FROM our addresses are ignored here
         var depositAddress = await depositAddresses
             .FindByAddressAsync(activity.ToAddress, ct);
 
-        // Not one of our deposit addresses — ignore
-        if (depositAddress is null) return;
         if (depositAddress is null) return;
 
-        // Idempotency — if we already have this tx hash, skip
+        // Ignore transfers FROM our own system addresses — these are sweeps or internal moves
+        var fromAddress = activity.FromAddress.ToLowerInvariant();
+        var hotWalletAddress = await depositAddresses
+            .FindByUserAndChainAsync(SystemWallets.HotWalletAccountUserId, Chain.Ethereum, ct);
+
+        var isFromSystemWallet =
+            (hotWalletAddress is not null &&
+             hotWalletAddress.Address.ToLowerInvariant() == fromAddress);
+
+        var isToSystemWallet = (hotWalletAddress is not null && hotWalletAddress.Address.ToLowerInvariant()
+            == activity.ToAddress.ToLowerInvariant());
+
+        if (isFromSystemWallet || isToSystemWallet)
+        {
+            logger.LogDebug(
+                "Ignoring internal transfer. From={From} To={To} TxHash={TxHash}",
+                activity.FromAddress, activity.ToAddress, activity.Hash);
+            return;
+        }
+
+        // Idempotency — if we already have this tx hash skip
         var existing = await transactions
             .FindByOnChainTxHashAsync(activity.Hash, ct);
 
         if (existing is not null) return;
-        var referenceCode = ReferenceCodeGenerator.Generate("DEP");
 
         var transaction = Transaction.CreateDeposit(
-            referenceCode: referenceCode,
             userId: depositAddress.UserId,
             currency: currency.Value,
             amount: activity.Value,
-            txHash: activity.Hash);
+            txHash: activity.Hash,
+            referenceCode: ReferenceCodeGenerator.Generate("DEP"));
 
         await transactions.AddAsync(transaction, ct);
 
-        await outbox.EnqueueAsync(
-            OutboxMessageTypes.DepositDetected,
-            new DepositDetectedOutboxPayload(
-                TransactionId: transaction.Id,
-                UserId: depositAddress.UserId,
-                Currency: currency.Value,
-                Amount: activity.Value,
-                TxHash: activity.Hash,
-                DepositAddressId: depositAddress.Id),
-            ct);
-
         depositAddress.MarkUsed();
 
-        // Each activity saved atomically — failure here only affects this activity
         await uow.SaveChangesAsync(ct);
-    }
 
+        logger.LogInformation(
+            "Deposit detected. Awaiting confirmations. " +
+            "TransactionId={TransactionId} TxHash={TxHash} " +
+            "Currency={Currency} Amount={Amount} UserId={UserId}",
+            transaction.Id, activity.Hash,
+            currency.Value, activity.Value, depositAddress.UserId);
+    }
     private static Currency? MapAssetToCurrency(string asset) => asset.ToUpperInvariant() switch
     {
         "ETH" => Currency.ETH,
