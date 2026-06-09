@@ -8,16 +8,25 @@ namespace MyMoola.API.Controllers
 {
     [ApiController]
     [Route("api/webhooks")]
-    public sealed class WebhooksController(ISender sender) : ControllerBase
+    public sealed class WebhooksController(
+    ISender sender,
+    ILogger<WebhooksController> logger) : ControllerBase
     {
         [HttpPost("alchemy")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Alchemy(
             [FromBody] JsonElement payload,
             CancellationToken ct)
         {
-            await sender.Send(new ProcessDepositWebhookCommand(payload.GetRawText()), ct);
+            try
+            {
+                await sender.Send(new ProcessDepositWebhookCommand(payload.GetRawText()), ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Alchemy webhook processing failed.");
+            }
+
             return Ok();
         }
     }
