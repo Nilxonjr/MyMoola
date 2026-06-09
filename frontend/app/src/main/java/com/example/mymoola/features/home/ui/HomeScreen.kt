@@ -79,6 +79,7 @@ data class HomeActivity(
     val amount: String,
     val amountColor: Color,
     val marketRateSnapshot: Double?,
+    val onChainTxHash: String?,
     val onChainConfirmations: Int,
     val mpesaReference: String?
 )
@@ -106,6 +107,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {},
     onBuyClick: () -> Unit = {},
     onSellClick: () -> Unit = {},
+    onReceiveCryptoClick: () -> Unit = {},
     onPayWithMpesaClick: () -> Unit = {},
     onSendToUserClick: () -> Unit = {},
     onViewRecordsClick: () -> Unit = {},
@@ -216,7 +218,7 @@ fun HomeScreen(
                     append(tx.currency)
                     append(" • ")
                     append(formatHomeTime(tx.createdAt))
-                    tx.interactedPhone?.takeIf { it.isNotBlank() }?.let {
+                    tx.interactedPhone?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }?.let {
                         append(" • ")
                         append(it)
                     }
@@ -226,6 +228,7 @@ fun HomeScreen(
                 amount = "$amountPrefix${formatMeaningfulAmount(tx.amount)} ${tx.currency}",
                 amountColor = amountColor,
                 marketRateSnapshot = tx.marketRateSnapshot,
+                onChainTxHash = tx.onChainTxHash,
                 onChainConfirmations = tx.onChainConfirmations,
                 mpesaReference = tx.mpesaReference
             )
@@ -303,6 +306,7 @@ fun HomeScreen(
     val quickActions = listOf(
         HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
         HomeAction("onb_sell_kes", "S", "Sell Crypto"),
+        HomeAction("onb_receive_crypto", "W", "Receive Crypto"),
         HomeAction("onb_pay_till", "P", "Pay with MPESA"),
         HomeAction("onb_send_crypto", "M", "Send to Other Users"),
         HomeAction("onb_payment_records", "V", "View Records"),
@@ -537,6 +541,7 @@ fun HomeScreen(
                                     val actionClick: () -> Unit = when (action.label) {
                                         "Buy Crypto" -> onBuyClick
                                         "Sell Crypto" -> onSellClick
+                                        "Receive Crypto" -> onReceiveCryptoClick
                                         "Pay with MPESA" -> onPayWithMpesaClick
                                         "Send to Other Users" -> onSendToUserClick
                                         "View Records" -> onViewRecordsClick
@@ -679,6 +684,17 @@ fun HomeScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            activity.onChainTxHash
+                                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                                ?.let { txHash ->
+                                    Text(
+                                        text = "Hash: $txHash",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = mutedText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(

@@ -28,6 +28,7 @@ import com.example.mymoola.features.home.ui.HomeScreen
 import com.example.mymoola.features.home.ui.PayWithMpesaScreen
 import com.example.mymoola.features.home.ui.SellCryptoScreen
 import com.example.mymoola.features.home.ui.SendToUserChoiceScreen
+import com.example.mymoola.features.home.ui.ReceiveCryptoScreen
 import com.example.mymoola.features.home.ui.SendToUserScreen
 import com.example.mymoola.features.home.ui.ViewRatesScreen
 import com.example.mymoola.features.home.ui.ViewRecordsScreen
@@ -136,6 +137,7 @@ class MainActivity : ComponentActivity() {
                                 onSettingsClick = { navController.navigate("settings") },
                                 onBuyClick = { navController.navigate("buy_crypto") },
                                 onSellClick = { navController.navigate("sell_crypto") },
+                                onReceiveCryptoClick = { navController.navigate("receive_crypto") },
                                 onPayWithMpesaClick = { navController.navigate("pay_with_mpesa") },
                                 onSendToUserClick = { navController.navigate("send_to_user") },
                                 onViewRecordsClick = { navController.navigate("view_records") },
@@ -149,6 +151,7 @@ class MainActivity : ComponentActivity() {
                                             set("activity_detail", activity.detail)
                                             set("activity_amount", activity.amount)
                                             set("activity_market_rate_snapshot", activity.marketRateSnapshot)
+                                            set("activity_on_chain_tx_hash", activity.onChainTxHash)
                                             set("activity_on_chain_confirmations", activity.onChainConfirmations)
                                             set("activity_mpesa_reference", activity.mpesaReference)
                                         }
@@ -232,6 +235,11 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable("receive_crypto") {
+                            ReceiveCryptoScreen(
+                                onBackClick = { navController.popBackStack() }
+                            )
+                        }
                         composable("pay_with_mpesa") {
                             PayWithMpesaScreen(
                                 onBackClick = { navController.popBackStack() },
@@ -289,6 +297,7 @@ class MainActivity : ComponentActivity() {
                             val activityDetail = state?.get<String>("activity_detail").orEmpty()
                             val activityAmount = state?.get<String>("activity_amount").orEmpty()
                             val activityRate = state?.get<Double>("activity_market_rate_snapshot")
+                            val activityOnChainTxHash = state?.get<String>("activity_on_chain_tx_hash")
                             val activityConfirmations = state?.get<Int>("activity_on_chain_confirmations") ?: 0
                             val activityMpesaRef = state?.get<String>("activity_mpesa_reference")
                             ActivityDetailsScreen(
@@ -297,6 +306,7 @@ class MainActivity : ComponentActivity() {
                                 detail = activityDetail,
                                 amount = activityAmount,
                                 marketRateSnapshot = activityRate,
+                                onChainTxHash = activityOnChainTxHash,
                                 onChainConfirmations = activityConfirmations,
                                 mpesaReference = activityMpesaRef,
                                 onBackClick = { navController.popBackStack() }

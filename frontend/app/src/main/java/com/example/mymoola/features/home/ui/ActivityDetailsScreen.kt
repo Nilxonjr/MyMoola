@@ -30,6 +30,7 @@ fun ActivityDetailsScreen(
     detail: String,
     amount: String,
     marketRateSnapshot: Double?,
+    onChainTxHash: String?,
     onChainConfirmations: Int,
     mpesaReference: String?,
     onBackClick: () -> Unit
@@ -106,6 +107,15 @@ fun ActivityDetailsScreen(
                     color = Color(0xFF475569)
                 )
             }
+            onChainTxHash
+                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                ?.let { txHash ->
+                    Text(
+                        text = "Transaction hash: $txHash",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                }
             if (onChainConfirmations > 0) {
                 Text(
                     text = "On-chain confirmations: $onChainConfirmations",
