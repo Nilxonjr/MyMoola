@@ -79,7 +79,7 @@ public sealed class AddressSweepOutboxHandler(
 
         var sweepAmount = totalBalance - estimatedGas;
 
-        if (sweepAmount <= 0.00001m)
+        if (sweepAmount <= 0.0001m)
         {
             logger.LogWarning(
                 "ETH balance too low to cover gas. Skipping sweep. " +
@@ -158,11 +158,23 @@ public sealed class AddressSweepOutboxHandler(
             await WaitForConfirmationAsync(depositAddress.PendingGasFundingTxHash, ct);
         }
 
-        // Gas is funded and confirmed — sweep the token
+        var tokenBalance = await blockchain
+            .GetBalanceAsync(depositAddress.Address, payload.Currency, ct);
+
+        if (tokenBalance <= 1)
+        {
+            logger.LogWarning(
+                "No token balance to sweep. Address={Address} Currency={Currency}",
+                depositAddress.Address, payload.Currency);
+            depositAddress.ClearGasFundingTxHash();
+            await uow.SaveChangesAsync(ct);
+            return;
+        }
+
         var sweepTxHash = await blockchain.BroadcastSweepAsync(
             fromAddress: depositAddress.Address,
             toAddress: hotWalletAddress,
-            amount: payload.Amount,
+            amount: tokenBalance,
             currency: payload.Currency,
             fromIndex: depositAddress.DerivationIndex,
             ct: ct);
