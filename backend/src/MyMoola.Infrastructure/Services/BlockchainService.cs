@@ -130,21 +130,14 @@ public sealed class BlockchainService(
             var contract = web3.Eth.GetContract(Erc20Abi, contractAddress);
             var transfer = contract.GetFunction("transfer");
 
-            var gas = new Nethereum.Hex.HexTypes.HexBigInteger(100_000);
+            var gas = new Nethereum.Hex.HexTypes.HexBigInteger(65_000);
 
             // Fix A: convert decimal to BigInteger via string — no long cast
             var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
 
             // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
-            //var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
-            //    from: account.Address,
-            //    receiptRequestCancellationToken: ct,
-            //    functionInput: new object[] { toAddress, tokenUnits });
-
             var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
                 from: account.Address,
-                gas: gas,
-                value: null,
                 receiptRequestCancellationToken: ct,
                 functionInput: new object[] { toAddress, tokenUnits });
 
@@ -253,7 +246,7 @@ public sealed class BlockchainService(
             ? (decimal)feeHistory.Reward[0][0].Value
             : 1_500_000_000m;
 
-        var maxGasPriceWei = (nextBaseFeeWei * 2m) + priorityFeeWei;
+        var maxGasPriceWei = (nextBaseFeeWei * 1.2m) + priorityFeeWei;
         var gasLimit = currency == Currency.ETH ? 21_000m : 65_000m;
         var gasCostWei = maxGasPriceWei * gasLimit;
 
