@@ -149,6 +149,11 @@ public sealed class BlockchainService(
                 functionInput: new object[] { toAddress, tokenUnits });
 
             logger.LogInformation(
+                    "ERC-20 transfer gas used: {GasUsed} of {GasLimit}",
+                    receipt.GasUsed.Value,
+                    100_000);
+
+            logger.LogInformation(
                 "{Currency} withdrawal broadcast. TxHash={TxHash}",
                 currency, receipt.TransactionHash);
 
