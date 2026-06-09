@@ -130,7 +130,7 @@ public sealed class BlockchainService(
             var contract = web3.Eth.GetContract(Erc20Abi, contractAddress);
             var transfer = contract.GetFunction("transfer");
 
-            var gas = new Nethereum.Hex.HexTypes.HexBigInteger(65_000);
+            var gas = new Nethereum.Hex.HexTypes.HexBigInteger(50_000);
 
             // Fix A: convert decimal to BigInteger via string — no long cast
             var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
@@ -151,7 +151,7 @@ public sealed class BlockchainService(
             logger.LogInformation(
                     "ERC-20 transfer gas used: {GasUsed} of {GasLimit}",
                     receipt.GasUsed.Value,
-                    100_000);
+                    50_000);
 
             logger.LogInformation(
                 "{Currency} withdrawal broadcast. TxHash={TxHash}",
@@ -259,7 +259,7 @@ public sealed class BlockchainService(
             : 1_500_000_000m;
 
         var maxGasPriceWei = (nextBaseFeeWei * 1.2m) + priorityFeeWei;
-        var gasLimit = currency == Currency.ETH ? 21_000m : 65_000m;
+        var gasLimit = currency == Currency.ETH ? 21_000m : 50_000m;
         var gasCostWei = maxGasPriceWei * gasLimit;
 
         return gasCostWei / 1_000_000_000_000_000_000m;
