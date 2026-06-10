@@ -148,6 +148,7 @@ builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<IOutboxService, OutboxService>();
 builder.Services.AddHostedService<OutboxProcessor>();
 builder.Services.AddHostedService<DepositConfirmationPollerJob>();
+builder.Services.AddHostedService<WithdrawalConfirmationPollerJob>();
 builder.Services.AddScoped<IExchangeRateQuoteService, ExchangeRateQuoteService>();
 builder.Services.AddScoped<IBlockchainService, BlockchainService>();
 
@@ -166,6 +167,9 @@ builder.Services.AddScoped<IOutboxMessageHandler, PochiOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, DepositDetectedOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, DepositConfirmedOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, AddressSweepOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, WithdrawalBroadcastOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, WithdrawalConfirmedOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, WithdrawalFailedOutboxHandler>();
 
 // Idempotency
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();

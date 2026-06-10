@@ -215,6 +215,26 @@ public sealed class BlockchainService(
             logger.LogInformation("Registered webhook address {Address}", address);
         }
     }
+
+    public async Task<bool> TransactionExistsOnChainAsync(
+    string txHash, CancellationToken ct = default)
+    {
+        var web3 = BuildWeb3();
+        var receipt = await web3.Eth.Transactions
+            .GetTransactionReceipt.SendRequestAsync(txHash);
+        return receipt is not null;
+    }
+
+    public async Task<bool> TransactionSucceededAsync(
+        string txHash, CancellationToken ct = default)
+    {
+        var web3 = BuildWeb3();
+        var receipt = await web3.Eth.Transactions
+            .GetTransactionReceipt.SendRequestAsync(txHash);
+        if (receipt is null) return false;
+        // Status 1 = success, Status 0 = reverted
+        return receipt.Status.Value == 1;
+    }
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -263,5 +283,24 @@ public sealed class BlockchainService(
         var gasCostWei = maxGasPriceWei * gasLimit;
 
         return gasCostWei / 1_000_000_000_000_000_000m;
+    }
+
+    public async Task<decimal> GetCurrentGasPriceAsync(CancellationToken ct = default)
+    {
+        var web3 = BuildWeb3();
+
+        var feeHistory = await web3.Eth.FeeHistory.SendRequestAsync(
+            new Nethereum.Hex.HexTypes.HexBigInteger(1),
+            Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest(),
+            new[] { 50.0m });
+
+        var baseFeeWei = decimal.Parse(feeHistory.BaseFeePerGas[^1].Value.ToString());
+        var priorityFeeWei = feeHistory.Reward is not null && feeHistory.Reward.Length > 0
+            ? decimal.Parse(feeHistory.Reward[0][0].Value.ToString())
+            : 1_500_000_000m;
+
+        // EIP-1559 maxFeePerGas = (baseFee * 1.2) + priorityFee
+        // baseFee * 1.2 ensures inclusion even if base fee doubles next block
+        return (baseFeeWei * 1.2m) + priorityFeeWei;
     }
 }

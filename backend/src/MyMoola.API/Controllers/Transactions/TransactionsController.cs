@@ -7,6 +7,8 @@ using MyMoola.Application.Features.Transactions.Commands;
 using MyMoola.API.Filters;
 using MyMoola.API.Attributes;
 using MyMoola.Domain.Enums;
+using MyMoola.Application.Features.Crypto.Commands;
+using MyMoola.Application.Features.Crypto.Queries;
 
 namespace MyMoola.API.Controllers.Transactions;
 
@@ -93,6 +95,31 @@ public sealed class TransactionsController(ISender sender) : ControllerBase
     public async Task<IActionResult> PayMerchant(
     [FromBody] PayMerchantCommand command,
     CancellationToken ct)
+    {
+        var response = await sender.Send(command, ct);
+        return Accepted(response);
+    }
+
+    [HttpGet("withdrawal-quote")]
+    [Authorize]
+    [ProducesResponseType(typeof(GetWithdrawalQuoteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetWithdrawalQuote(
+    [FromQuery] Currency currency,
+    CancellationToken ct)
+    {
+        var response = await sender.Send(new GetWithdrawalQuoteQuery(currency), ct);
+        return Ok(response);
+    }
+
+    [HttpPost("withdraw")]
+    [Authorize]
+    [ProducesResponseType(typeof(WithdrawResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Withdraw(
+        [FromBody] WithdrawCommand command,
+        CancellationToken ct)
     {
         var response = await sender.Send(command, ct);
         return Accepted(response);
