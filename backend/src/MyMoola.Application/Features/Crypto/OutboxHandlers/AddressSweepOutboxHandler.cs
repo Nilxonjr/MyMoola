@@ -124,14 +124,16 @@ public sealed class AddressSweepOutboxHandler(
 
             if (ethBalance < estimatedGas)
             {
+                var fundingAmount = estimatedGas - ethBalance;
+
                 logger.LogInformation(
                     "Funding gas for ERC-20 sweep. " +
-                    "Address={Address} EthBalance={Balance} Required={Required}",
-                    depositAddress.Address, ethBalance, estimatedGas);
+                    "Address={Address} EthBalance={Balance} Required={Required} Funding={Funding}",
+                    depositAddress.Address, ethBalance, estimatedGas, fundingAmount);
 
                 var fundingTxHash = await blockchain.BroadcastWithdrawalAsync(
                     toAddress: depositAddress.Address,
-                    amount: estimatedGas,
+                    amount: fundingAmount,
                     currency: Currency.ETH,
                     fromIndex: hotWalletIndex,
                     ct: ct);

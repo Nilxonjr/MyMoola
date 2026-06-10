@@ -26,4 +26,18 @@ public interface IExchangeRateQuoteService
     /// Prevents reuse of the same quote.
     /// </summary>
     Task ConsumeQuoteAsync(Guid quoteId, CancellationToken ct = default);
+
+    Task<WithdrawalQuote> CreateWithdrawalQuoteAsync(
+    Currency currency,
+    decimal Amount,
+    decimal feeAmount,
+    CancellationToken ct = default);
+
+    Task<WithdrawalQuote?> GetWithdrawalQuoteAsync(
+        Guid quoteId,
+        CancellationToken ct = default);
+
+    Task ConsumeWithdrawalQuoteAsync(
+        Guid quoteId,
+        CancellationToken ct = default);
 }

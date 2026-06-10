@@ -24,8 +24,8 @@ public sealed class BuyCommandValidator : AbstractValidator<BuyCommand>
             .IsInEnum();
 
         RuleFor(x => x.GrossKes)
-            .GreaterThan(0)
-            .WithMessage("Amount must be greater than zero.")
+            .GreaterThan(500)
+            .WithMessage("Amount must be greater than 500.")
             .LessThanOrEqualTo(300_000)
             .WithMessage("Amount exceeds maximum single transaction limit.");
 

@@ -13,8 +13,6 @@ namespace MyMoola.Application.Features.Crypto.Commands;
 public sealed class ProcessDepositWebhookCommandHandler(
     IDepositAddressRepository depositAddresses,
     ITransactionRepository transactions,
-    IOutboxService outbox,
-    IWalletRepository wallets,
     ILogger<ProcessDepositWebhookCommandHandler> logger,
     IUnitOfWork uow) : IRequestHandler<ProcessDepositWebhookCommand>
 {
