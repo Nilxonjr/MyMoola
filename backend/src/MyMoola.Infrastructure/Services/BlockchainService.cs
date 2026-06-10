@@ -295,12 +295,20 @@ public sealed class BlockchainService(
             new[] { 50.0m });
 
         var baseFeeWei = decimal.Parse(feeHistory.BaseFeePerGas[^1].Value.ToString());
-        var priorityFeeWei = feeHistory.Reward is not null && feeHistory.Reward.Length > 0
-            ? decimal.Parse(feeHistory.Reward[0][0].Value.ToString())
-            : 1_500_000_000m;
+        var rawPriorityFeeWei = feeHistory.Reward is not null && feeHistory.Reward.Length > 0
+    ? decimal.Parse(feeHistory.Reward[0][0].Value.ToString())
+    : 1_500_000_000m;
 
-        // EIP-1559 maxFeePerGas = (baseFee * 1.2) + priorityFee
-        // baseFee * 1.2 ensures inclusion even if base fee doubles next block
+        // Cap priority fee at 3 Gwei — Sepolia validators set artificially high tips
+        // On mainnet/Base this cap will rarely be hit
+        const decimal MaxPriorityFeeWei = 3_000_000_000m;
+        var priorityFeeWei = Math.Min(rawPriorityFeeWei, MaxPriorityFeeWei);
+
+        logger.LogInformation(
+            "EIP1559 fees. BaseFeeWei={BaseFee} RawPriorityFeeWei={RawPriority} " +
+            "CappedPriorityFeeWei={CappedPriority}",
+            baseFeeWei, rawPriorityFeeWei, priorityFeeWei);
+
         return (baseFeeWei * 1.3m) + priorityFeeWei;
     }
 }
