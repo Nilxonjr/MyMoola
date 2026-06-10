@@ -56,4 +56,9 @@ public interface IBlockchainService
     /// ETH: 21,000 gas. ERC-20: ~65,000 gas. Multiplied by current base fee.
     /// </summary>
     Task<decimal> GetEstimatedGasCostAsync(Currency currency, CancellationToken ct = default);
+
+    Task<decimal> GetCurrentGasPriceAsync(CancellationToken ct = default);
+
+    Task<bool> TransactionExistsOnChainAsync(string txHash, CancellationToken ct = default);
+    Task<bool> TransactionSucceededAsync(string txHash, CancellationToken ct = default);
 }

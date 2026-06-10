@@ -28,10 +28,11 @@ public sealed class AlchemyWebhookMiddleware(
 
         if (!IsValidSignature(body, context.Request.Headers["X-Alchemy-Signature"]))
         {
-            //context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            //await context.Response.WriteAsync("Invalid webhook signature.");
-            //return;
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync("Invalid webhook signature.");
             logger.LogWarning("Invalid signature — bypassing for test");
+
+            return;
         }
 
         // Rewind so the controller can read the body again

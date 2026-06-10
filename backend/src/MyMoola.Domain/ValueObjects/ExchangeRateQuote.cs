@@ -12,6 +12,7 @@ public sealed record ExchangeRateQuote(
     Guid QuoteId,
     Currency Currency,
     decimal RateKes,
+    decimal RateUsd,
     decimal BuyRateKes,
     decimal SellRateKes,
     decimal SpreadPercent,
