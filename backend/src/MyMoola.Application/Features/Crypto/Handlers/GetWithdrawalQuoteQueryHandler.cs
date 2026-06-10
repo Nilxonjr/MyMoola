@@ -42,6 +42,10 @@ public sealed class GetWithdrawalQuoteQueryHandler(
         // Get current gas price in Wei
         var gasPriceWei = await blockchain.GetCurrentGasPriceAsync(ct);
 
+        logger.LogInformation(
+                "Raw gas price. GasPriceWei={GasPriceWei}",
+                gasPriceWei);
+
         // Get gas limit for this currency
         var gasLimit = request.Currency == Currency.ETH
             ? EthGasLimit
