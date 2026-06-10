@@ -53,10 +53,18 @@ class MainActivity : ComponentActivity() {
             MyMoolaTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val navController = rememberNavController()
+                    val startDestination = if (
+                        !AuthSession.accessToken.isNullOrBlank() ||
+                        !AuthSession.refreshToken.isNullOrBlank()
+                    ) {
+                        "home"
+                    } else {
+                        "onboarding1"
+                    }
 
                     NavHost(
                         navController = navController,
-                        startDestination = "onboarding1",
+                        startDestination = startDestination,
                         modifier = Modifier.padding(innerPadding)
                     ) {
                         composable("onboarding1") {

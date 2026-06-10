@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.R
+import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
@@ -247,37 +248,44 @@ fun HomeScreen(
     }
 
     suspend fun reloadHomeData() {
-        val token = AuthSession.accessToken
-        if (token.isNullOrBlank()) {
-            loadError = "Session missing. Please log in again."
-            return
+        if (AuthSession.accessToken.isNullOrBlank()) {
+            val refreshed = AuthApiClient.refreshSession()
+            if (!refreshed) {
+                loadError = "Session missing. Please log in again."
+                return
+            }
         }
 
         loadError = null
 
-        val (meResult, balanceResult, transactionsResult) = coroutineScope {
+        coroutineScope {
             val meDeferred = async { HomeApiClient.getMe() }
             val balanceDeferred = async { HomeApiClient.getBalance() }
             val txDeferred = async { HomeApiClient.getAllTransactions() }
-            Triple(meDeferred.await(), balanceDeferred.await(), txDeferred.await())
-        }
 
-        if (meResult.isSuccess) {
-            userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
-            currentUserId = meResult.data?.id.orEmpty()
-        } else {
-            loadError = meResult.errorMessage
-        }
-        if (balanceResult.isSuccess) {
-            applyBalance(balanceResult.data)
-        } else {
-            loadError = balanceResult.errorMessage
-        }
+            launch {
+                val balanceResult = balanceDeferred.await()
+                if (balanceResult.isSuccess) {
+                    applyBalance(balanceResult.data)
+                } else {
+                    loadError = balanceResult.errorMessage
+                }
+            }
 
-        if (transactionsResult.isSuccess) {
-            applyTransactions(transactionsResult.data.orEmpty(), currentUserId)
-        } else {
-            loadError = transactionsResult.errorMessage ?: loadError
+            val meResult = meDeferred.await()
+            if (meResult.isSuccess) {
+                userName = meResult.data?.fullName?.ifBlank { "User" } ?: "User"
+                currentUserId = meResult.data?.id.orEmpty()
+            } else {
+                loadError = meResult.errorMessage
+            }
+
+            val transactionsResult = txDeferred.await()
+            if (transactionsResult.isSuccess) {
+                applyTransactions(transactionsResult.data.orEmpty(), currentUserId)
+            } else {
+                loadError = transactionsResult.errorMessage ?: loadError
+            }
         }
     }
 
