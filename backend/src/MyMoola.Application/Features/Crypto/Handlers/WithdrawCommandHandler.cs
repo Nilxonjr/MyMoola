@@ -184,7 +184,7 @@ public sealed class WithdrawCommandHandler(
             await uow.SaveChangesAsync(ct);
             await dbTransaction.CommitAsync(ct);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await dbTransaction.RollbackAsync(ct);
             throw;

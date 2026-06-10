@@ -106,9 +106,10 @@ public sealed class TransactionsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetWithdrawalQuote(
     [FromQuery] Currency currency,
+    [FromQuery] decimal amount,
     CancellationToken ct)
     {
-        var response = await sender.Send(new GetWithdrawalQuoteQuery(currency), ct);
+        var response = await sender.Send(new GetWithdrawalQuoteQuery(currency, amount), ct);
         return Ok(response);
     }
 
