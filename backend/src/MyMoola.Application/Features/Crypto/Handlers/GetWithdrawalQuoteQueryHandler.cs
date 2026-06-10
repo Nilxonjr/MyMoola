@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.Extensions.Logging;
 using MyMoola.Application.Common.Interfaces;
 using MyMoola.Application.Features.Crypto.Queries;
 using MyMoola.Application.Interfaces;
@@ -24,6 +25,7 @@ public sealed class GetWithdrawalQuoteQueryHandler(
     ICurrentUserService currentUser,
     ICurrencyExchangeService exchangeService,
     IExchangeRateQuoteService quoteService,
+    ILogger<GetWithdrawalQuoteQueryHandler> logger,
     IBlockchainService blockchain) : IRequestHandler<GetWithdrawalQuoteQuery, GetWithdrawalQuoteResponse>
 {
     // Maximum gas limits — user is charged worst case
@@ -59,6 +61,7 @@ public sealed class GetWithdrawalQuoteQueryHandler(
             Amount: request.Amount,
             ct: ct);
 
+
         return new GetWithdrawalQuoteResponse(
             QuoteId: quote.QuoteId,
             Currency: request.Currency.ToString(),
@@ -79,7 +82,9 @@ public sealed class GetWithdrawalQuoteQueryHandler(
 
         // Gas cost in USD
         var gasCostUsd = gasCostEth * ethRate.RateUsd;
-
+        logger.LogInformation(
+            "Fee conversion. GasCostEth={GasCostEth} EthRateUsd={EthRateUsd} GasCostUsd={GasCostUsd}",
+            gasCostEth, ethRate.RateUsd, gasCostUsd);
         if (currency == Currency.USDC)
         {
             // USDC ≈ $1 — fee is direct USD equivalent
@@ -88,6 +93,8 @@ public sealed class GetWithdrawalQuoteQueryHandler(
 
         // BTC — convert USD cost to BTC
         var btcRate = await exchangeService.GetRateAsync(Currency.BTC, ct);
+
+
         return Math.Round(gasCostUsd / btcRate.RateUsd, 8);
     }
 }

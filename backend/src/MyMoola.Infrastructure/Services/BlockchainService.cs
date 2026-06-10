@@ -278,7 +278,7 @@ public sealed class BlockchainService(
             ? (decimal)feeHistory.Reward[0][0].Value
             : 1_500_000_000m;
 
-        var maxGasPriceWei = (nextBaseFeeWei * 1.2m) + priorityFeeWei;
+        var maxGasPriceWei = (nextBaseFeeWei * 1.3m) + priorityFeeWei;
         var gasLimit = currency == Currency.ETH ? 21_000m : 50_000m;
         var gasCostWei = maxGasPriceWei * gasLimit;
 
@@ -301,6 +301,6 @@ public sealed class BlockchainService(
 
         // EIP-1559 maxFeePerGas = (baseFee * 1.2) + priorityFee
         // baseFee * 1.2 ensures inclusion even if base fee doubles next block
-        return (baseFeeWei * 1.2m) + priorityFeeWei;
+        return (baseFeeWei * 1.3m) + priorityFeeWei;
     }
 }

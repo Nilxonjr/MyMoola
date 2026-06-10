@@ -118,6 +118,7 @@ public sealed class TransactionsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(WithdrawResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [Idempotency]
     public async Task<IActionResult> Withdraw(
         [FromBody] WithdrawCommand command,
         CancellationToken ct)
