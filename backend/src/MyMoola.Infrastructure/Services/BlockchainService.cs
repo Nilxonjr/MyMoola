@@ -267,21 +267,46 @@ public sealed class BlockchainService(
     {
         var web3 = BuildWeb3();
 
+        // Requesting 10 blocks of history
         var feeHistory = await web3.Eth.FeeHistory.SendRequestAsync(
-            new Nethereum.Hex.HexTypes.HexBigInteger(1),
+            new Nethereum.Hex.HexTypes.HexBigInteger(10),
             Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest(),
-            new[] { 50.0m });
+            new[] { 75.0m });
 
-        var nextBaseFeeWei = (decimal)feeHistory.BaseFeePerGas[^1].Value;
+        // 1. Core Base Fee: Find the absolute peak across the last 10 blocks
+        var baseFees = feeHistory.BaseFeePerGas.Select(x => (decimal)x.Value).ToList();
+        var maxBaseFeeWei = baseFees.Max();
 
-        var priorityFeeWei = feeHistory.Reward is not null && feeHistory.Reward.Length > 0
-            ? (decimal)feeHistory.Reward[0][0].Value
+        // 2. Priority Fee: Extract the 75th percentile tip across the 10 blocks safely
+        // Since we only passed one percentile value (75.0m), it will live at index [0] of each row
+        var tips = feeHistory.Reward is not null
+            ? feeHistory.Reward
+                .Where(r => r != null && r.Length > 0)
+                .Select(r => (decimal)r[0].Value)
+                .OrderBy(x => x)
+                .ToList()
+            : new List<decimal>();
+
+        var priorityFeeWei = tips.Count > 0
+            ? tips[tips.Count / 2]  // median of 75th percentile tips across 10 blocks
             : 1_500_000_000m;
 
-        var maxGasPriceWei = (nextBaseFeeWei * 1.3m) + priorityFeeWei;
-        var gasLimit = currency == Currency.ETH ? 21_000m : 50_000m;
+        // Cap the priority fee to prevent testnet bot spikes from overfunding the wallet
+        const decimal MaxTestnetPriorityFeeWei = 3_000_000_000m; // 3 Gwei cap
+        if (priorityFeeWei > MaxTestnetPriorityFeeWei)
+        {
+            priorityFeeWei = MaxTestnetPriorityFeeWei;
+        }
+
+        // 3. Absolute Worst-Case Pricing Envelope (Historical Max * 1.5x for 3-4 block growth headroom)
+        var maxGasPriceWei = (maxBaseFeeWei * 1.5m) + priorityFeeWei;
+
+        // Use 65,000 for ERC-20 sweeps to absorb internal contract state adjustments safely
+        var gasLimit = currency == Currency.ETH ? 21_000m : 65_000m;
+
         var gasCostWei = maxGasPriceWei * gasLimit;
 
+        // Return exact total ETH value required to fund the address for the pre-flight check
         return gasCostWei / 1_000_000_000_000_000_000m;
     }
 
@@ -312,3 +337,4 @@ public sealed class BlockchainService(
         return (baseFeeWei * 1.2m) + priorityFeeWei;
     }
 }
+
