@@ -9,6 +9,7 @@ using MyMoola.Domain.Enums;
 using MyMoola.Domain.Exceptions;
 using MyMoola.Application.Features.Crypto.DTOs;
 using Microsoft.Extensions.Logging;
+using MyMoola.Application.Interfaces;
 namespace MyMoola.Application.Features.Crypto.Handlers;
 
 public sealed class WithdrawCommandHandler(
@@ -22,6 +23,7 @@ public sealed class WithdrawCommandHandler(
     ILedgerService ledger,
     IIdempotencyContext idempotencyContext,
     IOutboxService outbox,
+    IBlockchainService blockchain,
     ILogger<WithdrawCommandHandler> logger,
     IUnitOfWork uow) : IRequestHandler<WithdrawCommand, WithdrawResponse>
 {
@@ -133,7 +135,11 @@ public sealed class WithdrawCommandHandler(
             ?? throw new NotFoundException(
                 $"HotWallet not found for currency {command.Currency}");
 
-        if (hotWallet.Balance < netAmount)
+        // Check actual on-chain hot wallet balance
+        var onChainHotWalletBalance = await blockchain
+            .GetHotWalletBalanceAsync(command.Currency, ct);
+
+        if (onChainHotWalletBalance < netAmount)
             throw new InsufficientBalanceException(
                 "Platform hot wallet has insufficient funds. Try again later.");
 

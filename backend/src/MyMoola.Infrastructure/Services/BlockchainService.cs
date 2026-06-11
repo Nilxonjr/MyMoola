@@ -2,6 +2,7 @@
 using System.Numerics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MyMoola.Application.Common.Constants;
 using MyMoola.Application.Interfaces;
 using MyMoola.Domain.Enums;
 using MyMoola.Infrastructure.Settings;
@@ -234,6 +235,12 @@ public sealed class BlockchainService(
         if (receipt is null) return false;
         // Status 1 = success, Status 0 = reverted
         return receipt.Status.Value == 1;
+    }
+    public async Task<decimal> GetHotWalletBalanceAsync(Currency currency, CancellationToken ct = default)
+    {
+        var hotWalletAddress = await GetEthAddressAsync(
+            BlockchainConstants.HotWalletDerivationIndex, ct);
+        return await GetBalanceAsync(hotWalletAddress, currency, ct);
     }
     // -------------------------------------------------------------------------
     // Helpers
