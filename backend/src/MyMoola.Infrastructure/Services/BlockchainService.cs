@@ -309,6 +309,6 @@ public sealed class BlockchainService(
             "CappedPriorityFeeWei={CappedPriority}",
             baseFeeWei, rawPriorityFeeWei, priorityFeeWei);
 
-        return (baseFeeWei * 1.3m) + priorityFeeWei;
+        return (baseFeeWei * 1.2m) + priorityFeeWei;
     }
 }
