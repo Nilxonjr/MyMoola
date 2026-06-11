@@ -58,6 +58,10 @@ public sealed class GetWithdrawalQuoteQueryHandler(
         var feeAmount = await ConvertEthCostToCurrencyAsync(
             gasCostEth, request.Currency, ct);
 
+        logger.LogInformation(
+    "Creating quote. RequestAmount={RequestAmount} FeeAmount={FeeAmount}",
+    request.Amount, feeAmount);
+
         // Create and store quote in Redis
         var quote = await quoteService.CreateWithdrawalQuoteAsync(
             currency: request.Currency,
