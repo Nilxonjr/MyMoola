@@ -71,8 +71,8 @@ public sealed class ExchangeRateQuoteService(
 
     public async Task<WithdrawalQuote> CreateWithdrawalQuoteAsync(
     Currency currency,
-    decimal feeAmount,
     decimal Amount,
+    decimal feeAmount,
     CancellationToken ct = default)
     {
         var quote = new WithdrawalQuote(

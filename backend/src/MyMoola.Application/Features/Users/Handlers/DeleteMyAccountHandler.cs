@@ -13,6 +13,7 @@ public sealed class DeleteMyAccountHandler(
     IWalletRepository wallets,
     IRefreshTokenRepository refreshTokens,
     IUnitOfWork uow,
+    IDepositAddressRepository depositAddresses,
     ILogger<DeleteMyAccountHandler> logger)
     : IRequestHandler<DeleteMyAccountCommand>
 {
@@ -32,6 +33,8 @@ public sealed class DeleteMyAccountHandler(
             throw new InvalidOperationException(
                 "Cannot delete account with remaining balance. Please withdraw all funds first.");
 
+        var depositAddress = await depositAddresses.FindByIdAsync(userId, ct);
+        depositAddress?.Deactivate();
         // Revoke all active refresh tokens
         await refreshTokens.RevokeAllForUserAsync(userId, ct);
 
