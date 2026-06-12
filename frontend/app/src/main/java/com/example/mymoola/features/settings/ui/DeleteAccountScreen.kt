@@ -16,31 +16,34 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
-import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.ui.theme.MyMoolaTheme
-import kotlinx.coroutines.launch
 
 @Composable
 fun DeleteAccountScreen(
     onBackClick: () -> Unit,
     onDeleted: () -> Unit = {}
 ) {
-    var error by remember { mutableStateOf<String?>(null) }
-    var isDeleting by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val deleteAccountViewModel: DeleteAccountViewModel = viewModel()
+    val uiState by deleteAccountViewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.deleteSucceeded) {
+        if (deleteAccountViewModel.consumeDeleteSuccess()) {
+            AuthSession.clear()
+            onDeleted()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -74,25 +77,9 @@ fun DeleteAccountScreen(
         Spacer(modifier = Modifier.height(20.dp))
         Button(
             onClick = {
-                if (AuthSession.accessToken.isNullOrBlank()) {
-                    error = "Session missing. Please log in again."
-                    return@Button
-                }
-
-                scope.launch {
-                    isDeleting = true
-                    val result = AuthApiClient.deleteMyAccount()
-                    isDeleting = false
-
-                    if (result.isSuccess) {
-                        AuthSession.clear()
-                        onDeleted()
-                    } else {
-                        error = result.errorMessage ?: "Failed to delete account."
-                    }
-                }
+                deleteAccountViewModel.deleteAccount()
             },
-            enabled = !isDeleting,
+            enabled = !uiState.isDeleting,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
@@ -102,13 +89,13 @@ fun DeleteAccountScreen(
                 contentColor = Color.White
             )
         ) {
-            Text(if (isDeleting) "Deleting..." else "Delete My Account")
+            Text(if (uiState.isDeleting) "Deleting..." else "Delete My Account")
         }
 
-        if (!error.isNullOrBlank()) {
+        if (!uiState.errorMessage.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = error.orEmpty(),
+                text = uiState.errorMessage.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
