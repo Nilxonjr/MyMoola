@@ -28,13 +28,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,9 +44,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.R
-import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
@@ -68,30 +65,8 @@ fun ReceiveCryptoScreen(
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
-
-    var isLoading by remember { mutableStateOf(true) }
-    var addressResponse by remember { mutableStateOf<HomeApiClient.DepositAddressResponse?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var copiedMessage by remember { mutableStateOf<String?>(null) }
-    var refreshNonce by remember { mutableIntStateOf(0) }
-
-    suspend fun loadAddress() {
-        isLoading = true
-        copiedMessage = null
-        val result = HomeApiClient.getDepositAddress()
-        if (result.isSuccess) {
-            addressResponse = result.data
-            errorMessage = null
-        } else {
-            addressResponse = null
-            errorMessage = result.errorMessage ?: "Unable to load wallet address."
-        }
-        isLoading = false
-    }
-
-    LaunchedEffect(refreshNonce) {
-        loadAddress()
-    }
+    val receiveCryptoViewModel: ReceiveCryptoViewModel = viewModel()
+    val uiState by receiveCryptoViewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -150,7 +125,7 @@ fun ReceiveCryptoScreen(
                 )
 
                 when {
-                    isLoading -> {
+                    uiState.isLoading -> {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -169,15 +144,15 @@ fun ReceiveCryptoScreen(
                         }
                     }
 
-                    !errorMessage.isNullOrBlank() -> {
+                    !uiState.errorMessage.isNullOrBlank() -> {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = errorMessage.orEmpty(),
+                                text = uiState.errorMessage.orEmpty(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Button(
-                                onClick = { refreshNonce += 1 },
+                                onClick = { receiveCryptoViewModel.loadAddress() },
                                 colors = ButtonDefaults.buttonColors(containerColor = brandAccent)
                             ) {
                                 Text("Try Again")
@@ -185,8 +160,9 @@ fun ReceiveCryptoScreen(
                         }
                     }
 
-                    addressResponse != null -> {
-                        val response = addressResponse!!
+                    uiState.addressResponse != null -> {
+                        val response = uiState.addressResponse
+                            ?: return@Column
                         val qrBitmap = remember(response.address) {
                             generateQrBitmap(response.address, 720)
                         }
@@ -247,9 +223,9 @@ fun ReceiveCryptoScreen(
                                 .padding(14.dp)
                         )
 
-                        if (!copiedMessage.isNullOrBlank()) {
+                        if (!uiState.copiedMessage.isNullOrBlank()) {
                             Text(
-                                text = copiedMessage.orEmpty(),
+                                text = uiState.copiedMessage.orEmpty(),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = brandAccent
                             )
@@ -265,7 +241,7 @@ fun ReceiveCryptoScreen(
                                         clipboard.setClipEntry(
                                             ClipData.newPlainText("wallet address", response.address).toClipEntry()
                                         )
-                                        copiedMessage = "Wallet address copied."
+                                        receiveCryptoViewModel.onAddressCopied()
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
@@ -275,7 +251,7 @@ fun ReceiveCryptoScreen(
                             }
 
                             Button(
-                                onClick = { refreshNonce += 1 },
+                                onClick = { receiveCryptoViewModel.loadAddress() },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2E8F0), contentColor = brandDark)
                             ) {
