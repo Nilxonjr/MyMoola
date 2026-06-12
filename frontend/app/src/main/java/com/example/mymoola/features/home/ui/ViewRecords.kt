@@ -19,66 +19,24 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
-import com.example.mymoola.features.home.data.HomeApiClient
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-import java.text.SimpleDateFormat
 import java.util.Locale
-
-private fun merchantPaymentLabel(merchantType: String?): String? = when (merchantType?.trim()?.lowercase(Locale.US)) {
-    "paybill" -> "Paybill"
-    "till" -> "Till"
-    "pochi" -> "Pochi"
-    "sendmoney" -> "Send M-PESA"
-    else -> null
-}
 
 @Composable
 fun ViewRecordsScreen(
     onBackClick: () -> Unit
 ) {
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var records by remember { mutableStateOf<List<HomeApiClient.UserTransaction>>(emptyList()) }
-    var currentUserId by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        val me = HomeApiClient.getMe()
-        if (me.isSuccess) {
-            currentUserId = me.data?.id.orEmpty()
-        }
-
-        val result = HomeApiClient.getAllTransactions()
-        isLoading = false
-        if (result.isSuccess) {
-            records = result.data.orEmpty()
-                .filter { tx ->
-                    tx.initiatorUserId.equals(currentUserId, ignoreCase = true) ||
-                        tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-                }
-                .groupBy { it.id }
-                .map { (_, group) ->
-                    group.firstOrNull { it.counterpartyUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.firstOrNull { it.initiatorUserId.equals(currentUserId, ignoreCase = true) }
-                        ?: group.first()
-                }
-                .sortedByDescending { it.createdAt }
-        } else {
-            errorMessage = result.errorMessage ?: "Failed to load transaction records."
-        }
-    }
+    val viewModel: ViewRecordsViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -104,17 +62,17 @@ fun ViewRecordsScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         when {
-            isLoading -> {
+            uiState.isLoading -> {
                 CircularProgressIndicator(color = Color(0xFF0A7C6A))
             }
-            !errorMessage.isNullOrBlank() -> {
+            !uiState.errorMessage.isNullOrBlank() -> {
                 Text(
-                    text = errorMessage.orEmpty(),
+                    text = uiState.errorMessage.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFDC2626)
                 )
             }
-            records.isEmpty() -> {
+            uiState.records.isEmpty() -> {
                 Text(
                     text = "No records found yet.",
                     style = MaterialTheme.typography.bodyLarge,
@@ -123,32 +81,7 @@ fun ViewRecordsScreen(
             }
             else -> {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(records) { tx ->
-                        val isSendType = tx.type.equals("Send", ignoreCase = true)
-                        val isInitiator = tx.initiatorUserId.equals(currentUserId, ignoreCase = true)
-                        val isReceiver = tx.counterpartyUserId.equals(currentUserId, ignoreCase = true)
-                        val displayType = when {
-                            isSendType && isInitiator -> "Send"
-                            isSendType && isReceiver -> "Receive"
-                            tx.type.equals("MerchantPayment", ignoreCase = true) ->
-                                merchantPaymentLabel(tx.merchantType) ?: "Merchant Payment"
-                            else -> tx.type.replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
-                            }
-                        }
-                        val isCredit = when {
-                            isSendType && isReceiver -> true
-                            isSendType && isInitiator -> false
-                            else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
-                        }
-                        val isFailed = tx.status.equals("Failed", ignoreCase = true)
-                        val amountColor = when {
-                            isFailed -> Color(0xFFDC2626)
-                            isCredit -> Color(0xFF10B981)
-                            else -> Color(0xFFEF4444)
-                        }
-                        val amountPrefix = if (isCredit) "+" else "-"
-
+                    items(uiState.records, key = { it.id }) { record ->
                         Card(
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -170,72 +103,68 @@ fun ViewRecordsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = displayType,
+                                        text = record.displayType,
                                         style = MaterialTheme.typography.titleSmall,
                                         color = Color(0xFF0F172A),
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "$amountPrefix${formatMeaningfulAmount(tx.amount)} ${tx.currency}",
+                                        text = record.amountText,
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = amountColor,
+                                        color = record.amountColor,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
                                 Text(
-                                    text = "Status: ${tx.status.lowercase(Locale.US)}",
+                                    text = "Status: ${record.statusText}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (isFailed) Color(0xFFDC2626) else Color(0xFF0A7C6A)
+                                    color = record.statusColor
                                 )
                                 Text(
-                                    text = "Reference: ${tx.referenceCode}",
+                                    text = "Reference: ${record.referenceCode}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF475569)
                                 )
-                                if (!tx.interactedPhone.isNullOrBlank() && !tx.interactedPhone.equals("null", ignoreCase = true)) {
+                                if (!record.interactedPhone.isNullOrBlank()) {
                                     Text(
-                                        text = "With: ${tx.interactedPhone}",
+                                        text = "With: ${record.interactedPhone}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF334155)
                                     )
                                 }
                                 Text(
-                                    text = "Date: ${formatRecordDate(tx.createdAt)}",
+                                    text = "Date: ${record.dateText}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF64748B)
                                 )
-                                tx.marketRateSnapshot?.let { snapshot ->
+                                record.marketRateSnapshot?.let { snapshot ->
                                     Text(
                                         text = "Market rate snapshot: ${String.format(Locale.US, "%,.4f", snapshot)}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF64748B)
                                     )
                                 }
-                                tx.onChainTxHash
-                                    ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-                                    ?.let { txHash ->
+                                record.onChainTxHash?.let { txHash ->
                                     Text(
                                         text = "Transaction hash: $txHash",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF64748B)
                                     )
-                                    }
-                                if (tx.onChainConfirmations > 0) {
+                                }
+                                if (record.onChainConfirmations > 0) {
                                     Text(
-                                        text = "On-chain confirmations: ${tx.onChainConfirmations}",
+                                        text = "On-chain confirmations: ${record.onChainConfirmations}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF64748B)
                                     )
                                 }
-                                tx.mpesaReference
-                                    ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-                                    ?.let { mpesaRef ->
+                                record.mpesaReference?.let { mpesaRef ->
                                     Text(
                                         text = "M-PESA reference: $mpesaRef",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color(0xFF64748B)
                                     )
-                                    }
+                                }
                             }
                         }
                     }
@@ -243,25 +172,4 @@ fun ViewRecordsScreen(
             }
         }
     }
-}
-
-private fun formatRecordDate(raw: String): String {
-    val parsers = listOf(
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US),
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US),
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-    )
-    val outputFormat = SimpleDateFormat("dd-MM-yyyy", Locale.US)
-    for (parser in parsers) {
-        val parsed = runCatching { parser.parse(raw) }.getOrNull()
-        if (parsed != null) {
-            return outputFormat.format(parsed)
-        }
-    }
-    return raw
-}
-
-private fun formatMeaningfulAmount(amount: Double): String {
-    val formatter = DecimalFormat("#,##0.######", DecimalFormatSymbols(Locale.US))
-    return formatter.format(amount)
 }
