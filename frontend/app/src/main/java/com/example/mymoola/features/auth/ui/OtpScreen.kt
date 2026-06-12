@@ -23,12 +23,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,13 +34,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private fun maskPhoneNumber(phoneNumber: String): String {
     if (phoneNumber.length <= 7) return phoneNumber
@@ -61,22 +57,18 @@ fun OtpScreen(
     onBackClick: () -> Unit = {},
     onVerified: (AuthApiClient.AuthTokenResponse) -> Unit = {}
 ) {
-    var otp by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var isVerifying by remember { mutableStateOf(false) }
-    var isResending by remember { mutableStateOf(false) }
-    var secondsRemaining by remember { mutableIntStateOf(30) }
-    val scope = rememberCoroutineScope()
+    val otpViewModel: OtpViewModel = viewModel()
+    val uiState by otpViewModel.uiState.collectAsState()
 
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
     val buttonShape = RoundedCornerShape(12.dp)
 
-    LaunchedEffect(secondsRemaining) {
-        if (secondsRemaining > 0) {
-            delay(1000)
-            secondsRemaining -= 1
+    LaunchedEffect(uiState.verifiedToken) {
+        val token = otpViewModel.consumeVerifiedToken()
+        if (token != null) {
+            AuthSession.promotePendingPin()
+            onVerified(token)
         }
     }
 
@@ -127,12 +119,8 @@ fun OtpScreen(
                 )
 
                 OutlinedTextField(
-                    value = otp,
-                    onValueChange = {
-                        otp = it.filter(Char::isDigit).take(6)
-                        error = null
-                        successMessage = null
-                    },
+                    value = uiState.otp,
+                    onValueChange = otpViewModel::onOtpChanged,
                     label = { Text("6-digit OTP") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
@@ -141,8 +129,8 @@ fun OtpScreen(
                 )
 
                 Text(
-                    text = if (secondsRemaining > 0) {
-                        "Resend code in 00:${secondsRemaining.toString().padStart(2, '0')}"
+                    text = if (uiState.secondsRemaining > 0) {
+                        "Resend code in 00:${uiState.secondsRemaining.toString().padStart(2, '0')}"
                     } else {
                         "You can resend the code now."
                     },
@@ -152,69 +140,23 @@ fun OtpScreen(
 
                 OutlinedButton(
                     onClick = {
-                        scope.launch {
-                            isResending = true
-                            error = null
-                            successMessage = null
-
-                            val result = AuthApiClient.resendOtp(
-                                AuthApiClient.ResendOtpRequest(
-                                    phoneNumber = phoneNumber,
-                                    purpose = purpose
-                                )
-                            )
-
-                            isResending = false
-                            if (result.isSuccess) {
-                                successMessage = result.data?.message ?: "OTP resent to your phone number."
-                                secondsRemaining = 30
-                            } else {
-                                error = result.errorMessage ?: "Unable to resend OTP right now."
-                            }
-                        }
+                        otpViewModel.resendOtp(phoneNumber, purpose)
                     },
-                    enabled = secondsRemaining == 0 && !isResending && !isVerifying,
+                    enabled = uiState.secondsRemaining == 0 && !uiState.isResending && !uiState.isVerifying,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp),
                     shape = buttonShape,
                     border = BorderStroke(1.dp, panelBorder)
                 ) {
-                    Text(if (isResending) "Resending..." else "Resend Code")
+                    Text(if (uiState.isResending) "Resending..." else "Resend Code")
                 }
 
                 Button(
                     onClick = {
-                        if (otp.length != 6) {
-                            error = "OTP must be exactly 6 digits."
-                            successMessage = null
-                            return@Button
-                        }
-
-                        scope.launch {
-                            isVerifying = true
-                            error = null
-                            successMessage = null
-
-                            val result = AuthApiClient.verifyOtp(
-                                AuthApiClient.VerifyOtpRequest(
-                                    phoneNumber = phoneNumber,
-                                    otp = otp,
-                                    purpose = purpose
-                                )
-                            )
-
-                            isVerifying = false
-                            if (result.isSuccess) {
-                                successMessage = "Phone verified successfully."
-                                AuthSession.promotePendingPin()
-                                result.data?.let(onVerified)
-                            } else {
-                                error = result.errorMessage ?: "OTP verification failed."
-                            }
-                        }
+                        otpViewModel.verifyOtp(phoneNumber, purpose)
                     },
-                    enabled = !isVerifying,
+                    enabled = !uiState.isVerifying,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -225,21 +167,21 @@ fun OtpScreen(
                     )
                 ) {
                     Text(
-                        if (isVerifying) "Verifying..." else "Verify",
+                        if (uiState.isVerifying) "Verifying..." else "Verify",
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
 
-                if (error != null) {
+                if (uiState.errorMessage != null) {
                     Text(
-                        text = error ?: "",
+                        text = uiState.errorMessage ?: "",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                if (successMessage != null) {
+                if (uiState.successMessage != null) {
                     Text(
-                        text = successMessage ?: "",
+                        text = uiState.successMessage ?: "",
                         color = Color(0xFF166534),
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Start
