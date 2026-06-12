@@ -66,6 +66,7 @@ import java.util.Locale
 private data class RatePoint(
     val timestampLabel: String,
     val timestampRaw: String,
+    val timestampEpochMs: Long,
     val kesRate: Double
 )
 
@@ -106,8 +107,9 @@ fun ViewRatesScreen(
     fun formatTimestampLabel(raw: String): String {
         return runCatching {
             OffsetDateTime.parse(raw)
-                .toLocalDate()
-                .format(DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault()))
+                .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                .toLocalDateTime()
+                .format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
         }.getOrDefault(raw)
     }
 
@@ -118,6 +120,12 @@ fun ViewRatesScreen(
                 .toLocalDateTime()
                 .format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.getDefault()))
         }.getOrDefault(raw)
+    }
+
+    fun parseTimestampEpochMs(raw: String): Long {
+        return runCatching {
+            OffsetDateTime.parse(raw).toInstant().toEpochMilli()
+        }.getOrDefault(Long.MIN_VALUE)
     }
 
     suspend fun loadRates() {
@@ -135,13 +143,17 @@ fun ViewRatesScreen(
             generatedAt = data?.generatedAt
             pointsByCurrency = data?.series
                 ?.associate { series ->
-                    series.currency.uppercase(Locale.US) to series.points.map { point ->
-                        RatePoint(
-                            timestampLabel = formatTimestampLabel(point.timestamp),
-                            timestampRaw = point.timestamp,
-                            kesRate = point.kesRate
-                        )
-                    }
+                    series.currency.uppercase(Locale.US) to series.points
+                        .map { point ->
+                            val epochMs = parseTimestampEpochMs(point.timestamp)
+                            RatePoint(
+                                timestampLabel = formatTimestampLabel(point.timestamp),
+                                timestampRaw = point.timestamp,
+                                timestampEpochMs = epochMs,
+                                kesRate = point.kesRate
+                            )
+                        }
+                        .sortedBy { it.timestampEpochMs }
                 }
                 .orEmpty()
             selectedPoint = null
@@ -605,9 +617,9 @@ private fun RatesLineChart(
                         val endX = size.width - 10f
                         if (tapOffset.x < startX || tapOffset.x > endX) return@detectTapGestures
                         val xStep = (endX - startX) / (points.size - 1).coerceAtLeast(1)
-                        val index = ((tapOffset.x - startX) / xStep)
-                            .toInt()
-                            .coerceIn(0, points.lastIndex)
+                        val index = points.indices.minByOrNull { pointIndex ->
+                            kotlin.math.abs(tapOffset.x - (startX + (pointIndex * xStep)))
+                        } ?: return@detectTapGestures
                         val selected = points[index]
                         val ratio = ((selected.kesRate - min) / span).toFloat()
                         val y = bottomY - ratio * (bottomY - topY)
