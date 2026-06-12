@@ -128,9 +128,7 @@ fun HomeScreen(
     LaunchedEffect(uiState.balanceCurrencies) {
         val currencies = uiState.balanceCurrencies
         if (currencies.isEmpty()) return@LaunchedEffect
-        if (currencies.none { it.code == selectedCurrency.code }) {
-            selectedCurrency = currencies.first()
-        }
+        selectedCurrency = currencies.firstOrNull { it.code == selectedCurrency.code } ?: currencies.first()
     }
 
     val pullRefreshState = rememberPullRefreshState(
