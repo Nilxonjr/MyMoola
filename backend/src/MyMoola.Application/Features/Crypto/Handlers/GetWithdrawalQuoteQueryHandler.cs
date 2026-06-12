@@ -30,7 +30,7 @@ public sealed class GetWithdrawalQuoteQueryHandler(
 {
     // Maximum gas limits — user is charged worst case
     private const int EthGasLimit = 23_000;
-    private const int Erc20GasLimit = 50_000;
+    private const int Erc20GasLimit = 65_000;
 
     public async Task<GetWithdrawalQuoteResponse> Handle(
         GetWithdrawalQuoteQuery request,
@@ -50,6 +50,7 @@ public sealed class GetWithdrawalQuoteQueryHandler(
         var gasLimit = request.Currency == Currency.ETH
             ? EthGasLimit
             : Erc20GasLimit;
+
 
         // Gas cost in ETH
         var gasCostEth = gasPriceWei * gasLimit / 1_000_000_000_000_000_000m;
