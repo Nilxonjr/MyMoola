@@ -7,6 +7,7 @@ using MyMoola.Application.Interfaces;
 using MyMoola.Domain.Enums;
 using MyMoola.Infrastructure.Settings;
 using Nethereum.HdWallet;
+using Nethereum.Hex.HexTypes;
 using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
 
@@ -118,7 +119,6 @@ public sealed class BlockchainService(
         if (currency == Currency.ETH)
         {
             // Fix C: TransactionManager handles gas estimation and remote signing
-            var wei = Web3.Convert.ToWei(amount);
             var txHash = await web3.Eth.GetEtherTransferService()
                 .TransferEtherAsync(toAddress, amount);
 
@@ -136,12 +136,20 @@ public sealed class BlockchainService(
             // Fix A: convert decimal to BigInteger via string — no long cast
             var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
 
-            // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
-            //var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
-            //    from: account.Address,
-            //    receiptRequestCancellationToken: ct,
-            //    functionInput: new object[] { toAddress, tokenUnits });
+            var estimatedGas = await transfer.EstimateGasAsync(
+                    from: account.Address,
+                    gas: null,
+                    value: null,
+                    functionInput: new object[] { toAddress, tokenUnits });
 
+            // 2. Add a minor 10% safety margin for block state drift
+            var finalizedGasLimit = new HexBigInteger((BigInteger)((decimal)estimatedGas.Value * 1.1m));
+
+            logger.LogInformation(
+                "ERC-20 transfer.  Estimated gas={} Finalized gas={}",
+                estimatedGas, finalizedGasLimit);
+
+            // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
             var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
                 from: account.Address,
                 gas: gas,
@@ -158,9 +166,12 @@ public sealed class BlockchainService(
                 "{Currency} withdrawal broadcast. TxHash={TxHash}",
                 currency, receipt.TransactionHash);
 
+            
+
             logger.LogInformation(
-                "ERC-20 transfer. From={From} To={To} Amount={Amount} TokenUnits={TokenUnits}",
-                account.Address, toAddress, amount, tokenUnits);
+                "Broadcasting ERC-20. From={From} To={To} Amount={Amount} " +
+                "TokenUnits={TokenUnits} GasLimit={GasLimit} ContractAddress={Contract}",
+                account.Address, toAddress, amount, tokenUnits, 45_000, contractAddress);
 
             return receipt.TransactionHash;
         }
