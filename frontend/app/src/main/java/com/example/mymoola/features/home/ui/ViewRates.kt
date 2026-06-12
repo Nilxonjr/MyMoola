@@ -32,11 +32,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -53,28 +51,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.R
-import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-private data class RatePoint(
-    val timestampLabel: String,
-    val timestampRaw: String,
-    val timestampEpochMs: Long,
-    val kesRate: Double
-)
-
-private data class SelectedChartPoint(
-    val point: RatePoint,
-    val xPx: Float,
-    val yPx: Float
-)
 
 @Composable
 fun ViewRatesScreen(
@@ -91,89 +74,17 @@ fun ViewRatesScreen(
     val numberFormatter = remember {
         DecimalFormat("#,##0.00", DecimalFormatSymbols(Locale.US))
     }
-    val compactFormatter = remember {
-        DecimalFormat("#,##0.######", DecimalFormatSymbols(Locale.US))
-    }
     val scrollState = rememberScrollState()
-
-    var selectedCurrency by remember { mutableStateOf(currencies.first()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var generatedAt by remember { mutableStateOf<String?>(null) }
-    var pointsByCurrency by remember { mutableStateOf<Map<String, List<RatePoint>>>(emptyMap()) }
-    var selectedPoint by remember { mutableStateOf<SelectedChartPoint?>(null) }
-    var refreshNonce by remember { mutableStateOf(0) }
-
-    fun formatTimestampLabel(raw: String): String {
-        return runCatching {
-            OffsetDateTime.parse(raw)
-                .atZoneSameInstant(java.time.ZoneId.systemDefault())
-                .toLocalDateTime()
-                .format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
-        }.getOrDefault(raw)
-    }
-
-    fun formatLocalDateTime(raw: String): String {
-        return runCatching {
-            OffsetDateTime.parse(raw)
-                .atZoneSameInstant(java.time.ZoneId.systemDefault())
-                .toLocalDateTime()
-                .format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.getDefault()))
-        }.getOrDefault(raw)
-    }
-
-    fun parseTimestampEpochMs(raw: String): Long {
-        return runCatching {
-            OffsetDateTime.parse(raw).toInstant().toEpochMilli()
-        }.getOrDefault(Long.MIN_VALUE)
-    }
-
-    suspend fun loadRates() {
-        isLoading = true
-        errorMessage = null
-        val result = HomeApiClient.getRatesHistory(
-            currencies = currencies,
-            range = "24h",
-            interval = "hour"
-        )
-        isLoading = false
-
-        if (result.isSuccess) {
-            val data = result.data
-            generatedAt = data?.generatedAt
-            pointsByCurrency = data?.series
-                ?.associate { series ->
-                    series.currency.uppercase(Locale.US) to series.points
-                        .map { point ->
-                            val epochMs = parseTimestampEpochMs(point.timestamp)
-                            RatePoint(
-                                timestampLabel = formatTimestampLabel(point.timestamp),
-                                timestampRaw = point.timestamp,
-                                timestampEpochMs = epochMs,
-                                kesRate = point.kesRate
-                            )
-                        }
-                        .sortedBy { it.timestampEpochMs }
-                }
-                .orEmpty()
-            selectedPoint = null
-        } else {
-            errorMessage = result.errorMessage ?: "Failed to load rates."
-            pointsByCurrency = emptyMap()
-            selectedPoint = null
-        }
-    }
-
-    LaunchedEffect(refreshNonce) {
-        loadRates()
-    }
-
-    val points = pointsByCurrency[selectedCurrency].orEmpty()
+    val ratesViewModel: ViewRatesViewModel = viewModel()
+    val uiState by ratesViewModel.uiState.collectAsState()
+    val selectedCurrency = uiState.selectedCurrency
+    val selectedPoint = uiState.selectedPoint
+    val points = uiState.pointsByCurrency[selectedCurrency].orEmpty()
     val latest = points.lastOrNull()?.kesRate
     val earliest = points.firstOrNull()?.kesRate
     val delta = if (latest != null && earliest != null) latest - earliest else null
     val selectedRate = selectedPoint?.point?.kesRate ?: latest
-    val selectedTimestamp = selectedPoint?.point?.timestampRaw ?: generatedAt
+    val selectedTimestamp = selectedPoint?.point?.timestampRaw ?: uiState.generatedAt
     val selectedLabel = if (selectedPoint != null) "Selected point" else "Current rate"
     val selectedTimestampLabel = if (selectedPoint != null) "Point time" else "Last updated"
     val chartHelperText = if (selectedPoint != null) {
@@ -189,7 +100,7 @@ fun ViewRatesScreen(
             .pointerInput(selectedPoint) {
                 detectTapGestures {
                     if (selectedPoint != null) {
-                        selectedPoint = null
+                        ratesViewModel.clearSelectedPoint()
                     }
                 }
             }
@@ -280,8 +191,7 @@ fun ViewRatesScreen(
                                 if (isSelected) brandAccent else panelBorder
                             ),
                             modifier = Modifier.clickable {
-                                selectedCurrency = currency
-                                selectedPoint = null
+                                ratesViewModel.selectCurrency(currency)
                             }
                         ) {
                             Row(
@@ -332,7 +242,7 @@ fun ViewRatesScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "$selectedTimestampLabel: ${selectedTimestamp?.let(::formatLocalDateTime) ?: "unknown"}",
+                            text = "$selectedTimestampLabel: ${selectedTimestamp?.let(ViewRatesFormatting::formatLocalDateTime) ?: "unknown"}",
                             style = MaterialTheme.typography.bodySmall,
                             color = mutedText
                         )
@@ -360,7 +270,7 @@ fun ViewRatesScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         when {
-            isLoading -> {
+            uiState.isLoading -> {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
@@ -389,7 +299,7 @@ fun ViewRatesScreen(
                 }
             }
 
-            !errorMessage.isNullOrBlank() -> {
+            !uiState.errorMessage.isNullOrBlank() -> {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
@@ -407,12 +317,12 @@ fun ViewRatesScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = errorMessage.orEmpty(),
+                            text = uiState.errorMessage.orEmpty(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(
-                            onClick = { refreshNonce += 1 },
+                            onClick = { ratesViewModel.refresh() },
                             colors = ButtonDefaults.buttonColors(containerColor = brandAccent)
                         ) {
                             Text("Try Again")
@@ -447,7 +357,7 @@ fun ViewRatesScreen(
                             color = mutedText
                         )
                         OutlinedButton(
-                            onClick = { refreshNonce += 1 },
+                            onClick = { ratesViewModel.refresh() },
                             border = BorderStroke(1.dp, panelBorder)
                         ) {
                             Text("Refresh")
@@ -499,7 +409,7 @@ fun ViewRatesScreen(
                                 RatesLineChart(
                                     points = points,
                                     selectedRawTimestamp = selectedPoint?.point?.timestampRaw,
-                                    onPointSelected = { selectedPoint = it },
+                                    onPointSelected = { ratesViewModel.selectPoint(it) },
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(horizontal = 12.dp, vertical = 16.dp)
@@ -537,7 +447,7 @@ fun ViewRatesScreen(
                                         verticalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         Text(
-                                            text = formatLocalDateTime(selected.point.timestampRaw),
+                                            text = ViewRatesFormatting.formatLocalDateTime(selected.point.timestampRaw),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = Color(0xFF334155),
                                             fontWeight = FontWeight.SemiBold
