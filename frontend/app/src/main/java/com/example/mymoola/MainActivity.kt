@@ -32,6 +32,7 @@ import com.example.mymoola.features.home.ui.ReceiveCryptoScreen
 import com.example.mymoola.features.home.ui.SendToUserScreen
 import com.example.mymoola.features.home.ui.ViewRatesScreen
 import com.example.mymoola.features.home.ui.ViewRecordsScreen
+import com.example.mymoola.features.home.ui.WithdrawCryptoScreen
 import com.example.mymoola.features.onboarding.ui.OnboardingFeature
 import com.example.mymoola.features.onboarding.ui.OnboardingScreen
 import com.example.mymoola.features.settings.ui.BiometricLoginScreen
@@ -145,6 +146,7 @@ class MainActivity : ComponentActivity() {
                                 onSettingsClick = { navController.navigate("settings") },
                                 onBuyClick = { navController.navigate("buy_crypto") },
                                 onSellClick = { navController.navigate("sell_crypto") },
+                                onWithdrawClick = { navController.navigate("withdraw_crypto") },
                                 onReceiveCryptoClick = { navController.navigate("receive_crypto") },
                                 onPayWithMpesaClick = { navController.navigate("pay_with_mpesa") },
                                 onSendToUserClick = { navController.navigate("send_to_user") },
@@ -234,6 +236,17 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("sell_crypto") {
                             SellCryptoScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onDoneClick = {
+                                    navController.previousBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("home_force_refresh", System.currentTimeMillis())
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
+                        composable("withdraw_crypto") {
+                            WithdrawCryptoScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onDoneClick = {
                                     navController.previousBackStackEntry

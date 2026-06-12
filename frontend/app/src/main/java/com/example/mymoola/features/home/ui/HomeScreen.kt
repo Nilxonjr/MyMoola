@@ -108,6 +108,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {},
     onBuyClick: () -> Unit = {},
     onSellClick: () -> Unit = {},
+    onWithdrawClick: () -> Unit = {},
     onReceiveCryptoClick: () -> Unit = {},
     onPayWithMpesaClick: () -> Unit = {},
     onSendToUserClick: () -> Unit = {},
@@ -314,6 +315,7 @@ fun HomeScreen(
     val quickActions = listOf(
         HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
         HomeAction("onb_sell_kes", "S", "Sell Crypto"),
+        HomeAction("onb_send_crypto", "W", "Withdraw Crypto"),
         HomeAction("onb_receive_crypto", "W", "Receive Crypto"),
         HomeAction("onb_pay_till", "P", "Pay with MPESA"),
         HomeAction("onb_send_crypto", "M", "Send to Other Users"),
@@ -549,6 +551,7 @@ fun HomeScreen(
                                     val actionClick: () -> Unit = when (action.label) {
                                         "Buy Crypto" -> onBuyClick
                                         "Sell Crypto" -> onSellClick
+                                        "Withdraw Crypto" -> onWithdrawClick
                                         "Receive Crypto" -> onReceiveCryptoClick
                                         "Pay with MPESA" -> onPayWithMpesaClick
                                         "Send to Other Users" -> onSendToUserClick
