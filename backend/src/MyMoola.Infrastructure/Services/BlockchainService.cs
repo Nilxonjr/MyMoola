@@ -158,6 +158,10 @@ public sealed class BlockchainService(
                 "{Currency} withdrawal broadcast. TxHash={TxHash}",
                 currency, receipt.TransactionHash);
 
+            logger.LogInformation(
+                "ERC-20 transfer. From={From} To={To} Amount={Amount} TokenUnits={TokenUnits}",
+                account.Address, toAddress, amount, tokenUnits);
+
             return receipt.TransactionHash;
         }
 
