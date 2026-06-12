@@ -109,6 +109,33 @@ object HomeApiClient {
         val message: String
     )
 
+    data class WithdrawalQuoteResponse(
+        val quoteId: String,
+        val currency: String,
+        val feeAmount: Double,
+        val expiresInSeconds: Long
+    )
+
+    data class WithdrawCryptoRequest(
+        val currency: String,
+        val amount: Double,
+        val toAddress: String,
+        val pin: String,
+        val quoteId: String
+    )
+
+    data class WithdrawCryptoResponse(
+        val transactionId: String,
+        val referenceCode: String,
+        val amount: Double,
+        val feeAmount: Double,
+        val netAmount: Double,
+        val currency: String,
+        val toAddress: String,
+        val status: String,
+        val message: String
+    )
+
     data class PayMerchantRequest(
         val merchantType: String,
         val currency: String,
@@ -661,6 +688,127 @@ object HomeApiClient {
         }
     }
 
+    suspend fun getWithdrawalQuote(
+        currency: String,
+        amount: Double
+    ): ApiResult<WithdrawalQuoteResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val normalized = currency.trim().uppercase()
+            val encodedCurrency = URLEncoder.encode(normalized, Charsets.UTF_8.name())
+            val encodedAmount = URLEncoder.encode(amount.toString(), Charsets.UTF_8.name())
+            val path = "/api/transactions/withdrawal-quote?currency=$encodedCurrency&amount=$encodedAmount"
+
+            val firstAttempt = executeAuthorizedGet(path)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedGet(path)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code == HttpURLConnection.HTTP_OK) {
+                val json = JSONObject(body)
+                ApiResult(
+                    data = WithdrawalQuoteResponse(
+                        quoteId = json.optString("quoteId", ""),
+                        currency = json.optString("currency", normalized),
+                        feeAmount = json.optDouble("feeAmount", 0.0),
+                        expiresInSeconds = json.optLong("expiresInSeconds", 30L)
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while loading withdrawal fee.")
+        }
+    }
+
+    suspend fun withdrawCrypto(
+        request: WithdrawCryptoRequest,
+        idempotencyKey: String
+    ): ApiResult<WithdrawCryptoResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val firstAttempt = executeAuthorizedWithdraw(request, idempotencyKey)
+            val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                executeAuthorizedWithdraw(request, idempotencyKey)
+            } else {
+                firstAttempt
+            }
+
+            val code = finalAttempt.statusCode
+            val body = finalAttempt.body
+            if (code in 200..299) {
+                val json = runCatching { JSONObject(body) }.getOrNull()
+                val nested = json?.optJSONObject("data")
+                    ?: json?.optJSONObject("result")
+                    ?: json?.optJSONObject("payload")
+
+                fun stringFrom(vararg keys: String): String {
+                    keys.forEach { key ->
+                        val direct = json?.optString(key).orEmpty()
+                        if (direct.isNotBlank()) return direct
+                        val fromNested = nested?.optString(key).orEmpty()
+                        if (fromNested.isNotBlank()) return fromNested
+                    }
+                    return ""
+                }
+
+                fun doubleFrom(vararg keys: String): Double {
+                    keys.forEach { key ->
+                        if (json != null && json.has(key) && !json.isNull(key)) return json.optDouble(key, 0.0)
+                        if (nested != null && nested.has(key) && !nested.isNull(key)) return nested.optDouble(key, 0.0)
+                    }
+                    return 0.0
+                }
+
+                val transactionId = stringFrom(
+                    "transactionId",
+                    "TransactionId",
+                    "transactionID",
+                    "id"
+                ).ifBlank {
+                    Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                val referenceCode = stringFrom(
+                    "referenceCode",
+                    "ReferenceCode",
+                    "reference",
+                    "transactionReference"
+                ).ifBlank {
+                    Regex("WDR-[A-Za-z0-9-]+|TXN-[A-Za-z0-9-]+")
+                        .find(body)
+                        ?.value
+                        .orEmpty()
+                }
+
+                ApiResult(
+                    data = WithdrawCryptoResponse(
+                        transactionId = transactionId,
+                        referenceCode = referenceCode,
+                        amount = doubleFrom("amount", "Amount"),
+                        feeAmount = doubleFrom("feeAmount", "FeeAmount"),
+                        netAmount = doubleFrom("netAmount", "NetAmount"),
+                        currency = stringFrom("currency", "Currency").ifBlank { request.currency },
+                        toAddress = stringFrom("toAddress", "ToAddress").ifBlank { request.toAddress },
+                        status = stringFrom("status", "Status").ifBlank { "Pending" },
+                        message = stringFrom("message", "Message")
+                            .ifBlank { "Withdrawal queued. Network confirmation may take a few minutes." }
+                    )
+                )
+            } else {
+                ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+            }
+        }.getOrElse {
+            ApiResult(errorMessage = "Network error while initiating withdrawal.")
+        }
+    }
+
     suspend fun payMerchant(
         request: PayMerchantRequest,
         idempotencyKey: String
@@ -884,6 +1032,46 @@ object HomeApiClient {
             put("accountNumber", request.accountNumber ?: JSONObject.NULL)
             put("tillNumber", request.tillNumber ?: JSONObject.NULL)
             put("phoneNumber", request.phoneNumber ?: JSONObject.NULL)
+        }
+
+        OutputStreamWriter(connection.outputStream).use { writer ->
+            writer.write(payload.toString())
+            writer.flush()
+        }
+
+        val code = connection.responseCode
+        val body = readBody(connection, code in 200..299)
+        return RawResponse(code, body)
+    }
+
+    private fun executeAuthorizedWithdraw(
+        request: WithdrawCryptoRequest,
+        idempotencyKey: String
+    ): RawResponse {
+        val accessToken = AuthSession.accessToken
+        if (accessToken.isNullOrBlank()) {
+            return RawResponse(HttpURLConnection.HTTP_UNAUTHORIZED, "")
+        }
+
+        val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/transactions/withdraw")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            doInput = true
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+            setRequestProperty("Idempotency-Key", idempotencyKey)
+        }
+
+        val payload = JSONObject().apply {
+            put("currency", request.currency)
+            put("amount", request.amount)
+            put("toAddress", request.toAddress)
+            put("pin", request.pin)
+            put("quoteId", request.quoteId)
         }
 
         OutputStreamWriter(connection.outputStream).use { writer ->
