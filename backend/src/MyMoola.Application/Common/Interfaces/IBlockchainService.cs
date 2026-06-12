@@ -61,4 +61,6 @@ public interface IBlockchainService
 
     Task<bool> TransactionExistsOnChainAsync(string txHash, CancellationToken ct = default);
     Task<bool> TransactionSucceededAsync(string txHash, CancellationToken ct = default);
+
+    Task<decimal> GetHotWalletBalanceAsync(Currency currency, CancellationToken ct = default);
 }

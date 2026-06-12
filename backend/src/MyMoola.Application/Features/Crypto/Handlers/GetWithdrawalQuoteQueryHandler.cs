@@ -29,8 +29,8 @@ public sealed class GetWithdrawalQuoteQueryHandler(
     IBlockchainService blockchain) : IRequestHandler<GetWithdrawalQuoteQuery, GetWithdrawalQuoteResponse>
 {
     // Maximum gas limits — user is charged worst case
-    private const int EthGasLimit = 50_000;
-    private const int Erc20GasLimit = 100_000;
+    private const int EthGasLimit = 23_000;
+    private const int Erc20GasLimit = 50_000;
 
     public async Task<GetWithdrawalQuoteResponse> Handle(
         GetWithdrawalQuoteQuery request,
@@ -57,6 +57,10 @@ public sealed class GetWithdrawalQuoteQueryHandler(
         // Convert gas cost to withdrawal currency
         var feeAmount = await ConvertEthCostToCurrencyAsync(
             gasCostEth, request.Currency, ct);
+
+        logger.LogInformation(
+    "Creating quote. RequestAmount={RequestAmount} FeeAmount={FeeAmount}",
+    request.Amount, feeAmount);
 
         // Create and store quote in Redis
         var quote = await quoteService.CreateWithdrawalQuoteAsync(
