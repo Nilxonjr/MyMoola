@@ -24,10 +24,12 @@ using MyMoola.Application.Common.Services;
 using MyMoola.Infrastructure.Settings;
 using MyMoola.Infrastructure.BackgroundJobs;
 using MyMoola.Infrastructure.Persistence.Interceptors;
-using Polly.Extensions.Http;
+using MyMoola.Infrastructure.OutboxHandlers;
 using MyMoola.Application.Common.Options;
 using Microsoft.AspNetCore.HttpOverrides;
 using MyMoola.Application.Features.Crypto.OutboxHandlers;
+using MyMoola.API.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -114,6 +116,20 @@ builder.Services.AddMediatR(cfg =>
     cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 });
 
+// SignalR
+builder.Services.AddSignalR()
+    .AddStackExchangeRedis(
+        builder.Configuration["Redis:ConnectionString"]!,
+        options =>
+        {
+            options.Configuration.ChannelPrefix =
+                new StackExchange.Redis.RedisChannel(
+                    "MyMoola_WalletHub",
+                    StackExchange.Redis.RedisChannel.PatternMode.Literal);
+        });
+builder.Services.AddSingleton<IUserIdProvider, WalletHubUserIdProvider>();
+builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier<WalletHub>>();
+
 // ── FluentValidation ──────────────────────────────────────────────────────────
 builder.Services.AddValidatorsFromAssembly(AssemblyReference.Assembly);
 
@@ -170,6 +186,7 @@ builder.Services.AddScoped<IOutboxMessageHandler, AddressSweepOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, WithdrawalBroadcastOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, WithdrawalConfirmedOutboxHandler>();
 builder.Services.AddScoped<IOutboxMessageHandler, WithdrawalFailedOutboxHandler>();
+builder.Services.AddScoped<IOutboxMessageHandler, SignalRNotificationOutboxHandler>();
 
 // Idempotency
 builder.Services.AddScoped<IIdempotencyContext, HttpIdempotencyContext>();
@@ -310,6 +327,15 @@ builder.Services
         };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                var path = ctx.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(token) &&
+                    path.StartsWithSegments("/hubs"))
+                    ctx.Token = token;
+                return Task.CompletedTask;
+            },
             OnChallenge = ctx =>
             {
                 ctx.HandleResponse();
@@ -523,6 +549,7 @@ app.UseRateLimiter();
 app.UseMiddleware<IdempotencyMiddleware>();
 app.UseMiddleware<AlchemyWebhookMiddleware>();
 app.MapControllers();
+app.MapHub<WalletHub>("/hubs/wallet");
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

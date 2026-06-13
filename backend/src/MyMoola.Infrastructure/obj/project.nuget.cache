@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "WFtUA2ISwG0KV0zzN5xwY40cnNUT0Jh7oV5WrXKhWjBnTPPayWYq4BOosYnOWyR3z1WFMXkzvI+fKwQkGgoxnw==",
+  "dgSpecHash": "WMCXc9N8sRM=",
   "success": true,
   "projectFilePath": "C:\\Users\\user\\source\\repos\\MyMoola\\backend\\src\\MyMoola.Infrastructure\\MyMoola.Infrastructure.csproj",
   "expectedPackageFiles": [
@@ -12,9 +12,12 @@
     "C:\\Users\\user\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\mediatr\\14.1.0\\mediatr.14.1.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\mediatr.contracts\\2.0.1\\mediatr.contracts.2.0.1.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\messagepack\\2.5.301\\messagepack.2.5.301.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\messagepack.annotations\\2.5.301\\messagepack.annotations.2.5.301.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.aspnetcore.http\\2.3.9\\microsoft.aspnetcore.http.2.3.9.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.aspnetcore.http.abstractions\\2.3.0\\microsoft.aspnetcore.http.abstractions.2.3.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.aspnetcore.http.features\\2.3.0\\microsoft.aspnetcore.http.features.2.3.0.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\microsoft.aspnetcore.signalr.stackexchangeredis\\8.0.28\\microsoft.aspnetcore.signalr.stackexchangeredis.8.0.28.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.aspnetcore.webutilities\\8.0.20\\microsoft.aspnetcore.webutilities.8.0.20.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.3\\microsoft.codeanalysis.analyzers.3.3.3.nupkg.sha512",
@@ -66,6 +69,7 @@
     "C:\\Users\\user\\.nuget\\packages\\microsoft.identitymodel.logging\\8.18.0\\microsoft.identitymodel.logging.8.18.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.identitymodel.tokens\\8.18.0\\microsoft.identitymodel.tokens.8.18.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.net.http.headers\\8.0.20\\microsoft.net.http.headers.8.0.20.nupkg.sha512",
+    "C:\\Users\\user\\.nuget\\packages\\microsoft.net.stringtools\\17.6.3\\microsoft.net.stringtools.17.6.3.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\nbitcoin\\7.0.6\\nbitcoin.7.0.6.nupkg.sha512",
