@@ -41,7 +41,7 @@ object WalletRealtimeClient {
         if (existing != null && started.get()) return
 
         val connection = existing ?: HubConnectionBuilder
-            .create(buildHubUrl(BuildConfig.API_BASE_URL))
+            .create(WalletRealtimeConfig.buildHubUrl(BuildConfig.API_BASE_URL))
             .withAccessTokenProvider(Single.defer {
                 val currentToken = AuthSession.accessToken.orEmpty()
                 Single.just(currentToken)
@@ -79,7 +79,4 @@ object WalletRealtimeClient {
         }
         started.set(false)
     }
-
-    internal fun buildHubUrl(apiBaseUrl: String): String =
-        "${apiBaseUrl.trimEnd('/')}/hubs/wallet"
 }

@@ -29,6 +29,7 @@ fun ActivityDetailsScreen(
     status: String,
     detail: String,
     amount: String,
+    receiverName: String?,
     marketRateSnapshot: Double?,
     onChainTxHash: String?,
     onChainConfirmations: Int,
@@ -94,6 +95,15 @@ fun ActivityDetailsScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFF64748B)
             )
+            receiverName
+                ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                ?.let { name ->
+                    Text(
+                        text = "Name: $name",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                }
             Text(
                 text = amount,
                 style = MaterialTheme.typography.titleLarge,

@@ -173,6 +173,7 @@ class MainActivity : ComponentActivity() {
                                             set("activity_status", activity.status)
                                             set("activity_detail", activity.detail)
                                             set("activity_amount", activity.amount)
+                                            set("activity_receiver_name", activity.receiverName)
                                             set("activity_market_rate_snapshot", activity.marketRateSnapshot)
                                             set("activity_on_chain_tx_hash", activity.onChainTxHash)
                                             set("activity_on_chain_confirmations", activity.onChainConfirmations)
@@ -332,6 +333,7 @@ class MainActivity : ComponentActivity() {
                             val activityStatus = state?.get<String>("activity_status").orEmpty()
                             val activityDetail = state?.get<String>("activity_detail").orEmpty()
                             val activityAmount = state?.get<String>("activity_amount").orEmpty()
+                            val activityReceiverName = state?.get<String>("activity_receiver_name")
                             val activityRate = state?.get<Double>("activity_market_rate_snapshot")
                             val activityOnChainTxHash = state?.get<String>("activity_on_chain_tx_hash")
                             val activityConfirmations = state?.get<Int>("activity_on_chain_confirmations") ?: 0
@@ -341,6 +343,7 @@ class MainActivity : ComponentActivity() {
                                 status = activityStatus,
                                 detail = activityDetail,
                                 amount = activityAmount,
+                                receiverName = activityReceiverName,
                                 marketRateSnapshot = activityRate,
                                 onChainTxHash = activityOnChainTxHash,
                                 onChainConfirmations = activityConfirmations,

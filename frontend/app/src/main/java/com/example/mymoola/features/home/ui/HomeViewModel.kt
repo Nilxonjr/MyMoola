@@ -25,6 +25,7 @@ data class HomeUiState(
     val totalBalanceText: String = "KES 0.00",
     val loadError: String? = null,
     val walletCreditMessage: String? = null,
+    val preferredCurrencyCode: String? = null,
     val balanceCurrencies: List<BalanceCurrency> = listOf(
         BalanceCurrency("usdc_logo", "USDC", "USD Coin", "0.00 USDC"),
         BalanceCurrency("bitcoin_logo", "BTC", "Bitcoin", "0.00 BTC"),
@@ -213,6 +214,7 @@ class HomeViewModel : ViewModel() {
         updateState {
             it.copy(
                 totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}",
+                preferredCurrencyCode = preferredCurrencyCode,
                 balanceCurrencies = if (wallets.isNotEmpty()) wallets else it.balanceCurrencies,
                 hasLoadedOnce = true
             )
@@ -269,6 +271,10 @@ class HomeViewModel : ViewModel() {
                     append(tx.currency)
                     append(" • ")
                     append(formatHomeTime(tx.createdAt))
+                    tx.receiverName?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }?.let {
+                        append(" • ")
+                        append(it)
+                    }
                     tx.interactedPhone?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }?.let {
                         append(" • ")
                         append(it)
@@ -278,6 +284,7 @@ class HomeViewModel : ViewModel() {
                 },
                 amount = "$amountPrefix${formatMeaningfulAmount(tx.amount)} ${tx.currency}",
                 amountColor = amountColor,
+                receiverName = tx.receiverName?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) },
                 marketRateSnapshot = tx.marketRateSnapshot,
                 onChainTxHash = tx.onChainTxHash,
                 onChainConfirmations = tx.onChainConfirmations,
