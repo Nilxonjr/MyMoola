@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using MyMoola.Application.Features.Transactions.Commands;
 using MyMoola.Application.Features.Transactions.DTOs;
+using System.Text.Json;
 
 namespace MyMoola.API.Controllers;
 
@@ -65,19 +66,42 @@ public sealed class MpesaCallbackController(
         return Ok();
     }
 
+    //[HttpPost("b2b")]
+    //public async Task<IActionResult> B2BCallback(
+    //[FromBody] B2BCallbackPayload callback,
+    //CancellationToken ct)
+    //{
+    //    try
+    //    {
+    //        await sender.Send(new ProcessB2BCallbackCommand(callback), ct);
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        logger.LogError(ex, "B2B callback handler failed.");
+    //    }
+    //    return Ok();
+    //}
+
     [HttpPost("b2b")]
     public async Task<IActionResult> B2BCallback(
-    [FromBody] B2BCallbackPayload callback,
+    [FromBody] JsonElement raw,
     CancellationToken ct)
     {
+        logger.LogInformation("Raw B2B callback: {Raw}", raw.GetRawText());
+
         try
         {
-            await sender.Send(new ProcessB2BCallbackCommand(callback), ct);
+            var callback = JsonSerializer.Deserialize<B2BCallbackPayload>(
+                raw.GetRawText(),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            await sender.Send(new ProcessB2BCallbackCommand(callback!), ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "B2B callback handler failed.");
         }
+
         return Ok();
     }
 
