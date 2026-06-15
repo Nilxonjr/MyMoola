@@ -77,6 +77,10 @@ public sealed class DatabaseSeeder(
         await SeedWalletIfMissingAsync(
             SystemWallets.RevenueAccountUserId, Currency.KES, ct);
 
+        foreach (var currency in CryptoCurrencies)
+            await SeedWalletIfMissingAsync(
+                SystemWallets.RevenueAccountUserId, currency, ct);
+
         // SpreadRevenue — KES (sells) + all crypto (buys)
         await SeedWalletIfMissingAsync(
             SystemWallets.SpreadRevenueAccountUserId, Currency.KES, ct);

@@ -10,6 +10,7 @@ using MyMoola.Domain.Exceptions;
 using MyMoola.Application.Features.Crypto.DTOs;
 using Microsoft.Extensions.Logging;
 using MyMoola.Application.Interfaces;
+using System.Reflection;
 namespace MyMoola.Application.Features.Crypto.Handlers;
 
 public sealed class WithdrawCommandHandler(
@@ -239,14 +240,17 @@ public sealed class WithdrawCommandHandler(
 
         var referenceCode = ReferenceCodeGenerator.Generate("INT");
 
+
         var transaction = Transaction.CreateWithdrawal(
-            userId: senderUserId,
-            currency: command.Currency,
-            amount: command.Amount,
-            feeAmount: 0,
-            idempotencyKey: idempotencyKey,
-            toAddress: command.ToAddress,
-            referenceCode: referenceCode);
+                userId: senderUserId,
+                counterpartyUserId: receiverUserId,
+                currency: command.Currency,
+                amount: command.Amount,
+                feeAmount: 0,
+                toAddress: command.ToAddress,
+                idempotencyKey: idempotencyKey,
+                referenceCode: referenceCode);
+
 
         await transactions.AddAsync(transaction, ct);
 
