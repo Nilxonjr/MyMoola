@@ -50,11 +50,19 @@ public sealed class ProcessB2BCallbackHandler(
 
         // Extract receipt from result parameters
         string? receiptNumber = null;
+        string? receiverName = null;
         if (result.ResultCode == 0 && result.ResultParameters is not null)
         {
             receiptNumber = result.ResultParameters.ResultParameter
                 .FirstOrDefault(p => p.Key == "TransactionReceipt")
                 ?.Value.GetString();
+
+            receiverName = result.ResultParameters?.ResultParameter
+                    .FirstOrDefault(p => p.Key == "ReceiverPartyPublicName")
+                    ?.Value.GetString()
+                    ?? result.ResultParameters?.ResultParameter
+                        .FirstOrDefault(p => p.Key == "CreditPartyName")
+                        ?.Value.GetString();
         }
 
         if (string.IsNullOrWhiteSpace(transaction.Metadata))
@@ -66,6 +74,16 @@ public sealed class ProcessB2BCallbackHandler(
             transaction.Metadata!, JsonOptions)
             ?? throw new InvalidOperationException(
                 $"Merchant payment metadata missing. TransactionId={transaction.Id}");
+
+        var existingMeta = string.IsNullOrWhiteSpace(transaction.Metadata)
+                ? new Dictionary<string, object?>()
+                : JsonSerializer.Deserialize<Dictionary<string, object?>>(
+                    transaction.Metadata, JsonOptions)
+                  ?? new Dictionary<string, object?>();
+
+        existingMeta["receiverName"] = receiverName;
+
+        transaction.SetMetadata(JsonSerializer.Serialize(existingMeta, JsonOptions));
 
         // Resolve wallet IDs from SystemWallets constants
         var currency = transaction.Currency;

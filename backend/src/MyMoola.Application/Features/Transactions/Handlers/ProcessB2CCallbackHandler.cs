@@ -59,7 +59,6 @@ public sealed class ProcessB2CCallbackHandler(
                 ?.Value.GetString();
         }
 
-        // Replace the metadata deserialization block in ProcessB2CCallbackHandler
 
         if (string.IsNullOrWhiteSpace(transaction.Metadata))
             throw new InvalidOperationException(
@@ -108,11 +107,21 @@ public sealed class ProcessB2CCallbackHandler(
                 ResidualKes: meta.ResidualKes);
         }
 
-        // Read metadata stored at sell initiation — never recalculate
-        //var meta = JsonSerializer.Deserialize<SellTransactionMeta>(
-        //    transaction.Metadata!, JsonOptions)
-        //    ?? throw new InvalidOperationException(
-        //        $"Sell metadata missing. TransactionId={transaction.Id}");
+        var receiverName = result.ResultParameters?.ResultParameter
+            .FirstOrDefault(p => p.Key == "ReceiverPartyPublicName")
+            ?.Value.GetString();
+
+        if (receiverName is not null)
+        {
+            var existingMeta = string.IsNullOrWhiteSpace(transaction.Metadata)
+                ? new Dictionary<string, object?>()
+                : JsonSerializer.Deserialize<Dictionary<string, object?>>(
+                    transaction.Metadata, JsonOptions)
+                  ?? new Dictionary<string, object?>();
+
+            existingMeta["receiverName"] = receiverName;
+            transaction.SetMetadata(JsonSerializer.Serialize(existingMeta, JsonOptions));
+        }
 
         // Resolve wallet IDs from SystemWallets constants
         var currency = transaction.Currency;
