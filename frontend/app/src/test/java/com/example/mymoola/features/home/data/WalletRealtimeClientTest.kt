@@ -8,7 +8,7 @@ class WalletRealtimeClientTest {
     fun buildHubUrl_appendsWalletHubPathOnce() {
         assertEquals(
             "https://mymoola-production.up.railway.app/hubs/wallet",
-            WalletRealtimeClient.buildHubUrl("https://mymoola-production.up.railway.app/")
+            WalletRealtimeConfig.buildHubUrl("https://mymoola-production.up.railway.app/")
         )
     }
 
@@ -16,7 +16,7 @@ class WalletRealtimeClientTest {
     fun buildHubUrl_handlesBaseUrlWithoutTrailingSlash() {
         assertEquals(
             "https://mymoola-production.up.railway.app/hubs/wallet",
-            WalletRealtimeClient.buildHubUrl("https://mymoola-production.up.railway.app")
+            WalletRealtimeConfig.buildHubUrl("https://mymoola-production.up.railway.app")
         )
     }
 }

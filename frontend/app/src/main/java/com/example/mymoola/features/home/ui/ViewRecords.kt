@@ -125,6 +125,13 @@ fun ViewRecordsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF475569)
                                 )
+                                if (!record.receiverName.isNullOrBlank()) {
+                                    Text(
+                                        text = "Name: ${record.receiverName}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF334155)
+                                    )
+                                }
                                 if (!record.interactedPhone.isNullOrBlank()) {
                                     Text(
                                         text = "With: ${record.interactedPhone}",

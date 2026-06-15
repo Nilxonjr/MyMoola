@@ -69,6 +69,7 @@ data class HomeActivity(
     val detail: String,
     val amount: String,
     val amountColor: Color,
+    val receiverName: String?,
     val marketRateSnapshot: Double?,
     val onChainTxHash: String?,
     val onChainConfirmations: Int,
@@ -128,7 +129,14 @@ fun HomeScreen(
     LaunchedEffect(uiState.balanceCurrencies) {
         val currencies = uiState.balanceCurrencies
         if (currencies.isEmpty()) return@LaunchedEffect
-        selectedCurrency = currencies.firstOrNull { it.code == selectedCurrency.code } ?: currencies.first()
+        selectedCurrency = when {
+            uiState.preferredCurrencyCode != null ->
+                currencies.firstOrNull { it.code.equals(uiState.preferredCurrencyCode, ignoreCase = true) }
+                    ?: currencies.firstOrNull { it.code == selectedCurrency.code }
+                    ?: currencies.first()
+            else ->
+                currencies.firstOrNull { it.code == selectedCurrency.code } ?: currencies.first()
+        }
     }
 
     LaunchedEffect(uiState.walletCreditMessage) {

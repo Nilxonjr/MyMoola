@@ -21,6 +21,7 @@ data class ViewRecordItem(
     val statusText: String,
     val statusColor: Color,
     val referenceCode: String,
+    val receiverName: String?,
     val interactedPhone: String?,
     val dateText: String,
     val marketRateSnapshot: Double?,
@@ -132,6 +133,8 @@ private fun mapRecords(
                 statusText = tx.status.lowercase(Locale.US),
                 statusColor = if (isFailed) Color(0xFFDC2626) else Color(0xFF0A7C6A),
                 referenceCode = tx.referenceCode,
+                receiverName = tx.receiverName
+                    ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) },
                 interactedPhone = tx.interactedPhone
                     ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) },
                 dateText = formatRecordDate(tx.createdAt),
