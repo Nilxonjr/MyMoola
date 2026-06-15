@@ -134,6 +134,13 @@ public sealed class B2CCallbackOutboxHandler(
                 transaction.Id,
                 ct);
 
+            // Settlement pays out B2C amount
+            await ledger.DebitAsync(
+                payload.SettlementWalletId,
+                payload.B2CAmountKes,
+                transaction.Id,
+                ct);
+
             // 7. Credit suspense — rounding residual, never lost
             if (payload.ResidualKes > 0)
                 await ledger.CreditAsync(
