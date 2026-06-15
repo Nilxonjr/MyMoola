@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
+import com.example.mymoola.features.home.data.WalletRealtimeClient
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +24,7 @@ data class HomeUiState(
     val currentUserId: String = "",
     val totalBalanceText: String = "KES 0.00",
     val loadError: String? = null,
+    val walletCreditMessage: String? = null,
     val balanceCurrencies: List<BalanceCurrency> = listOf(
         BalanceCurrency("usdc_logo", "USDC", "USD Coin", "0.00 USDC"),
         BalanceCurrency("bitcoin_logo", "BTC", "Bitcoin", "0.00 BTC"),
@@ -32,11 +36,25 @@ data class HomeUiState(
 )
 
 class HomeViewModel : ViewModel() {
+    private companion object {
+        const val WalletCreditRefreshDebounceMs = 750L
+    }
+
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var walletCreditRefreshJob: Job? = null
+    private var walletCreditRefreshInFlight = false
 
     init {
         applyCachedHomeData()
+        WalletRealtimeClient.setWalletCreditedListener { payload ->
+            updateState {
+                it.copy(
+                    walletCreditMessage = "Received ${formatMeaningfulAmount(payload.amount)} ${payload.currency.uppercase(Locale.US)}"
+                )
+            }
+            scheduleWalletCreditRefresh()
+        }
         reloadHomeData()
     }
 
@@ -50,6 +68,16 @@ class HomeViewModel : ViewModel() {
 
     fun refreshForNavigation() {
         reloadHomeData()
+    }
+
+    fun onWalletCreditMessageShown() {
+        updateState { it.copy(walletCreditMessage = null) }
+    }
+
+    override fun onCleared() {
+        walletCreditRefreshJob?.cancel()
+        WalletRealtimeClient.setWalletCreditedListener(null)
+        super.onCleared()
     }
 
     private fun reloadHomeData() {
@@ -107,6 +135,40 @@ class HomeViewModel : ViewModel() {
                     updateState { it.copy(loadError = transactionsResult.errorMessage ?: it.loadError, hasLoadedOnce = true) }
                 }
             }
+        }
+    }
+
+    private fun scheduleWalletCreditRefresh() {
+        if (walletCreditRefreshInFlight) return
+        if (walletCreditRefreshJob?.isActive == true) return
+
+        walletCreditRefreshJob = viewModelScope.launch {
+            delay(WalletCreditRefreshDebounceMs)
+            refreshFromWalletCredit()
+        }
+    }
+
+    private suspend fun refreshFromWalletCredit() {
+        if (AuthSession.accessToken.isNullOrBlank()) return
+        if (walletCreditRefreshInFlight) return
+
+        walletCreditRefreshInFlight = true
+        try {
+            val balanceResult = HomeApiClient.getBalance()
+            if (balanceResult.isSuccess) {
+                balanceResult.data?.let { applyBalance(it) }
+            }
+
+            val transactionsResult = HomeApiClient.getAllTransactions()
+            if (transactionsResult.isSuccess) {
+                applyTransactions(
+                    all = transactionsResult.data.orEmpty(),
+                    userId = _uiState.value.currentUserId
+                )
+            }
+        } finally {
+            walletCreditRefreshInFlight = false
+            walletCreditRefreshJob = null
         }
     }
 
