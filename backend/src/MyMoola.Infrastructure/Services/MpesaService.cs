@@ -262,7 +262,7 @@ public sealed class MpesaService(
             SecurityCredential = _opts.B2CSecurityCredential,
             CommandID = "BusinessBuyGoods",
             SenderIdentifierType = "4",
-            RecieverIdentifierType = "2",  // 2 = Till
+            RecieverIdentifierType = "4",  // 2 = Till
             Amount = amountKes,
             PartyA = _opts.B2BShortCode,
             PartyB = tillNumber,
