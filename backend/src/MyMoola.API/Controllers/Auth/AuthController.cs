@@ -83,7 +83,7 @@ public sealed class AuthController(ISender sender) : ControllerBase
     /// <response code="401">Refresh token invalid, expired, or revoked.</response>
     /// <response code="429">Too many requests.</response>
     [HttpPost("refresh")]
-    [EnableRateLimiting("verify-otp")]
+    [EnableRateLimiting("transactions")]
     [ProducesResponseType(typeof(AuthTokenResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
