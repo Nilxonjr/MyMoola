@@ -56,7 +56,7 @@ public sealed class WithdrawalBroadcastOutboxHandler(
             payload.NetAmount, payload.ToAddress);
 
         // Broadcast net amount on-chain from hot wallet
-        var txHash = await blockchain.BroadcastWithdrawalAsync(
+        var txHash = await blockchain.BroadcastErc20WithdrawalAsync(
             toAddress: payload.ToAddress,
             amount: payload.NetAmount,
             currency: payload.Currency,
