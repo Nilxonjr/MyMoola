@@ -136,19 +136,6 @@ public sealed class BlockchainService(
             // Fix A: convert decimal to BigInteger via string — no long cast
             var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
 
-            var estimatedGas = await transfer.EstimateGasAsync(
-                    from: account.Address,
-                    gas: null,
-                    value: null,
-                    functionInput: new object[] { toAddress, tokenUnits });
-
-            // 2. Add a minor 10% safety margin for block state drift
-            var finalizedGasLimit = new HexBigInteger((BigInteger)((decimal)estimatedGas.Value * 1.1m));
-
-            logger.LogInformation(
-                "ERC-20 transfer.  Estimated gas={} Finalized gas={}",
-                estimatedGas, finalizedGasLimit);
-
             // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
             var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
                 from: account.Address,
@@ -172,6 +159,69 @@ public sealed class BlockchainService(
                 "Broadcasting ERC-20. From={From} To={To} Amount={Amount} " +
                 "TokenUnits={TokenUnits} GasLimit={GasLimit} ContractAddress={Contract}",
                 account.Address, toAddress, amount, tokenUnits, 45_000, contractAddress);
+
+            return receipt.TransactionHash;
+        }
+
+        throw new InvalidOperationException($"Currency {currency} is not supported for withdrawals.");
+    }
+
+    public async Task<string> BroadcastErc20WithdrawalAsync(
+    string toAddress,
+    decimal amount,
+    Currency currency,
+    int fromIndex,
+    CancellationToken ct = default)
+    {
+        var account = DeriveAccount(fromIndex);
+        var web3 = BuildWeb3(account);
+
+        if (currency == Currency.ETH)
+        {
+            var txHash = await web3.Eth.GetEtherTransferService()
+            .TransferEtherAsync(toAddress, amount);
+
+            logger.LogInformation("ETH withdrawal broadcast from erc 20 service. TxHash={TxHash}", txHash);
+            return txHash;
+        }
+
+        if (Erc20Contracts.TryGetValue(currency, out var contractAddress))
+        {
+            var contract = web3.Eth.GetContract(Erc20Abi, contractAddress);
+            var transfer = contract.GetFunction("transfer");
+
+            // 1. Convert decimal to BigInteger token units (e.g., 6 decimals for USDC)
+            var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
+
+            // 2. Compute the Gas Limit internally using your local estimation logic
+            // For your estimation logic call, we pass the parameters directly 
+            var computedGasLimitBig = await EstimateErc20TransferGasLimitAsync(currency, toAddress, amount, ct);
+
+            // Wrap it securely into Nethereum's HexBigInteger type
+            var finalizedGasLimit = new Nethereum.Hex.HexTypes.HexBigInteger(computedGasLimitBig);
+
+            logger.LogInformation(
+                "ERC-20 transfer. Internally estimated gas ceiling for transaction: {GasLimit}",
+                finalizedGasLimit.Value);
+
+            // 3. Execute the transaction passing ONLY the computed gas limit parameter
+            // Nethereum's TransactionManager will automatically pull current live node defaults 
+            // for MaxFeePerGas and MaxPriorityFeePerGas behind the scenes.
+            var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
+                from: account.Address,
+                gas: finalizedGasLimit, // ◄── Pass the internally computed gas limit here
+                value: null,
+                receiptRequestCancellationToken: ct,
+                functionInput: new object[] { toAddress, tokenUnits });
+
+            logger.LogInformation(
+                "ERC-20 transfer gas used: {GasUsed} of {GasLimit}",
+                receipt.GasUsed.Value,
+                finalizedGasLimit.Value);
+
+            logger.LogInformation(
+                "{Currency} withdrawal broadcast. TxHash={TxHash}",
+                currency, receipt.TransactionHash);
 
             return receipt.TransactionHash;
         }
@@ -357,6 +407,50 @@ public sealed class BlockchainService(
             baseFeeWei, rawPriorityFeeWei, priorityFeeWei);
 
         return (baseFeeWei * 1.2m) + priorityFeeWei;
+    }
+
+    public async Task<BigInteger> EstimateErc20TransferGasLimitAsync(
+    Currency currency,
+    string destinationAddress,
+    decimal amount,
+    CancellationToken ct = default)
+    {
+        // Hardcoded derivation index 0 as requested
+        var account = DeriveAccount(BlockchainConstants.HotWalletDerivationIndex);
+        var web3 = BuildWeb3(account);
+
+        if (!Erc20Contracts.TryGetValue(currency, out var contractAddress))
+        {
+            throw new InvalidOperationException($"Currency {currency} is not supported or missing a contract mapping.");
+        }
+
+        var contract = web3.Eth.GetContract(Erc20Abi, contractAddress);
+        var transferFunction = contract.GetFunction("transfer");
+
+        // Convert decimal to BigInteger token units (e.g., 6 decimals for USDC)
+        var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
+
+        try
+        {
+            // Run pre-flight node simulation to catch current address state (zero vs non-zero balance)
+            var estimatedGas = await transferFunction.EstimateGasAsync(
+                from: account.Address,
+                gas: null,
+                value: null,
+                functionInput: new object[] { destinationAddress, tokenUnits });
+
+            // Apply your 10% safety margin for block state drift
+            var bufferedGasLimit = (BigInteger)((decimal)estimatedGas.Value * 1.15m);
+
+            return bufferedGasLimit;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Gas estimation failed for {Currency}. Falling back to conservative safety ceiling.", currency);
+
+            // Safety baseline if the recipient account isn't initialized or node errors out
+            return 100_000;
+        }
     }
 }
 

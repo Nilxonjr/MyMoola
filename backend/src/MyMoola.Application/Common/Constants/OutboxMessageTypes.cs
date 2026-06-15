@@ -21,4 +21,5 @@ public static class OutboxMessageTypes
     public const string WithdrawalConfirmed = "crypto.withdrawal_confirmed.v1";
     public const string WithdrawalFailed = "crypto.withdrawal_failed.v1";
     public const string AddressSweep = "crypto.address_sweep.v1";
+    public const string WalletCredited = "notification.wallet_credited.v1";
 }

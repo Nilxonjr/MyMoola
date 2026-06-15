@@ -1,4 +1,5 @@
 ﻿using MyMoola.Domain.Enums;
+using System.Numerics;
 
 namespace MyMoola.Application.Interfaces;
 
@@ -63,4 +64,17 @@ public interface IBlockchainService
     Task<bool> TransactionSucceededAsync(string txHash, CancellationToken ct = default);
 
     Task<decimal> GetHotWalletBalanceAsync(Currency currency, CancellationToken ct = default);
+
+    Task<BigInteger> EstimateErc20TransferGasLimitAsync(
+        Currency currency,
+        string destinationAddress,
+        decimal amount,
+        CancellationToken ct = default);
+
+    public Task<string> BroadcastErc20WithdrawalAsync(
+    string toAddress,
+    decimal amount,
+    Currency currency,
+    int fromIndex,
+    CancellationToken ct = default);
 }
