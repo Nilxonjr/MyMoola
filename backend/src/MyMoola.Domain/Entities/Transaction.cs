@@ -95,6 +95,31 @@ public sealed class Transaction : BaseEntity
         };
     }
 
+    public static Transaction CreateWithdrawal(
+    Guid userId,
+    Guid counterpartyUserId,
+    Currency currency,
+    decimal amount,
+    decimal feeAmount,
+    string toAddress,
+    string idempotencyKey,
+    string referenceCode)
+    {
+        return new Transaction
+        {
+            ReferenceCode = referenceCode,
+            Type = TransactionType.Withdrawal,
+            Status = TransactionStatus.Pending,
+            InitiatorUserId = userId,
+            CounterpartyUserId = counterpartyUserId,
+            Currency = currency,
+            Amount = amount,
+            FeeAmount = feeAmount,
+            IdempotencyKey = idempotencyKey,
+            Metadata = System.Text.Json.JsonSerializer.Serialize(new { ToAddress = toAddress })
+        };
+    }
+
     public void SetExchangeRates(decimal exchangeRate, decimal marketRate, decimal kesAmount)
     {
         ExchangeRateSnapshot = exchangeRate;
