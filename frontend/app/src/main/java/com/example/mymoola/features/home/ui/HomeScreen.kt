@@ -53,8 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.widget.Toast
 import com.example.mymoola.R
-import com.example.mymoola.ui.theme.MyMoolaTheme
 import java.util.Locale
 
 data class HomeAction(
@@ -129,6 +129,12 @@ fun HomeScreen(
         val currencies = uiState.balanceCurrencies
         if (currencies.isEmpty()) return@LaunchedEffect
         selectedCurrency = currencies.firstOrNull { it.code == selectedCurrency.code } ?: currencies.first()
+    }
+
+    LaunchedEffect(uiState.walletCreditMessage) {
+        val message = uiState.walletCreditMessage ?: return@LaunchedEffect
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        homeViewModel.onWalletCreditMessageShown()
     }
 
     val pullRefreshState = rememberPullRefreshState(
@@ -557,7 +563,5 @@ fun HomeScreen(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenPreview() {
-    MyMoolaTheme {
-        HomeScreen()
-    }
+    HomeScreen()
 }

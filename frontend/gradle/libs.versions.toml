@@ -12,6 +12,8 @@ composeBom = "2026.02.01"
 navigationCompose = "2.8.0"
 desugarJdkLibs = "2.1.5"
 zxing = "3.5.3"
+signalr = "8.0.8"
+rxjava3 = "3.1.10"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +35,8 @@ androidx-compose-material = { group = "androidx.compose.material", name = "mater
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+microsoft-signalr = { group = "com.microsoft.signalr", name = "signalr", version.ref = "signalr" }
+rxjava3 = { group = "io.reactivex.rxjava3", name = "rxjava", version.ref = "rxjava3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

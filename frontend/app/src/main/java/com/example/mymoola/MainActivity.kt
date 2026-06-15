@@ -22,6 +22,7 @@ import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.auth.ui.LoginScreen
 import com.example.mymoola.features.auth.ui.OtpScreen
 import com.example.mymoola.features.auth.ui.SignUpScreen
+import com.example.mymoola.features.home.data.WalletRealtimeClient
 import com.example.mymoola.features.home.ui.BuyCryptoScreen
 import com.example.mymoola.features.home.ui.ActivityDetailsScreen
 import com.example.mymoola.features.home.ui.HomeScreen
@@ -46,6 +47,18 @@ import com.example.mymoola.features.settings.ui.SettingsScreen
 import com.example.mymoola.features.settings.ui.TransactionNotificationsScreen
 
 class MainActivity : ComponentActivity() {
+    override fun onStart() {
+        super.onStart()
+        if (!AuthSession.accessToken.isNullOrBlank()) {
+            WalletRealtimeClient.connect()
+        }
+    }
+
+    override fun onStop() {
+        WalletRealtimeClient.disconnect()
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AuthSession.initialize(applicationContext)
@@ -204,6 +217,7 @@ class MainActivity : ComponentActivity() {
                             LogoutScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onConfirmLogout = {
+                                    WalletRealtimeClient.disconnect()
                                     AuthSession.clear()
                                     navController.navigate("login") {
                                         popUpTo(0) { inclusive = true }
@@ -216,6 +230,7 @@ class MainActivity : ComponentActivity() {
                             DeleteAccountScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onDeleted = {
+                                    WalletRealtimeClient.disconnect()
                                     navController.navigate("login") {
                                         popUpTo(0) { inclusive = true }
                                         launchSingleTop = true
@@ -353,6 +368,7 @@ class MainActivity : ComponentActivity() {
                                         tokenResponse.accessToken,
                                         tokenResponse.refreshToken
                                     )
+                                    WalletRealtimeClient.connect()
                                     navController.navigate("home") {
                                         popUpTo("onboarding1") { inclusive = false }
                                     }
