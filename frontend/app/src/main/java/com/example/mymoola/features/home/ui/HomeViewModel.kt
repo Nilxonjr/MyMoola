@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
@@ -23,17 +27,15 @@ data class HomeUiState(
     val userName: String = "User",
     val currentUserId: String = "",
     val totalBalanceText: String = "KES 0.00",
-    val loadError: String? = null,
+    val balanceError: String? = null,
+    val activitiesError: String? = null,
     val walletCreditMessage: String? = null,
     val preferredCurrencyCode: String? = null,
-    val balanceCurrencies: List<BalanceCurrency> = listOf(
-        BalanceCurrency("usdc_logo", "USDC", "USD Coin", "0.00 USDC"),
-        BalanceCurrency("bitcoin_logo", "BTC", "Bitcoin", "0.00 BTC"),
-        BalanceCurrency("ethereum_logo", "ETH", "Ethereum", "0.00 ETH")
-    ),
+    val balanceCurrencies: List<BalanceCurrency> = emptyList(),
     val activities: List<HomeActivity> = emptyList(),
     val isRefreshing: Boolean = false,
-    val hasLoadedOnce: Boolean = false
+    val hasLoadedBalance: Boolean = false,
+    val hasLoadedActivities: Boolean = false
 )
 
 class HomeViewModel : ViewModel() {
@@ -45,6 +47,7 @@ class HomeViewModel : ViewModel() {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var walletCreditRefreshJob: Job? = null
     private var walletCreditRefreshInFlight = false
+    private var reloadHomeDataJob: Job? = null
 
     init {
         applyCachedHomeData()
@@ -56,19 +59,19 @@ class HomeViewModel : ViewModel() {
             }
             scheduleWalletCreditRefresh()
         }
-        reloadHomeData()
+        launchReloadHomeData(force = true)
     }
 
     fun onPullRefresh() {
         viewModelScope.launch {
             updateState { it.copy(isRefreshing = true) }
-            reloadHomeData()
+            launchReloadHomeData(force = true)?.join()
             updateState { it.copy(isRefreshing = false) }
         }
     }
 
     fun refreshForNavigation() {
-        reloadHomeData()
+        launchReloadHomeData(force = false)
     }
 
     fun onWalletCreditMessageShown() {
@@ -76,65 +79,86 @@ class HomeViewModel : ViewModel() {
     }
 
     override fun onCleared() {
+        reloadHomeDataJob?.cancel()
         walletCreditRefreshJob?.cancel()
         WalletRealtimeClient.setWalletCreditedListener(null)
         super.onCleared()
     }
 
-    private fun reloadHomeData() {
-        viewModelScope.launch {
-            if (AuthSession.accessToken.isNullOrBlank()) {
-                val refreshed = AuthApiClient.refreshSession()
-                if (!refreshed) {
-                    updateState {
-                        it.copy(
-                            loadError = "Session missing. Please log in again.",
-                            hasLoadedOnce = true
-                        )
-                    }
-                    return@launch
+    private fun launchReloadHomeData(force: Boolean): Job? {
+        if (!force && reloadHomeDataJob?.isActive == true) return reloadHomeDataJob
+        reloadHomeDataJob?.cancel()
+        return viewModelScope.launch {
+            try {
+                reloadHomeData()
+            } finally {
+                if (reloadHomeDataJob === coroutineContext[Job]) {
+                    reloadHomeDataJob = null
+                }
+            }
+        }.also { reloadHomeDataJob = it }
+    }
+
+    private suspend fun reloadHomeData() {
+        if (AuthSession.accessToken.isNullOrBlank()) {
+            val refreshed = AuthApiClient.refreshSession()
+            if (!refreshed) {
+                updateState {
+                    it.copy(
+                        balanceError = "Session missing. Please log in again.",
+                        activitiesError = "Session missing. Please log in again.",
+                        hasLoadedBalance = true,
+                        hasLoadedActivities = true
+                    )
+                }
+                return
+            }
+        }
+
+        updateState { it.copy(balanceError = null, activitiesError = null) }
+
+        coroutineScope {
+            val meDeferred = async { HomeApiClient.getMe() }
+            val balanceDeferred = async { HomeApiClient.getBalance() }
+            val txDeferred = async { HomeApiClient.getAllTransactions() }
+
+            launch {
+                val balanceResult = balanceDeferred.await()
+                if (balanceResult.isSuccess) {
+                    balanceResult.data?.let { applyBalance(it) }
+                } else {
+                    updateState { it.copy(balanceError = balanceResult.errorMessage, hasLoadedBalance = true) }
                 }
             }
 
-            updateState { it.copy(loadError = null) }
-
-            coroutineScope {
-                val meDeferred = async { HomeApiClient.getMe() }
-                val balanceDeferred = async { HomeApiClient.getBalance() }
-                val txDeferred = async { HomeApiClient.getAllTransactions() }
-
-                launch {
-                    val balanceResult = balanceDeferred.await()
-                    if (balanceResult.isSuccess) {
-                        balanceResult.data?.let { applyBalance(it) }
-                    } else {
-                        updateState { it.copy(loadError = balanceResult.errorMessage, hasLoadedOnce = true) }
-                    }
-                }
-
-                val meResult = meDeferred.await()
-                if (meResult.isSuccess) {
-                    val me = meResult.data
-                    updateState {
-                        it.copy(
-                            userName = me?.fullName?.ifBlank { "User" } ?: "User",
-                            currentUserId = me?.id.orEmpty(),
-                            hasLoadedOnce = true
-                        )
-                    }
-                } else {
-                    updateState { it.copy(loadError = meResult.errorMessage, hasLoadedOnce = true) }
-                }
-
-                val transactionsResult = txDeferred.await()
-                if (transactionsResult.isSuccess) {
-                    applyTransactions(
-                        all = transactionsResult.data.orEmpty(),
-                        userId = _uiState.value.currentUserId
+            val meResult = meDeferred.await()
+            if (meResult.isSuccess) {
+                val me = meResult.data
+                updateState {
+                    it.copy(
+                        userName = me?.fullName?.ifBlank { "User" } ?: "User",
+                        currentUserId = me?.id.orEmpty()
                     )
-                } else {
-                    updateState { it.copy(loadError = transactionsResult.errorMessage ?: it.loadError, hasLoadedOnce = true) }
                 }
+            } else {
+                updateState {
+                    it.copy(
+                        balanceError = meResult.errorMessage ?: it.balanceError,
+                        activitiesError = meResult.errorMessage ?: it.activitiesError,
+                        hasLoadedBalance = true,
+                        hasLoadedActivities = true
+                    )
+                }
+            }
+
+            val transactionsResult = txDeferred.await()
+            if (transactionsResult.isSuccess) {
+                applyTransactions(
+                    all = transactionsResult.data.orEmpty(),
+                    userId = _uiState.value.currentUserId
+                )
+            } else {
+                updateState { it.copy(activitiesError = transactionsResult.errorMessage ?: it.activitiesError, hasLoadedActivities = true) }
             }
         }
     }
@@ -155,18 +179,7 @@ class HomeViewModel : ViewModel() {
 
         walletCreditRefreshInFlight = true
         try {
-            val balanceResult = HomeApiClient.getBalance()
-            if (balanceResult.isSuccess) {
-                balanceResult.data?.let { applyBalance(it) }
-            }
-
-            val transactionsResult = HomeApiClient.getAllTransactions()
-            if (transactionsResult.isSuccess) {
-                applyTransactions(
-                    all = transactionsResult.data.orEmpty(),
-                    userId = _uiState.value.currentUserId
-                )
-            }
+            launchReloadHomeData(force = true)?.join()
         } finally {
             walletCreditRefreshInFlight = false
             walletCreditRefreshJob = null
@@ -177,6 +190,7 @@ class HomeViewModel : ViewModel() {
         val cachedMe = HomeApiClient.getCachedMe()
         val cachedBalance = HomeApiClient.getCachedBalance()
         val cachedTransactions = HomeApiClient.getCachedTransactions()
+        val hasAnyCachedData = cachedMe != null || cachedBalance != null || !cachedTransactions.isNullOrEmpty()
 
         if (cachedMe != null) {
             updateState {
@@ -189,6 +203,14 @@ class HomeViewModel : ViewModel() {
 
         cachedBalance?.let { applyBalance(it) }
         cachedTransactions?.let { applyTransactions(it, _uiState.value.currentUserId) }
+        if (hasAnyCachedData) {
+            updateState {
+                it.copy(
+                    hasLoadedBalance = cachedBalance != null || it.hasLoadedBalance,
+                    hasLoadedActivities = !cachedTransactions.isNullOrEmpty() || it.hasLoadedActivities
+                )
+            }
+        }
     }
 
     private fun applyBalance(balance: HomeApiClient.BalanceResponse) {
@@ -198,13 +220,13 @@ class HomeViewModel : ViewModel() {
 
         val wallets = balance.wallets.map { wallet ->
             val icon = when (wallet.currency.uppercase(Locale.US)) {
-                "BTC" -> "bitcoin_logo"
-                "ETH" -> "ethereum_logo"
-                "USDC" -> "usdc_logo"
-                else -> "onb_wallet_manage"
+                "BTC" -> com.example.mymoola.R.drawable.bitcoin_logo
+                "ETH" -> com.example.mymoola.R.drawable.ethereum_logo
+                "USDC" -> com.example.mymoola.R.drawable.usdc_logo
+                else -> com.example.mymoola.R.drawable.onb_wallet_manage
             }
             BalanceCurrency(
-                iconResName = icon,
+                iconResId = icon,
                 code = wallet.currency,
                 label = wallet.currency,
                 balance = "${formatMeaningfulAmount(wallet.total)} ${wallet.currency}"
@@ -215,8 +237,8 @@ class HomeViewModel : ViewModel() {
             it.copy(
                 totalBalanceText = "${balance.displayCurrency} ${String.format(Locale.US, "%,.2f", balance.totalFiatEquivalent)}",
                 preferredCurrencyCode = preferredCurrencyCode,
-                balanceCurrencies = if (wallets.isNotEmpty()) wallets else it.balanceCurrencies,
-                hasLoadedOnce = true
+                balanceCurrencies = wallets,
+                hasLoadedBalance = true
             )
         }
     }
@@ -234,7 +256,7 @@ class HomeViewModel : ViewModel() {
                     ?: group.firstOrNull { it.initiatorUserId.equals(userId, ignoreCase = true) }
                     ?: group.first()
             }
-            .sortedByDescending { it.createdAt }
+            .sortedByDescending { parseHomeInstant(it.createdAt) ?: Instant.MIN }
 
         val activities = txs.map { tx ->
             val isSendType = tx.type.equals("Send", ignoreCase = true)
@@ -263,7 +285,11 @@ class HomeViewModel : ViewModel() {
                 isCredit -> androidx.compose.ui.graphics.Color(0xFF10B981)
                 else -> androidx.compose.ui.graphics.Color(0xFFEF4444)
             }
-            val amountPrefix = if (isCredit) "+" else "-"
+            val amountPrefix = when {
+                isFailed -> ""
+                isCredit -> "+"
+                else -> "-"
+            }
             HomeActivity(
                 type = displayType,
                 status = tx.status.lowercase(Locale.US),
@@ -292,7 +318,7 @@ class HomeViewModel : ViewModel() {
             )
         }
 
-        updateState { it.copy(activities = activities, hasLoadedOnce = true) }
+        updateState { it.copy(activities = activities, hasLoadedActivities = true) }
     }
 
     private fun updateState(transform: (HomeUiState) -> HomeUiState) {
@@ -306,6 +332,18 @@ private fun homeMerchantPaymentLabel(merchantType: String?): String? = when (mer
     "pochi" -> "Pochi"
     "sendmoney" -> "Send M-PESA"
     else -> null
+}
+
+internal fun parseHomeInstant(raw: String): Instant? {
+    val candidates = listOf(
+        { value: String -> Instant.parse(value) },
+        { value: String -> OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant() }
+    )
+    for (candidate in candidates) {
+        val parsed = runCatching { candidate(raw) }.getOrNull()
+        if (parsed != null) return parsed
+    }
+    return null
 }
 
 private fun formatHomeTime(raw: String): String {

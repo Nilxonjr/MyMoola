@@ -58,8 +58,8 @@ import com.example.mymoola.R
 import java.util.Locale
 
 data class HomeAction(
-    val iconResName: String,
-    val fallbackIcon: String,
+    val onClick: () -> Unit,
+    val iconResId: Int,
     val label: String
 )
 
@@ -77,19 +77,11 @@ data class HomeActivity(
 )
 
 data class BalanceCurrency(
-    val iconResName: String,
+    val iconResId: Int,
     val code: String,
     val label: String,
     val balance: String
 )
-
-private fun merchantPaymentLabel(merchantType: String?): String? = when (merchantType?.trim()?.lowercase(Locale.US)) {
-    "paybill" -> "Paybill"
-    "till" -> "Till"
-    "pochi" -> "Pochi"
-    "sendmoney" -> "Send M-PESA"
-    else -> null
-}
 
 @OptIn(ExperimentalMaterialApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -117,7 +109,7 @@ fun HomeScreen(
     val uiState by homeViewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    var selectedCurrency by remember { mutableStateOf(uiState.balanceCurrencies.first()) }
+    var selectedCurrency by remember { mutableStateOf(uiState.balanceCurrencies.firstOrNull()) }
     var balanceMenuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(refreshNonce) {
@@ -128,14 +120,18 @@ fun HomeScreen(
 
     LaunchedEffect(uiState.balanceCurrencies) {
         val currencies = uiState.balanceCurrencies
-        if (currencies.isEmpty()) return@LaunchedEffect
+        if (currencies.isEmpty()) {
+            selectedCurrency = null
+            return@LaunchedEffect
+        }
+        val currentCode = selectedCurrency?.code
         selectedCurrency = when {
             uiState.preferredCurrencyCode != null ->
                 currencies.firstOrNull { it.code.equals(uiState.preferredCurrencyCode, ignoreCase = true) }
-                    ?: currencies.firstOrNull { it.code == selectedCurrency.code }
+                    ?: currencies.firstOrNull { it.code == currentCode }
                     ?: currencies.first()
             else ->
-                currencies.firstOrNull { it.code == selectedCurrency.code } ?: currencies.first()
+                currencies.firstOrNull { it.code == currentCode } ?: currencies.first()
         }
     }
 
@@ -153,14 +149,14 @@ fun HomeScreen(
     )
 
     val quickActions = listOf(
-        HomeAction("onb_buy_mpesa", "B", "Buy Crypto"),
-        HomeAction("onb_sell_kes", "S", "Sell Crypto"),
-        HomeAction("onb_send_crypto", "W", "Withdraw Crypto"),
-        HomeAction("onb_receive_crypto", "W", "Receive Crypto"),
-        HomeAction("onb_pay_till", "P", "Pay with MPESA"),
-        HomeAction("onb_send_crypto", "M", "Send to Other Users"),
-        HomeAction("onb_payment_records", "V", "View Records"),
-        HomeAction("onb_view_rates", "R", "View Rates")
+        HomeAction(onBuyClick, R.drawable.onb_buy_mpesa, "Buy Crypto"),
+        HomeAction(onSellClick, R.drawable.onb_sell_kes, "Sell Crypto"),
+        HomeAction(onWithdrawClick, R.drawable.onb_send_crypto, "Withdraw Crypto"),
+        HomeAction(onReceiveCryptoClick, R.drawable.onb_receive_crypto, "Receive Crypto"),
+        HomeAction(onPayWithMpesaClick, R.drawable.onb_pay_till, "Pay with MPESA"),
+        HomeAction(onSendToUserClick, R.drawable.onb_send_crypto, "Send to Other Users"),
+        HomeAction(onViewRecordsClick, R.drawable.onb_payment_records, "View Records"),
+        HomeAction(onViewRatesClick, R.drawable.onb_view_rates, "View Rates")
     )
     Box(
         modifier = modifier
@@ -285,23 +281,17 @@ fun HomeScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        val selectedIconResId = remember(selectedCurrency.iconResName) {
-                                            context.resources.getIdentifier(
-                                                selectedCurrency.iconResName,
-                                                "drawable",
-                                                context.packageName
-                                            )
-                                        }
+                                        val selected = selectedCurrency
                                         Image(
                                             painter = painterResource(
-                                                id = selectedIconResId.takeIf { it != 0 } ?: R.drawable.onb_wallet_manage
+                                                id = selected?.iconResId ?: R.drawable.onb_wallet_manage
                                             ),
-                                            contentDescription = "${selectedCurrency.code} logo",
+                                            contentDescription = "${selected?.code ?: "Wallet"} logo",
                                             modifier = Modifier.size(16.dp),
                                             contentScale = ContentScale.Fit
                                         )
                                         Text(
-                                            text = selectedCurrency.code,
+                                            text = selected?.code ?: "Wallet",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = brandDark
                                         )
@@ -314,13 +304,6 @@ fun HomeScreen(
                                     onDismissRequest = { balanceMenuExpanded = false }
                                 ) {
                                     uiState.balanceCurrencies.forEach { option ->
-                                        val optionIconResId = remember(option.iconResName) {
-                                            context.resources.getIdentifier(
-                                                option.iconResName,
-                                                "drawable",
-                                                context.packageName
-                                            )
-                                        }
                                         DropdownMenuItem(
                                             text = {
                                                 Row(
@@ -329,7 +312,7 @@ fun HomeScreen(
                                                 ) {
                                                     Image(
                                                         painter = painterResource(
-                                                            id = optionIconResId.takeIf { it != 0 } ?: R.drawable.onb_wallet_manage
+                                                            id = option.iconResId
                                                         ),
                                                         contentDescription = "${option.code} logo",
                                                         modifier = Modifier.size(16.dp),
@@ -349,19 +332,23 @@ fun HomeScreen(
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = uiState.totalBalanceText,
+                            text = if (uiState.hasLoadedBalance) uiState.totalBalanceText else "Loading balance...",
                             style = MaterialTheme.typography.headlineLarge,
                             color = brandDark,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = selectedCurrency.balance,
+                            text = when {
+                                selectedCurrency != null -> selectedCurrency?.balance.orEmpty()
+                                uiState.hasLoadedBalance -> "No wallet balances yet."
+                                else -> "Fetching wallets..."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = mutedText
                         )
-                        if (!uiState.loadError.isNullOrBlank()) {
+                        if (!uiState.balanceError.isNullOrBlank()) {
                             Text(
-                                text = uiState.loadError.orEmpty(),
+                                text = uiState.balanceError.orEmpty(),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -388,24 +375,13 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 rowItems.forEach { action ->
-                                    val actionClick: () -> Unit = when (action.label) {
-                                        "Buy Crypto" -> onBuyClick
-                                        "Sell Crypto" -> onSellClick
-                                        "Withdraw Crypto" -> onWithdrawClick
-                                        "Receive Crypto" -> onReceiveCryptoClick
-                                        "Pay with MPESA" -> onPayWithMpesaClick
-                                        "Send to Other Users" -> onSendToUserClick
-                                        "View Records" -> onViewRecordsClick
-                                        "View Rates" -> onViewRatesClick
-                                        else -> ({})
-                                    }
                                     Card(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                                         border = BorderStroke(1.dp, panelBorder),
                                         modifier = Modifier
                                             .size(width = 94.dp, height = 94.dp)
-                                            .clickable(onClick = actionClick)
+                                            .clickable(onClick = action.onClick)
                                     ) {
                                         Column(
                                             modifier = Modifier
@@ -423,28 +399,12 @@ fun HomeScreen(
                                                     ),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                val localContext = LocalContext.current
-                                                val iconResId = remember(action.iconResName) {
-                                                    localContext.resources.getIdentifier(
-                                                        action.iconResName,
-                                                        "drawable",
-                                                        localContext.packageName
-                                                    )
-                                                }
-                                                if (iconResId != 0) {
-                                                    Image(
-                                                        painter = painterResource(id = iconResId),
-                                                        contentDescription = "${action.label} icon",
-                                                        modifier = Modifier.size(18.dp),
-                                                        contentScale = ContentScale.Fit
-                                                    )
-                                                } else {
-                                                    Text(
-                                                        text = action.fallbackIcon,
-                                                        color = brandAccent,
-                                                        style = MaterialTheme.typography.bodyMedium
-                                                    )
-                                                }
+                                                Image(
+                                                    painter = painterResource(id = action.iconResId),
+                                                    contentDescription = "${action.label} icon",
+                                                    modifier = Modifier.size(18.dp),
+                                                    contentScale = ContentScale.Fit
+                                                )
                                             }
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Box(
@@ -485,12 +445,29 @@ fun HomeScreen(
                 }
             }
 
-            if (uiState.activities.isEmpty()) {
+            if (!uiState.hasLoadedActivities) {
+                item {
+                    Text(
+                        text = "Loading activity...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = mutedText
+                    )
+                }
+            } else if (uiState.activities.isEmpty()) {
                 item {
                     Text(
                         text = "No transactions yet.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = mutedText
+                    )
+                }
+            }
+            if (!uiState.activitiesError.isNullOrBlank()) {
+                item {
+                    Text(
+                        text = uiState.activitiesError.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
