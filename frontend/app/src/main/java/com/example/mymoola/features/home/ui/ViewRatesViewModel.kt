@@ -3,6 +3,7 @@ package com.example.mymoola.features.home.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mymoola.features.home.data.HomeApiClient
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,12 +81,14 @@ class ViewRatesViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(ViewRatesUiState())
     val uiState: StateFlow<ViewRatesUiState> = _uiState.asStateFlow()
+    private var refreshJob: Job? = null
 
     init {
         refresh()
     }
 
     fun selectCurrency(currency: String) {
+        if (currency !in currencies) return
         updateState { it.copy(selectedCurrency = currency, selectedPoint = null) }
     }
 
@@ -98,7 +101,8 @@ class ViewRatesViewModel : ViewModel() {
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
             val result = HomeApiClient.getRatesHistory(
                 currencies = currencies,
@@ -127,6 +131,8 @@ class ViewRatesViewModel : ViewModel() {
                     )
                 }
             }
+        }.also { job ->
+            job.invokeOnCompletion { refreshJob = null }
         }
     }
 

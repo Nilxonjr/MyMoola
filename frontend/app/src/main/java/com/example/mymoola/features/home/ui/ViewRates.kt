@@ -43,8 +43,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,18 +57,26 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 
+private data class RatesCurrencyChip(
+    val code: String,
+    val iconResId: Int
+)
+
 @Composable
 fun ViewRatesScreen(
     onBackClick: () -> Unit
 ) {
-    val context = LocalContext.current
     val pageBackground = Color(0xFFF8FAFC)
     val panelBackground = Color.White
     val panelBorder = Color(0xFFE2E8F0)
     val brandDark = Color(0xFF0F172A)
     val brandAccent = MaterialTheme.colorScheme.primary
     val mutedText = Color(0xFF64748B)
-    val currencies = listOf("BTC", "ETH", "USDC")
+    val currencies = listOf(
+        RatesCurrencyChip("BTC", R.drawable.bitcoin_logo),
+        RatesCurrencyChip("ETH", R.drawable.ethereum_logo),
+        RatesCurrencyChip("USDC", R.drawable.usdc_logo)
+    )
     val numberFormatter = remember {
         DecimalFormat("#,##0.00", DecimalFormatSymbols(Locale.US))
     }
@@ -87,8 +93,10 @@ fun ViewRatesScreen(
     val selectedTimestamp = selectedPoint?.point?.timestampRaw ?: uiState.generatedAt
     val selectedLabel = if (selectedPoint != null) "Selected point" else "Current rate"
     val selectedTimestampLabel = if (selectedPoint != null) "Point time" else "Last updated"
-    val chartHelperText = if (selectedPoint != null) {
-        "Tap anywhere outside the chart point to clear the selection."
+    val chartHelperText = if (points.size < 2) {
+        "At least two points are needed to draw a price trend."
+    } else if (selectedPoint != null) {
+        "Tap the clear button to return to the current rate."
     } else {
         "Tap a point on the chart to inspect its exact rate."
     }
@@ -97,13 +105,6 @@ fun ViewRatesScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(pageBackground)
-            .pointerInput(selectedPoint) {
-                detectTapGestures {
-                    if (selectedPoint != null) {
-                        ratesViewModel.clearSelectedPoint()
-                    }
-                }
-            }
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(scrollState)
@@ -169,20 +170,7 @@ fun ViewRatesScreen(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     currencies.forEach { currency ->
-                        val isSelected = currency == selectedCurrency
-                        val iconResName = when (currency) {
-                            "USDC" -> "usdc_logo"
-                            "BTC" -> "bitcoin_logo"
-                            "ETH" -> "ethereum_logo"
-                            else -> "onb_wallet_manage"
-                        }
-                        val iconResId = remember(iconResName) {
-                            context.resources.getIdentifier(
-                                iconResName,
-                                "drawable",
-                                context.packageName
-                            )
-                        }
+                        val isSelected = currency.code == selectedCurrency
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSelected) brandAccent else Color(0xFFF8FAFC),
@@ -191,7 +179,7 @@ fun ViewRatesScreen(
                                 if (isSelected) brandAccent else panelBorder
                             ),
                             modifier = Modifier.clickable {
-                                ratesViewModel.selectCurrency(currency)
+                                ratesViewModel.selectCurrency(currency.code)
                             }
                         ) {
                             Row(
@@ -199,16 +187,14 @@ fun ViewRatesScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                if (iconResId != 0) {
-                                    Image(
-                                        painter = painterResource(id = iconResId),
-                                        contentDescription = "$currency logo",
-                                        modifier = Modifier.size(16.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                }
+                                Image(
+                                    painter = painterResource(id = currency.iconResId),
+                                    contentDescription = "${currency.code} logo",
+                                    modifier = Modifier.size(16.dp),
+                                    contentScale = ContentScale.Fit
+                                )
                                 Text(
-                                    text = currency,
+                                    text = currency.code,
                                     color = if (isSelected) Color.White else brandDark,
                                     style = MaterialTheme.typography.labelLarge
                                 )
@@ -246,6 +232,14 @@ fun ViewRatesScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = mutedText
                         )
+                        if (selectedPoint != null) {
+                            OutlinedButton(
+                                onClick = { ratesViewModel.clearSelectedPoint() },
+                                border = BorderStroke(1.dp, panelBorder)
+                            ) {
+                                Text("Clear Selection")
+                            }
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -366,6 +360,60 @@ fun ViewRatesScreen(
                 }
             }
 
+            points.size == 1 -> {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, panelBorder),
+                    color = panelBackground
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "$selectedCurrency price movement",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = brandDark
+                        )
+                        Text(
+                            text = chartHelperText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = mutedText
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, panelBorder)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = ViewRatesFormatting.formatLocalDateTime(points.first().timestampRaw),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = mutedText
+                                )
+                                Text(
+                                    text = "KES ${numberFormatter.format(points.first().kesRate)}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = brandDark,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { ratesViewModel.refresh() },
+                            border = BorderStroke(1.dp, panelBorder)
+                        ) {
+                            Text("Refresh")
+                        }
+                    }
+                }
+            }
+
             else -> {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -417,14 +465,13 @@ fun ViewRatesScreen(
                             }
 
                             selectedPoint?.let { selected ->
-                                val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
                                 val estimatedCardWidthPx = with(density) { 220.dp.toPx() }
                                 val chartWidthPx = with(density) { maxWidth.toPx() }
                                 val cardCenterTargetX = selected.xPx + with(density) { 16.dp.toPx() }
                                 val clampedX = (cardCenterTargetX - estimatedCardWidthPx / 2f)
                                     .coerceIn(
                                         8f,
-                                        minOf(chartWidthPx - estimatedCardWidthPx - 8f, screenWidthPx - estimatedCardWidthPx - 8f)
+                                        (chartWidthPx - estimatedCardWidthPx - 8f).coerceAtLeast(8f)
                                     )
                                 val rawY = selected.yPx - with(density) { 94.dp.toPx() }
                                 val clampedY = rawY.coerceAtLeast(8f)

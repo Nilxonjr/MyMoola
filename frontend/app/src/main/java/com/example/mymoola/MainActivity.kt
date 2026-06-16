@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -67,28 +68,35 @@ class MainActivity : ComponentActivity() {
             MyMoolaTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val navController = rememberNavController()
-                    val startDestination = if (
-                        !AuthSession.accessToken.isNullOrBlank() ||
-                        !AuthSession.refreshToken.isNullOrBlank()
-                    ) {
-                        "home"
-                    } else {
-                        "onboarding1"
-                    }
 
                     NavHost(
                         navController = navController,
-                        startDestination = startDestination,
+                        startDestination = "launch",
                         modifier = Modifier.padding(innerPadding)
                     ) {
+                        composable("launch") {
+                            LaunchedEffect(Unit) {
+                                val destination = when {
+                                    !AuthSession.accessToken.isNullOrBlank() -> "home"
+                                    !AuthSession.refreshToken.isNullOrBlank() && AuthApiClient.refreshSession() -> "home"
+                                    else -> {
+                                        AuthSession.clear()
+                                        "onboarding1"
+                                    }
+                                }
+                                navController.navigate(destination) {
+                                    popUpTo("launch") { inclusive = true }
+                                }
+                            }
+                        }
                         composable("onboarding1") {
                             OnboardingScreen(
                                 title = "Welcome to MyMoola",
                                 subtitle = "Buy, sell, send, and spend crypto with M-PESA support in Kenya.",
                                 features = listOf(
-                                    OnboardingFeature("onb_buy_mpesa", "↗", "Buy crypto using M-PESA"),
-                                    OnboardingFeature("onb_sell_kes", "↘", "Sell crypto back to KES"),
-                                    OnboardingFeature("onb_wallet_manage", "◎", "Manage everything from one wallet")
+                                    OnboardingFeature(R.drawable.onb_buy_mpesa, "Buy crypto using M-PESA"),
+                                    OnboardingFeature(R.drawable.onb_sell_kes, "Sell crypto back to KES"),
+                                    OnboardingFeature(R.drawable.onb_wallet_manage, "Manage everything from one wallet")
                                 ),
                                 currentPage = 0,
                                 totalPages = 3,
@@ -100,9 +108,9 @@ class MainActivity : ComponentActivity() {
                                 title = "Pay with M-PESA",
                                 subtitle = "Use your wallet to pay Till Numbers, PayBills, and everyday services.",
                                 features = listOf(
-                                    OnboardingFeature("onb_pay_till", "₸", "Pay Till Numbers"),
-                                    OnboardingFeature("onb_paybill", "¤", "Pay PayBills"),
-                                    OnboardingFeature("onb_payment_records", "✓", "Keep payment records")
+                                    OnboardingFeature(R.drawable.onb_pay_till, "Pay Till Numbers"),
+                                    OnboardingFeature(R.drawable.onb_paybill, "Pay PayBills"),
+                                    OnboardingFeature(R.drawable.onb_payment_records, "Keep payment records")
                                 ),
                                 currentPage = 1,
                                 totalPages = 3,
@@ -116,18 +124,26 @@ class MainActivity : ComponentActivity() {
                                 title = "Send Crypto Easily",
                                 subtitle = "Send crypto to friends, family, or supported wallet addresses quickly and securely.",
                                 features = listOf(
-                                    OnboardingFeature("onb_send_crypto", "➤", "Send crypto to other users"),
-                                    OnboardingFeature("onb_receive_crypto", "⬇", "Receive crypto in your wallet"),
-                                    OnboardingFeature("onb_tx_history", "🕘", "View your transaction history")
+                                    OnboardingFeature(R.drawable.onb_send_crypto, "Send crypto to other users"),
+                                    OnboardingFeature(R.drawable.onb_receive_crypto, "Receive crypto in your wallet"),
+                                    OnboardingFeature(R.drawable.onb_tx_history, "View your transaction history")
                                 ),
                                 currentPage = 2,
                                 totalPages = 3,
                                 buttonText = "Get Started",
                                 showBackButton = true,
                                 showSignInPrompt = true,
-                                onLoginClick = { navController.navigate("login") },
+                                onLoginClick = {
+                                    navController.navigate("login") {
+                                        popUpTo("onboarding1") { inclusive = true }
+                                    }
+                                },
                                 onBackClick = { navController.popBackStack() },
-                                onRegisterClick = { navController.navigate("signup") }
+                                onRegisterClick = {
+                                    navController.navigate("signup") {
+                                        popUpTo("onboarding1") { inclusive = true }
+                                    }
+                                }
                             )
                         }
                         composable("signup") {
