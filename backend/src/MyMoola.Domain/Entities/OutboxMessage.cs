@@ -39,7 +39,7 @@ public sealed class OutboxMessage : BaseEntity
         LastAttemptedAt = DateTimeOffset.UtcNow;
         Error = error[..Math.Min(2000, error.Length)];
         LockedUntil = null;
-        Status = RetryCount >= 3
+        Status = RetryCount >= 4
             ? OutboxMessageStatus.DeadLettered
             : OutboxMessageStatus.Pending;
     }
