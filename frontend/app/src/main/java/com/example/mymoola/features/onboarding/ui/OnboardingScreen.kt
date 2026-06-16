@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
@@ -25,10 +27,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -38,12 +38,18 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.mymoola.R
 import com.example.mymoola.ui.theme.MyMoolaTheme
 
 data class OnboardingFeature(
-    val iconResName: String,
-    val fallbackIcon: String,
+    val iconResId: Int,
     val text: String
+)
+
+private val previewFeatures = listOf(
+    OnboardingFeature(R.drawable.onb_buy_mpesa, "Buy crypto using M-Pesa"),
+    OnboardingFeature(R.drawable.onb_sell_kes, "Sell crypto back to KES"),
+    OnboardingFeature(R.drawable.onb_wallet_manage, "Manage everything from one wallet")
 )
 
 @Composable
@@ -66,6 +72,7 @@ fun OnboardingScreen(
     val panelBorder = Color(0xFFE2E8F0)
     val accent = Color(0xFF0A7C6A)
     val buttonShape = RoundedCornerShape(12.dp)
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = modifier
@@ -100,7 +107,9 @@ fun OnboardingScreen(
             shadowElevation = 0.dp
         ) {
             Column(
-                modifier = Modifier.padding(20.dp)
+                modifier = Modifier
+                    .verticalScroll(scrollState)
+                    .padding(20.dp)
             ) {
                 if (title.isNotBlank()) {
                     Text(
@@ -143,28 +152,12 @@ fun OnboardingScreen(
                                         .background(accent.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    val context = LocalContext.current
-                                    val iconResId = remember(feature.iconResName) {
-                                        context.resources.getIdentifier(
-                                            feature.iconResName,
-                                            "drawable",
-                                            context.packageName
-                                        )
-                                    }
-                                    if (iconResId != 0) {
-                                        Image(
-                                            painter = painterResource(id = iconResId),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            contentScale = ContentScale.Fit
-                                        )
-                                    } else {
-                                        Text(
-                                            text = feature.fallbackIcon,
-                                            color = accent,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
+                                    Image(
+                                        painter = painterResource(id = feature.iconResId),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
                                 }
                                 Text(
                                     text = feature.text,
@@ -262,11 +255,7 @@ fun OnboardingScreenPreview() {
         OnboardingScreen(
             title = "Welcome to MyMoola",
             subtitle = "Buy, sell, send, and spend crypto with M-Pesa support in Kenya.",
-            features = listOf(
-                OnboardingFeature("onb_buy_mpesa", "↗", "Buy crypto using M-Pesa"),
-                OnboardingFeature("onb_sell_kes", "↘", "Sell crypto back to KES"),
-                OnboardingFeature("onb_wallet_manage", "◎", "Manage everything from one wallet")
-            )
+            features = previewFeatures
         )
     }
 }
@@ -275,7 +264,12 @@ fun OnboardingScreenPreview() {
 @Composable
 fun OnboardingScreenCompactPreview() {
     MyMoolaTheme {
-        OnboardingScreen()
+        OnboardingScreen(
+            title = "Welcome to MyMoola",
+            subtitle = "Buy, sell, send, and spend crypto with M-Pesa support in Kenya.",
+            features = previewFeatures,
+            showSignInPrompt = true
+        )
     }
 }
 
@@ -283,6 +277,10 @@ fun OnboardingScreenCompactPreview() {
 @Composable
 fun OnboardingScreenTabletPreview() {
     MyMoolaTheme {
-        OnboardingScreen()
+        OnboardingScreen(
+            title = "Welcome to MyMoola",
+            subtitle = "Buy, sell, send, and spend crypto with M-Pesa support in Kenya.",
+            features = previewFeatures
+        )
     }
 }

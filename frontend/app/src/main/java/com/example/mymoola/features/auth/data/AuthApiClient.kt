@@ -3,6 +3,8 @@ package com.example.mymoola.features.auth.data
 import com.example.mymoola.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -12,6 +14,8 @@ import java.net.URL
 import java.util.UUID
 
 object AuthApiClient {
+    private val refreshSessionMutex = Mutex()
+
     enum class OtpPurpose {
         Registration,
         Login
@@ -267,48 +271,50 @@ object AuthApiClient {
 
     suspend fun refreshSession(): Boolean =
         withContext(Dispatchers.IO) {
-            runCatching {
-                val currentRefreshToken = AuthSession.refreshToken
-                if (currentRefreshToken.isNullOrBlank()) return@runCatching false
+            refreshSessionMutex.withLock {
+                runCatching {
+                    val currentRefreshToken = AuthSession.refreshToken
+                    if (currentRefreshToken.isNullOrBlank()) return@runCatching false
 
-                val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/auth/refresh")
-                val connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15_000
-                    readTimeout = 15_000
-                    doInput = true
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("Accept", "application/json")
-                }
-
-                val payload = JSONObject().apply {
-                    put("refreshToken", currentRefreshToken)
-                }
-
-                OutputStreamWriter(connection.outputStream).use { writer ->
-                    writer.write(payload.toString())
-                    writer.flush()
-                }
-
-                val code = connection.responseCode
-                val body = readBody(connection, code in 200..299)
-
-                if (code == HttpURLConnection.HTTP_OK) {
-                    val json = JSONObject(body)
-                    val newAccessToken = json.optString("accessToken")
-                    val newRefreshToken = json.optString("refreshToken")
-                    if (newAccessToken.isBlank() || newRefreshToken.isBlank()) {
-                        return@runCatching false
+                    val url = URL("${BuildConfig.API_BASE_URL.trimEnd('/')}/api/auth/refresh")
+                    val connection = (url.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 15_000
+                        readTimeout = 15_000
+                        doInput = true
+                        doOutput = true
+                        setRequestProperty("Content-Type", "application/json")
+                        setRequestProperty("Accept", "application/json")
                     }
 
-                    AuthSession.setTokens(newAccessToken, newRefreshToken)
-                    true
-                } else {
+                    val payload = JSONObject().apply {
+                        put("refreshToken", currentRefreshToken)
+                    }
+
+                    OutputStreamWriter(connection.outputStream).use { writer ->
+                        writer.write(payload.toString())
+                        writer.flush()
+                    }
+
+                    val code = connection.responseCode
+                    val body = readBody(connection, code in 200..299)
+
+                    if (code == HttpURLConnection.HTTP_OK) {
+                        val json = JSONObject(body)
+                        val newAccessToken = json.optString("accessToken")
+                        val newRefreshToken = json.optString("refreshToken")
+                        if (newAccessToken.isBlank() || newRefreshToken.isBlank()) {
+                            return@runCatching false
+                        }
+
+                        AuthSession.setTokens(newAccessToken, newRefreshToken)
+                        true
+                    } else {
+                        false
+                    }
+                }.getOrElse {
                     false
                 }
-            }.getOrElse {
-                false
             }
         }
 
