@@ -40,6 +40,7 @@ data class HomeUiState(
 
 class HomeViewModel : ViewModel() {
     private companion object {
+        const val WalletCreditedListenerKey = "home_view_model"
         const val WalletCreditRefreshDebounceMs = 750L
     }
 
@@ -51,7 +52,7 @@ class HomeViewModel : ViewModel() {
 
     init {
         applyCachedHomeData()
-        WalletRealtimeClient.setWalletCreditedListener { payload ->
+        WalletRealtimeClient.addWalletCreditedListener(WalletCreditedListenerKey) { payload ->
             updateState {
                 it.copy(
                     walletCreditMessage = "Received ${formatMeaningfulAmount(payload.amount)} ${payload.currency.uppercase(Locale.US)}"
@@ -81,7 +82,7 @@ class HomeViewModel : ViewModel() {
     override fun onCleared() {
         reloadHomeDataJob?.cancel()
         walletCreditRefreshJob?.cancel()
-        WalletRealtimeClient.setWalletCreditedListener(null)
+        WalletRealtimeClient.removeWalletCreditedListener(WalletCreditedListenerKey)
         super.onCleared()
     }
 

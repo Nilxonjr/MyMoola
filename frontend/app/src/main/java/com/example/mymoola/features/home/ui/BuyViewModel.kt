@@ -3,6 +3,7 @@ package com.example.mymoola.features.home.ui
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -10,8 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.OffsetDateTime
+import java.util.UUID
 
 data class BuyUiState(
     val pendingMessage: String? = null,
@@ -21,7 +24,9 @@ data class BuyUiState(
     val pendingStatus: String? = null,
     val finalOutcome: String? = null,
     val showSuccessDialog: Boolean = false,
-    val successToastShown: Boolean = false
+    val successToastShown: Boolean = false,
+    val isSubmitting: Boolean = false,
+    val submissionError: String? = null
 )
 
 class BuyViewModel(
@@ -63,7 +68,9 @@ class BuyViewModel(
                 pendingStatus = "Pending",
                 finalOutcome = null,
                 showSuccessDialog = false,
-                successToastShown = false
+                successToastShown = false,
+                isSubmitting = false,
+                submissionError = null
             )
         }
         startPollingIfNeeded()
@@ -71,7 +78,103 @@ class BuyViewModel(
 
     fun onBuyInitiationFailed(errorMessage: String) {
         updateState {
-            it.copy(finalOutcome = errorMessage)
+            it.copy(finalOutcome = errorMessage, isSubmitting = false, submissionError = errorMessage)
+        }
+    }
+
+    fun clearSubmissionError() {
+        updateState { it.copy(submissionError = null) }
+    }
+
+    fun submitBuy(
+        currency: String,
+        grossKes: Double,
+        pin: String,
+        quoteId: String,
+        refreshQuoteIfExpired: suspend () -> String?,
+        onQuotePrompt: (String) -> Unit
+    ) {
+        updateState { it.copy(isSubmitting = true, submissionError = null) }
+        viewModelScope.launch {
+            try {
+                val sessionPin = AuthSession.sessionPin
+                if (sessionPin.isNullOrBlank()) {
+                    onBuyInitiationFailed("Session PIN unavailable. Please log in again.")
+                    return@launch
+                }
+                if (pin != sessionPin) {
+                    onBuyInitiationFailed("Incorrect PIN. Enter your account PIN to continue.")
+                    return@launch
+                }
+
+                val expiryResult = refreshQuoteIfExpired()
+                if (expiryResult != null) {
+                    if (expiryResult.startsWith("Rate updated.") || expiryResult.startsWith("Quote expired.")) {
+                        onQuotePrompt(expiryResult)
+                        updateState { it.copy(isSubmitting = false, submissionError = null) }
+                    } else {
+                        onBuyInitiationFailed(expiryResult)
+                    }
+                    return@launch
+                }
+
+                val key = savedStateHandle[KEY_ACTIVE_ATTEMPT_KEY] as String?
+                    ?: UUID.randomUUID().toString().also { savedStateHandle[KEY_ACTIVE_ATTEMPT_KEY] = it }
+
+                val result = try {
+                    withTimeout(20_000) {
+                        HomeApiClient.buyCrypto(
+                            request = HomeApiClient.BuyCryptoRequest(
+                                currency = currency,
+                                grossKes = grossKes,
+                                quoteId = quoteId,
+                                pin = pin
+                            ),
+                            idempotencyKey = key
+                        )
+                    }
+                } catch (_: Exception) {
+                    onBuyInitiated(
+                        transactionId = null,
+                        referenceCode = null,
+                        message = "Payment request sent. Waiting for confirmation."
+                    )
+                    return@launch
+                }
+
+                if (result.isSuccess) {
+                    onBuyInitiated(
+                        transactionId = result.data?.transactionId,
+                        referenceCode = result.data?.referenceCode,
+                        message = result.data?.message
+                    )
+                } else {
+                    val error = when (result.statusCode) {
+                        400 -> result.errorMessage ?: "Please check your inputs and try again."
+                        401 -> "Session expired. Please sign in again."
+                        403 -> result.errorMessage ?: "This operation is currently disabled for your account."
+                        404 -> "User or wallet not found."
+                        422 -> "Quote expired. Fetching latest rate..."
+                        429 -> "Too many requests. Please wait 30 seconds and try again."
+                        else -> result.errorMessage ?: "Unable to initiate payment."
+                    }
+                    onBuyInitiationFailed(error)
+                    if (result.statusCode == 422) {
+                        val refreshedMessage = refreshQuoteIfExpired()
+                        if (refreshedMessage != null && refreshedMessage.startsWith("Quote expired.")) {
+                            onQuotePrompt(refreshedMessage)
+                        }
+                    }
+                }
+            } finally {
+                updateState { current ->
+                    if (current.pendingStatus.equals("Pending", ignoreCase = true) || current.pendingTransactionId != null) {
+                        current.copy(isSubmitting = false)
+                    } else {
+                        current.copy(isSubmitting = false)
+                    }
+                }
+            }
         }
     }
 
@@ -89,7 +192,9 @@ class BuyViewModel(
                 pendingStatus = null,
                 finalOutcome = null,
                 showSuccessDialog = false,
-                successToastShown = false
+                successToastShown = false,
+                isSubmitting = false,
+                submissionError = null
             )
         }
     }
@@ -239,5 +344,6 @@ class BuyViewModel(
         private const val KEY_FINAL_OUTCOME = "buy_final_outcome"
         private const val KEY_SHOW_SUCCESS_DIALOG = "buy_show_success_dialog"
         private const val KEY_SUCCESS_TOAST_SHOWN = "buy_success_toast_shown"
+        private const val KEY_ACTIVE_ATTEMPT_KEY = "buy_active_attempt_key"
     }
 }

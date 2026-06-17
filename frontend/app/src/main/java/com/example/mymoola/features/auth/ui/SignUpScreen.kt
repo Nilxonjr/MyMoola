@@ -40,24 +40,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
+import com.example.mymoola.normalizeKenyanPhone
 import com.example.mymoola.features.auth.data.AuthApiClient
 import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
 import kotlinx.coroutines.launch
-
-private const val KenyaPrefix = "+254"
-
-private fun normalizeKenyanPhone(raw: String): String {
-    val digits = raw.filter(Char::isDigit)
-    if (digits.isEmpty()) return ""
-    val local = when {
-        digits.startsWith("254") -> digits.drop(3)
-        digits.startsWith("0") -> digits.drop(1)
-        else -> digits
-    }.take(9)
-    return if (local.length == 9) "$KenyaPrefix$local" else ""
-}
 
 @Composable
 fun SignUpScreen(
@@ -72,7 +60,6 @@ fun SignUpScreen(
     var showPin by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errors by remember { mutableStateOf(emptyList<String>()) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     val pageBackground = Color(0xFFF8FAFC)
@@ -130,7 +117,6 @@ fun SignUpScreen(
                     onValueChange = {
                         name = it
                         errors = emptyList()
-                        successMessage = null
                     },
                     label = { Text("Name") },
                     singleLine = true,
@@ -142,7 +128,6 @@ fun SignUpScreen(
                     onValueChange = {
                         phone = it
                         errors = emptyList()
-                        successMessage = null
                     },
                     label = { Text("Phone Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -155,7 +140,6 @@ fun SignUpScreen(
                     onValueChange = {
                         pin = it.filter(Char::isDigit).take(4)
                         errors = emptyList()
-                        successMessage = null
                     },
                     label = { Text("4-digit PIN") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -185,7 +169,6 @@ fun SignUpScreen(
                             if (pin.length != 4) add("PIN must be exactly 4 digits.")
                         }
                         errors = validationErrors
-                        successMessage = null
 
                         if (validationErrors.isNotEmpty()) return@Button
 
@@ -201,7 +184,6 @@ fun SignUpScreen(
                             isSubmitting = false
 
                             if (result.isSuccess) {
-                                successMessage = result.data?.message ?: "Registration submitted."
                                 AuthSession.setPendingPin(pin)
                                 onRegisterSuccess(normalizedPhone)
                             } else {
@@ -229,14 +211,6 @@ fun SignUpScreen(
                     Text(
                         text = "• $error",
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                if (successMessage != null) {
-                    Text(
-                        text = successMessage ?: "",
-                        color = Color(0xFF166534),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

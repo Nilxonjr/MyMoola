@@ -3,6 +3,7 @@ package com.example.mymoola.features.home.ui
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -10,9 +11,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.Locale
+import java.util.UUID
 
 data class PayWithMpesaUiState(
     val pendingMessage: String? = null,
@@ -20,7 +23,9 @@ data class PayWithMpesaUiState(
     val pendingTransactionId: String? = null,
     val pendingStartedAtMs: Long? = null,
     val pendingStatus: String? = null,
-    val finalOutcome: String? = null
+    val finalOutcome: String? = null,
+    val isSubmitting: Boolean = false,
+    val submissionError: String? = null
 )
 
 class PayWithMpesaViewModel(
@@ -56,14 +61,90 @@ class PayWithMpesaViewModel(
                 pendingTransactionId = transactionId?.ifBlank { null },
                 pendingStartedAtMs = System.currentTimeMillis(),
                 pendingStatus = "Pending",
-                finalOutcome = null
+                finalOutcome = null,
+                isSubmitting = false,
+                submissionError = null
             )
         }
         startPollingIfNeeded()
     }
 
     fun onPaymentInitiationFailed(errorMessage: String) {
-        updateState { it.copy(finalOutcome = errorMessage) }
+        updateState { it.copy(finalOutcome = errorMessage, isSubmitting = false, submissionError = errorMessage) }
+    }
+
+    fun clearSubmissionError() {
+        updateState { it.copy(submissionError = null) }
+    }
+
+    fun submitPayment(
+        request: HomeApiClient.PayMerchantRequest,
+        refreshQuoteIfExpired: suspend () -> String?,
+        onQuotePrompt: (String) -> Unit
+    ) {
+        updateState { it.copy(isSubmitting = true, submissionError = null) }
+        viewModelScope.launch {
+            try {
+                val sessionPin = AuthSession.sessionPin
+                if (sessionPin.isNullOrBlank()) {
+                    onPaymentInitiationFailed("Session PIN unavailable. Please log in again.")
+                    return@launch
+                }
+                if (request.pin != sessionPin) {
+                    onPaymentInitiationFailed("Incorrect PIN. Enter your account PIN to continue.")
+                    return@launch
+                }
+
+                val expiryResult = refreshQuoteIfExpired()
+                if (expiryResult != null) {
+                    if (expiryResult.startsWith("Rate updated.")) {
+                        onQuotePrompt(expiryResult)
+                        updateState { it.copy(isSubmitting = false, submissionError = null) }
+                    } else {
+                        onPaymentInitiationFailed(expiryResult)
+                    }
+                    return@launch
+                }
+
+                val key = savedStateHandle[KEY_ACTIVE_ATTEMPT_KEY] as String?
+                    ?: UUID.randomUUID().toString().also { savedStateHandle[KEY_ACTIVE_ATTEMPT_KEY] = it }
+
+                val result = try {
+                    withTimeout(20_000) {
+                        HomeApiClient.payMerchant(request, key)
+                    }
+                } catch (_: Exception) {
+                    onPaymentInitiated(
+                        transactionId = null,
+                        referenceCode = null,
+                        message = "Payment request sent. Waiting for merchant confirmation."
+                    )
+                    return@launch
+                }
+
+                if (result.isSuccess) {
+                    onPaymentInitiated(
+                        transactionId = result.data?.transactionId,
+                        referenceCode = result.data?.referenceCode,
+                        message = result.data?.message
+                    )
+                } else {
+                    val error = when (result.statusCode) {
+                        400 -> result.errorMessage ?: "Please check your payment details and try again."
+                        401 -> "Session expired. Please sign in again."
+                        403 -> result.errorMessage ?: "This operation is currently disabled for your account."
+                        404 -> "User or wallet not found."
+                        409 -> result.errorMessage ?: "A conflicting merchant payment request already exists."
+                        422 -> result.errorMessage ?: "Unable to process this merchant payment right now."
+                        429 -> "Too many requests. Please wait 30 seconds and try again."
+                        else -> result.errorMessage ?: "Unable to initiate merchant payment."
+                    }
+                    onPaymentInitiationFailed(error)
+                }
+            } finally {
+                updateState { it.copy(isSubmitting = false) }
+            }
+        }
     }
 
     fun clearTerminalOutcome() {
@@ -74,7 +155,9 @@ class PayWithMpesaViewModel(
                 pendingTransactionId = null,
                 pendingStartedAtMs = null,
                 pendingStatus = null,
-                finalOutcome = null
+                finalOutcome = null,
+                isSubmitting = false,
+                submissionError = null
             )
         }
     }
@@ -213,5 +296,6 @@ class PayWithMpesaViewModel(
         private const val KEY_PENDING_STARTED_AT_MS = "pay_mpesa_pending_started_at_ms"
         private const val KEY_PENDING_STATUS = "pay_mpesa_pending_status"
         private const val KEY_FINAL_OUTCOME = "pay_mpesa_final_outcome"
+        private const val KEY_ACTIVE_ATTEMPT_KEY = "pay_mpesa_active_attempt_key"
     }
 }

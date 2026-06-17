@@ -28,11 +28,16 @@ object WalletRealtimeClient {
 
     private val started = AtomicBoolean(false)
 
-    @Volatile
-    private var onWalletCredited: ((WalletCreditedPayload) -> Unit)? = null
+    private val walletCreditedListeners = linkedMapOf<String, (WalletCreditedPayload) -> Unit>()
 
-    fun setWalletCreditedListener(listener: ((WalletCreditedPayload) -> Unit)?) {
-        onWalletCredited = listener
+    @Synchronized
+    fun addWalletCreditedListener(key: String, listener: (WalletCreditedPayload) -> Unit) {
+        walletCreditedListeners[key] = listener
+    }
+
+    @Synchronized
+    fun removeWalletCreditedListener(key: String) {
+        walletCreditedListeners.remove(key)
     }
 
     fun connect() {
@@ -53,7 +58,9 @@ object WalletRealtimeClient {
             connection.on(
                 WalletCreditedEvent,
                 { payload: WalletCreditedPayload ->
-                    onWalletCredited?.invoke(payload)
+                    walletCreditedListeners.values.toList().forEach { listener ->
+                        listener(payload)
+                    }
                 },
                 WalletCreditedPayload::class.java
             )
