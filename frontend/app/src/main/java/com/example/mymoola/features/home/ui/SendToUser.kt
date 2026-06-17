@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.R
-import com.example.mymoola.features.auth.data.AuthSession
+import com.example.mymoola.normalizeKenyanPhone
 import com.example.mymoola.features.home.data.HomeApiClient
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import com.example.mymoola.ui.theme.myMoolaOutlinedTextFieldColors
@@ -60,8 +60,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private const val KenyaPrefix = "+254"
-private val SendCurrencyOrder = listOf("BTC", "ETH", "USDC")
 private const val SendMpesaPlatformFeeRate = 0.015
 
 private enum class SendMode(
@@ -76,17 +74,6 @@ private enum class SendMode(
         label = "Send M-PESA",
         helper = "Convert your crypto and send M-PESA to any Kenyan number."
     )
-}
-
-private fun normalizeKenyanPhone(raw: String): String {
-    val digits = raw.filter(Char::isDigit)
-    if (digits.isEmpty()) return ""
-    val local = when {
-        digits.startsWith("254") -> digits.drop(3)
-        digits.startsWith("0") -> digits.drop(1)
-        else -> digits
-    }.take(9)
-    return if (local.length == 9) "$KenyaPrefix$local" else ""
 }
 
 @Composable
@@ -170,53 +157,28 @@ fun SendToUserScreen(
     onBackClick: () -> Unit,
     onGoHomeClick: () -> Unit = {}
 ) {
-    data class CurrencyOption(
-        val iconResName: String,
-        val code: String,
-        val label: String,
-        val balanceText: String,
-        val balanceAmount: Double
-    )
-
     var phoneNumber by remember { mutableStateOf("") }
-    val fallbackCurrencyOptions = listOf(
-        CurrencyOption("bitcoin_logo", "BTC", "Bitcoin", "0.000000 BTC", 0.0),
-        CurrencyOption("ethereum_logo", "ETH", "Ethereum", "0.000000 ETH", 0.0),
-        CurrencyOption("usdc_logo", "USDC", "USD Coin", "0.000000 USDC", 0.0)
-    )
-    var currencyOptions by remember { mutableStateOf(fallbackCurrencyOptions) }
     val sendViewModel: SendToUserViewModel = viewModel()
     val sendUiState by sendViewModel.uiState.collectAsState()
-    var selectedCurrency by remember { mutableStateOf<CurrencyOption?>(null) }
     var selectedMode by remember(initialMode) {
         mutableStateOf(if (initialMode.equals("mpesa", ignoreCase = true)) SendMode.Mpesa else SendMode.Crypto)
     }
     var amount by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
-    var recipientName by remember { mutableStateOf<String?>(null) }
-    var infoMessage by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var transferSuccessMessage by remember { mutableStateOf<String?>(null) }
-    var transferSuccessSummary by remember { mutableStateOf<String?>(null) }
-    var isLookingUp by remember { mutableStateOf(false) }
-    var isSending by remember { mutableStateOf(false) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
-    var myPhoneNumber by remember { mutableStateOf("") }
-    var quote by remember { mutableStateOf<HomeApiClient.QuoteResponse?>(null) }
-    var loadingQuote by remember { mutableStateOf(false) }
-    var quoteError by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val selectedCurrency = sendUiState.currencyOptions.firstOrNull { it.code == sendUiState.selectedCurrencyCode }
     val normalizedPhone = normalizeKenyanPhone(phoneNumber)
-    val normalizedMyPhone = normalizeKenyanPhone(myPhoneNumber)
+    val normalizedMyPhone = normalizeKenyanPhone(sendUiState.myPhoneNumber)
     val isSelfRecipient = normalizedPhone.isNotBlank() && normalizedPhone == normalizedMyPhone
     val parsedAmount = amount.toDoubleOrNull()
-    val isRecipientVerified = !recipientName.isNullOrBlank()
+    val isRecipientVerified = !sendUiState.recipientName.isNullOrBlank()
     val requiresRecipientVerification = selectedMode == SendMode.Crypto
     val availableBalance = selectedCurrency?.balanceAmount ?: 0.0
-    val sellRateKes = quote?.sellRateKes ?: 0.0
-    val spreadPercent = quote?.spreadPercent ?: 0.0
+    val sellRateKes = sendUiState.quote?.sellRateKes ?: 0.0
+    val spreadPercent = sendUiState.quote?.spreadPercent ?: 0.0
     val spreadRate = spreadPercent / 100.0
     val mpesaAmountKes = if (selectedMode == SendMode.Mpesa) parsedAmount ?: 0.0 else 0.0
     val grossKesForMpesa = if (mpesaAmountKes > 0.0) {
@@ -237,10 +199,10 @@ fun SendToUserScreen(
         parsedAmount != null &&
         parsedAmount > 0 &&
         !hasInsufficientBalance &&
-        (selectedMode == SendMode.Crypto || quote != null) &&
+        (selectedMode == SendMode.Crypto || sendUiState.quote != null) &&
         pin.length == 4 &&
-        !isSending &&
-        !isLookingUp
+        !sendUiState.isSending &&
+        !sendUiState.isLookingUp
     val hasPendingLocator =
         !sendUiState.pendingTransactionId.isNullOrBlank() || !sendUiState.pendingReference.isNullOrBlank()
     val hasPendingSession =
@@ -256,64 +218,14 @@ fun SendToUserScreen(
 
     LaunchedEffect(Unit) {
         sendViewModel.startPollingIfNeeded()
-        val me = HomeApiClient.getMe()
-        if (me.isSuccess) {
-            myPhoneNumber = me.data?.phone.orEmpty()
-        }
-
-        val balance = HomeApiClient.getBalance()
-        if (balance.isSuccess) {
-            val wallets = balance.data?.wallets.orEmpty()
-            if (wallets.isNotEmpty()) {
-                val walletByCode = wallets.associateBy { it.currency.uppercase() }
-                val mapped = SendCurrencyOrder.mapNotNull { code ->
-                    val wallet = walletByCode[code] ?: return@mapNotNull null
-                    val icon = when (wallet.currency.uppercase()) {
-                        "BTC" -> "bitcoin_logo"
-                        "ETH" -> "ethereum_logo"
-                        "USDC" -> "usdc_logo"
-                        else -> "onb_wallet_manage"
-                    }
-                    val label = when (wallet.currency.uppercase()) {
-                        "BTC" -> "Bitcoin"
-                        "ETH" -> "Ethereum"
-                        "USDC" -> "USD Coin"
-                        else -> wallet.currency
-                    }
-                    CurrencyOption(
-                        iconResName = icon,
-                        code = wallet.currency.uppercase(),
-                        label = label,
-                        balanceText = String.format("%.6f %s", wallet.total, wallet.currency.uppercase()),
-                        balanceAmount = wallet.total
-                    )
-                }
-                currencyOptions = mapped
-                if (selectedCurrency == null) {
-                    selectedCurrency = mapped.firstOrNull { it.balanceAmount > 0.0 } ?: mapped.first()
-                }
-            }
-        }
+        sendViewModel.loadInitialData()
     }
 
     LaunchedEffect(selectedMode, selectedCurrency?.code) {
-        if (selectedMode != SendMode.Mpesa || selectedCurrency == null) {
-            quote = null
-            quoteError = null
-            loadingQuote = false
-            return@LaunchedEffect
-        }
-
-        loadingQuote = true
-        quoteError = null
-        val result = HomeApiClient.getQuote(selectedCurrency!!.code)
-        loadingQuote = false
-        if (result.isSuccess) {
-            quote = result.data
-        } else {
-            quote = null
-            quoteError = result.errorMessage ?: "Unable to load conversion quote."
-        }
+        sendViewModel.loadQuoteIfNeeded(
+            mode = if (selectedMode == SendMode.Crypto) SendToUserViewModel.MODE_CRYPTO else SendToUserViewModel.MODE_MPESA,
+            currencyCode = selectedCurrency?.code
+        )
     }
 
     LaunchedEffect(showPendingScreen, showSuccessScreen, showFailedScreen) {
@@ -380,9 +292,7 @@ fun SendToUserScreen(
                                     )
                                     .clickable {
                                         selectedMode = mode
-                                        errorMessage = null
-                                        transferSuccessMessage = null
-                                        transferSuccessSummary = null
+                                        sendViewModel.switchMode()
                                     }
                                     .padding(horizontal = 12.dp, vertical = 12.dp)
                             ) {
@@ -405,7 +315,7 @@ fun SendToUserScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    currencyOptions.forEach { option ->
+                    sendUiState.currencyOptions.forEach { option ->
                         val isSelected = selectedCurrency?.code == option.code
                         val iconResId = remember(option.iconResName) {
                             context.resources.getIdentifier(
@@ -426,9 +336,7 @@ fun SendToUserScreen(
                                     shape = RoundedCornerShape(999.dp)
                                 )
                                 .clickable {
-                                    selectedCurrency = option
-                                    transferSuccessMessage = null
-                                    transferSuccessSummary = null
+                                    sendViewModel.selectCurrency(option.code)
                                 }
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -454,11 +362,7 @@ fun SendToUserScreen(
                     value = phoneNumber,
                     onValueChange = { input ->
                         phoneNumber = input
-                        recipientName = null
-                        infoMessage = null
-                        errorMessage = null
-                        transferSuccessMessage = null
-                        transferSuccessSummary = null
+                        sendViewModel.onPhoneChanged()
                     },
                     label = { Text("Phone Number") },
                     singleLine = true,
@@ -488,32 +392,9 @@ fun SendToUserScreen(
                     Button(
                         onClick = {
                             if (normalizedPhone.isBlank()) return@Button
-                            if (isSelfRecipient) {
-                                errorMessage = "You cannot verify your own number as recipient."
-                                return@Button
-                            }
-                            isLookingUp = true
-                            errorMessage = null
-                            infoMessage = null
-                            recipientName = null
-
-                            coroutineScope.launch {
-                                val result = HomeApiClient.lookupUserByPhone(normalizedPhone)
-                                isLookingUp = false
-                                if (result.isSuccess) {
-                                    val found = result.data
-                                    recipientName = found?.fullName
-                                    infoMessage = if (found != null) {
-                                        "Recipient found: ${found.fullName} (${found.phoneNumber})"
-                                    } else {
-                                        "Recipient found."
-                                    }
-                                } else {
-                                    errorMessage = result.errorMessage ?: "Recipient lookup failed."
-                                }
-                            }
+                            sendViewModel.verifyRecipient(normalizedPhone, isSelfRecipient)
                         },
-                        enabled = normalizedPhone.isNotBlank() && !isSelfRecipient && !isLookingUp && !isSending,
+                        enabled = normalizedPhone.isNotBlank() && !isSelfRecipient && !sendUiState.isLookingUp && !sendUiState.isSending,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -521,7 +402,7 @@ fun SendToUserScreen(
                             contentColor = Color.White
                         )
                     ) {
-                        if (isLookingUp) {
+                        if (sendUiState.isLookingUp) {
                             CircularProgressIndicator(
                                 modifier = Modifier
                                     .height(18.dp)
@@ -535,13 +416,13 @@ fun SendToUserScreen(
                     }
                 }
 
-                if (requiresRecipientVerification && !recipientName.isNullOrBlank()) {
+                if (requiresRecipientVerification && !sendUiState.recipientName.isNullOrBlank()) {
                     Text(
-                        text = "Sending to: $recipientName",
+                        text = "Sending to: ${sendUiState.recipientName}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF0A7C6A)
                     )
-                } else if (requiresRecipientVerification && normalizedPhone.isNotBlank() && !isLookingUp && !isSelfRecipient) {
+                } else if (requiresRecipientVerification && normalizedPhone.isNotBlank() && !sendUiState.isLookingUp && !isSelfRecipient) {
                     Text(
                         text = "Verify the recipient before sending.",
                         style = MaterialTheme.typography.bodySmall,
@@ -556,7 +437,7 @@ fun SendToUserScreen(
                 }
 
                 if (selectedMode == SendMode.Mpesa) {
-                    if (loadingQuote && quote == null) {
+                    if (sendUiState.loadingQuote && sendUiState.quote == null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
                                 modifier = Modifier
@@ -570,9 +451,9 @@ fun SendToUserScreen(
                         }
                     }
 
-                    if (!quoteError.isNullOrBlank()) {
+                    if (!sendUiState.quoteError.isNullOrBlank()) {
                         Text(
-                            text = quoteError.orEmpty(),
+                            text = sendUiState.quoteError.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFDC2626)
                         )
@@ -615,7 +496,7 @@ fun SendToUserScreen(
                         color = Color(0xFF334155)
                     )
                 }
-                if (selectedMode == SendMode.Mpesa && quote != null) {
+                if (selectedMode == SendMode.Mpesa && sendUiState.quote != null) {
                     Text(
                         text = "Approx crypto cost: ${String.format(Locale.US, "%.6f", mpesaCryptoCost)} ${selectedCurrency?.code.orEmpty()}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -639,7 +520,7 @@ fun SendToUserScreen(
                     value = pin,
                     onValueChange = { input ->
                         pin = input.filter { it.isDigit() }.take(4)
-                        errorMessage = null
+                        sendViewModel.onPinChanged()
                     },
                     label = { Text("PIN (4 digits)") },
                     singleLine = true,
@@ -677,17 +558,17 @@ fun SendToUserScreen(
                     )
                 }
 
-                if (!infoMessage.isNullOrBlank()) {
+                if (!sendUiState.infoMessage.isNullOrBlank()) {
                     Text(
-                        text = infoMessage.orEmpty(),
+                        text = sendUiState.infoMessage.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF0F766E)
                     )
                 }
 
-                if (!errorMessage.isNullOrBlank()) {
+                if (!sendUiState.errorMessage.isNullOrBlank()) {
                     Text(
-                        text = errorMessage.orEmpty(),
+                        text = sendUiState.errorMessage.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFDC2626)
                     )
@@ -699,12 +580,11 @@ fun SendToUserScreen(
                         .fillMaxWidth()
                         .height(50.dp)
                         .background(holdEnabledColor, RoundedCornerShape(12.dp))
-                        .pointerInput(canSend, normalizedPhone, parsedAmount, pin, selectedCurrency?.code, recipientName, selectedMode, quote?.quoteId) {
+                        .pointerInput(canSend, normalizedPhone, parsedAmount, pin, selectedCurrency?.code, sendUiState.recipientName, selectedMode, sendUiState.quote?.quoteId) {
                             detectTapGestures(
                                 onPress = {
                                     if (!canSend) return@detectTapGestures
 
-                                    errorMessage = null
                                     holdProgress = 0f
                                     coroutineScope {
                                         var triggered = false
@@ -722,106 +602,18 @@ fun SendToUserScreen(
 
                                             val currency = selectedCurrency?.code ?: return@launch
                                             val sendAmount = parsedAmount ?: return@launch
-                                            if (isSelfRecipient) {
-                                                errorMessage = "You cannot send to your own phone number."
-                                                return@launch
-                                            }
-                                            if (selectedMode == SendMode.Crypto && sendAmount > availableBalance) {
-                                                errorMessage = "Insufficient balance."
-                                                return@launch
-                                            }
-                                            if (selectedMode == SendMode.Mpesa && mpesaCryptoCost > availableBalance) {
-                                                errorMessage = "Insufficient balance for this M-PESA amount."
-                                                return@launch
-                                            }
-                                            if (requiresRecipientVerification && !isRecipientVerified) {
-                                                errorMessage = "Verify the recipient before sending."
-                                                return@launch
-                                            }
-                                            if (selectedMode == SendMode.Mpesa && quote == null) {
-                                                errorMessage = "Conversion quote unavailable. Please try again."
-                                                return@launch
-                                            }
-                                            val sessionPin = AuthSession.sessionPin
-                                            if (sessionPin.isNullOrBlank()) {
-                                                errorMessage = "Session PIN unavailable. Please log in again."
-                                                return@launch
-                                            }
-                                            if (pin != sessionPin) {
-                                                errorMessage = "Incorrect PIN. Enter your account PIN to continue."
-                                                return@launch
-                                            }
-
-                                            isSending = true
-                                            errorMessage = null
-                                            infoMessage = null
-
-                                            try {
-                                                val sendSucceeded: Boolean
-                                                val successMessage: String?
-                                                val successReference: String?
-                                                val successTransactionId: String?
-                                                val failureMessage: String?
-
-                                                if (selectedMode == SendMode.Crypto) {
-                                                    val result = HomeApiClient.sendToUser(
-                                                        HomeApiClient.SendToUserRequest(
-                                                            recipientPhone = normalizedPhone,
-                                                            currency = currency,
-                                                            amount = sendAmount,
-                                                            pin = pin
-                                                        )
-                                                    )
-                                                    sendSucceeded = result.isSuccess
-                                                    successMessage = result.data?.message
-                                                    successReference = result.data?.referenceCode
-                                                    successTransactionId = result.data?.transactionId
-                                                    failureMessage = result.errorMessage
-                                                } else {
-                                                    val result = HomeApiClient.payMerchant(
-                                                        request = HomeApiClient.PayMerchantRequest(
-                                                            merchantType = "SendMoney",
-                                                            currency = currency,
-                                                            amountKes = sendAmount,
-                                                            quoteId = quote?.quoteId.orEmpty(),
-                                                            pin = pin,
-                                                            phoneNumber = normalizedPhone.removePrefix("+")
-                                                        ),
-                                                        idempotencyKey = java.util.UUID.randomUUID().toString()
-                                                    )
-                                                    sendSucceeded = result.isSuccess
-                                                    successMessage = result.data?.message
-                                                    successReference = result.data?.referenceCode
-                                                    successTransactionId = result.data?.transactionId
-                                                    failureMessage = result.errorMessage
-                                                }
-
-                                                if (sendSucceeded) {
-                                                    if (selectedMode == SendMode.Crypto) {
-                                                        sendViewModel.onSendCompleted(
-                                                            mode = SendToUserViewModel.MODE_CRYPTO,
-                                                            referenceCode = successReference,
-                                                            message = successMessage ?: "Transfer completed successfully."
-                                                        )
-                                                    } else {
-                                                        sendViewModel.onSendInitiated(
-                                                            mode = SendToUserViewModel.MODE_MPESA,
-                                                            transactionId = successTransactionId,
-                                                            referenceCode = successReference,
-                                                            message = successMessage ?: "M-PESA transfer request sent. Waiting for confirmation."
-                                                        )
-                                                    }
-                                                    amount = ""
-                                                    pin = ""
-                                                    infoMessage = null
-                                                } else {
-                                                    errorMessage = failureMessage ?: if (selectedMode == SendMode.Crypto) "Transfer failed." else "M-PESA transfer failed."
-                                                    sendViewModel.onSendInitiationFailed(errorMessage.orEmpty())
-                                                }
-                                            } finally {
-                                                isSending = false
-                                                holdProgress = 0f
-                                            }
+                                            sendViewModel.submitSend(
+                                                mode = if (selectedMode == SendMode.Crypto) SendToUserViewModel.MODE_CRYPTO else SendToUserViewModel.MODE_MPESA,
+                                                normalizedPhone = normalizedPhone,
+                                                isSelfRecipient = isSelfRecipient,
+                                                currency = currency,
+                                                amount = sendAmount,
+                                                pin = pin,
+                                                availableBalance = availableBalance,
+                                                requiresRecipientVerification = requiresRecipientVerification,
+                                                quote = sendUiState.quote,
+                                                mpesaCryptoCost = mpesaCryptoCost
+                                            )
                                         }
 
                                         val released = tryAwaitRelease()
@@ -835,7 +627,7 @@ fun SendToUserScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isSending) {
+                    if (sendUiState.isSending) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .height(18.dp)
@@ -902,6 +694,8 @@ fun SendToUserScreen(
                         actionLabel = "Back to Home",
                         onAction = {
                             sendViewModel.clearTerminalOutcome()
+                            amount = ""
+                            pin = ""
                             onGoHomeClick()
                         }
                     )
@@ -919,7 +713,10 @@ fun SendToUserScreen(
                         statusLine = "Status: Failed",
                         statusColor = Color(0xFFB91C1C),
                         actionLabel = "Try Again",
-                        onAction = { sendViewModel.clearTerminalOutcome() }
+                        onAction = {
+                            sendViewModel.clearTerminalOutcome()
+                            pin = ""
+                        }
                     )
                 }
             }

@@ -31,7 +31,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,14 +48,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
-import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import java.util.Locale
-import java.util.UUID
 
 private val WithdrawCurrencyOrder = listOf("BTC", "ETH", "USDC")
 
@@ -99,17 +95,11 @@ fun WithdrawCryptoScreen(
     var currencies by remember { mutableStateOf(fallbackCurrencies) }
     var selectedCurrency by rememberSaveable { mutableStateOf("BTC") }
     var amountInput by rememberSaveable { mutableStateOf("") }
+    val quoteState = rememberWithdrawalQuoteState(selectedCurrency, amountInput)
     var destinationAddress by rememberSaveable { mutableStateOf("") }
     var pin by rememberSaveable { mutableStateOf("") }
-    var quote by remember { mutableStateOf<HomeApiClient.WithdrawalQuoteResponse?>(null) }
-    var loadingQuote by remember { mutableStateOf(false) }
-    var quoteError by remember { mutableStateOf<String?>(null) }
     var quoteRefreshPrompt by remember { mutableStateOf<String?>(null) }
-    var refreshSecondsRemaining by remember { mutableLongStateOf(25L) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
-    var submitting by remember { mutableStateOf(false) }
-    var formError by remember { mutableStateOf<String?>(null) }
-    var activeAttemptKey by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         val balance = HomeApiClient.getBalance()
@@ -141,74 +131,15 @@ fun WithdrawCryptoScreen(
         }
     }
 
-    fun clearQuoteState() {
-        quote = null
-        loadingQuote = false
-        quoteError = null
-        quoteRefreshPrompt = null
-        refreshSecondsRemaining = 25L
-    }
-
     val selectedWallet = currencies.firstOrNull { it.code == selectedCurrency }
     val amountValue = amountInput.toDoubleOrNull() ?: 0.0
     val availableBalance = selectedWallet?.balanceAmount ?: 0.0
     val normalizedAddress = normalizeWithdrawAddress(destinationAddress)
     val addressValid = normalizedAddress.isNotBlank() && isValidWithdrawAddress(normalizedAddress)
     val hasSufficientBalance = amountValue > 0.0 && amountValue <= availableBalance
-    val feeAmount = quote?.feeAmount ?: 0.0
+    val feeAmount = quoteState.quote?.feeAmount ?: 0.0
     val netAmount = (amountValue - feeAmount).coerceAtLeast(0.0)
-    val quoteReady = quote != null && quote?.currency.equals(selectedCurrency, ignoreCase = true)
-
-    LaunchedEffect(selectedCurrency, amountInput) {
-        val validAmount = amountInput.toDoubleOrNull()
-        if (validAmount == null || validAmount <= 0.0) {
-            clearQuoteState()
-            return@LaunchedEffect
-        }
-
-        loadingQuote = true
-        quoteError = null
-        val result = HomeApiClient.getWithdrawalQuote(selectedCurrency, validAmount)
-        loadingQuote = false
-        if (result.isSuccess) {
-            quote = result.data
-        } else {
-            quote = null
-            quoteError = result.errorMessage ?: "Unable to load withdrawal fee."
-        }
-    }
-
-    LaunchedEffect(selectedCurrency, amountInput, quote?.quoteId, quote != null) {
-        if (quote == null) {
-            refreshSecondsRemaining = 25L
-            return@LaunchedEffect
-        }
-
-        var remaining = minOf(25L, quote?.expiresInSeconds ?: 25L)
-        refreshSecondsRemaining = remaining
-        while (true) {
-            delay(1000)
-            remaining -= 1
-            refreshSecondsRemaining = remaining.coerceAtLeast(0L)
-            if (remaining <= 0L) {
-                val activeAmount = amountInput.toDoubleOrNull()
-                if (activeAmount == null || activeAmount <= 0.0) {
-                    clearQuoteState()
-                    return@LaunchedEffect
-                }
-
-                val result = HomeApiClient.getWithdrawalQuote(selectedCurrency, activeAmount)
-                if (result.isSuccess) {
-                    quote = result.data
-                    quoteError = null
-                } else if (quote == null) {
-                    quoteError = result.errorMessage ?: "Unable to refresh withdrawal fee."
-                }
-                remaining = minOf(25L, quote?.expiresInSeconds ?: 25L)
-                refreshSecondsRemaining = remaining
-            }
-        }
-    }
+    val quoteReady = quoteState.quote != null && quoteState.quote?.currency.equals(selectedCurrency, ignoreCase = true)
 
     LaunchedEffect(Unit) {
         withdrawViewModel.startPollingIfNeeded()
@@ -230,7 +161,7 @@ fun WithdrawCryptoScreen(
         hasSufficientBalance &&
         addressValid &&
         netAmount > 0.0 &&
-        !submitting &&
+        !withdrawUiState.isSubmitting &&
         withdrawUiState.pendingTransactionId.isNullOrBlank()
 
     Column(
@@ -310,13 +241,13 @@ fun WithdrawCryptoScreen(
                     }
                 }
 
-                if (loadingQuote && quote == null) {
+                if (quoteState.loading && quoteState.quote == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Loading withdrawal fee...", color = Color(0xFF334155))
                     }
-                } else if (quote != null) {
+                } else if (quoteState.quote != null) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -335,16 +266,16 @@ fun WithdrawCryptoScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Quote refreshes in ${refreshSecondsRemaining}s",
-                            color = if (refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
+                            text = "Quote refreshes in ${quoteState.refreshSecondsRemaining}s",
+                            color = if (quoteState.refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                if (!quoteError.isNullOrBlank()) {
+                if (!quoteState.error.isNullOrBlank()) {
                     Text(
-                        text = quoteError.orEmpty(),
+                        text = quoteState.error.orEmpty(),
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -441,7 +372,7 @@ fun WithdrawCryptoScreen(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     visualTransformation = PasswordVisualTransformation(),
-                    enabled = !submitting && withdrawUiState.pendingTransactionId.isNullOrBlank()
+                    enabled = !withdrawUiState.isSubmitting && withdrawUiState.pendingTransactionId.isNullOrBlank()
                 )
 
                 if (amountValue > availableBalance && availableBalance > 0.0) {
@@ -468,9 +399,9 @@ fun WithdrawCryptoScreen(
                     )
                 }
 
-                if (!formError.isNullOrBlank()) {
+                if (!withdrawUiState.submissionError.isNullOrBlank()) {
                     Text(
-                        text = formError.orEmpty(),
+                        text = withdrawUiState.submissionError.orEmpty(),
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -481,12 +412,12 @@ fun WithdrawCryptoScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(holdEnabledColor, RoundedCornerShape(12.dp))
-                        .pointerInput(canSubmit, amountValue, pin, quote?.quoteId, selectedCurrency, normalizedAddress) {
+                        .pointerInput(canSubmit, amountValue, pin, quoteState.quote?.quoteId, selectedCurrency, normalizedAddress) {
                             detectTapGestures(
                                 onPress = {
                                     if (!canSubmit) return@detectTapGestures
 
-                                    formError = null
+                                    withdrawViewModel.clearSubmissionError()
                                     holdProgress = 0f
                                     coroutineScope {
                                         var triggered = false
@@ -501,94 +432,29 @@ fun WithdrawCryptoScreen(
                                             }
 
                                             triggered = true
-                                            submitting = true
-                                            try {
-                                                val sessionPin = AuthSession.sessionPin
-                                                if (sessionPin.isNullOrBlank()) {
-                                                    formError = "Session PIN unavailable. Please log in again."
-                                                    return@launch
-                                                }
-                                                if (pin != sessionPin) {
-                                                    formError = "Incorrect PIN. Enter your account PIN to continue."
-                                                    return@launch
-                                                }
-
-                                                val activeQuote = quote
-                                                if (activeQuote == null) {
-                                                    formError = "Withdrawal fee is unavailable. Please refresh and try again."
-                                                    return@launch
-                                                }
-
-                                                if (!isValidWithdrawAddress(normalizedAddress)) {
-                                                    formError = "Destination address is invalid."
-                                                    return@launch
-                                                }
-
-                                                if (refreshSecondsRemaining <= 0L) {
-                                                    val refreshed = HomeApiClient.getWithdrawalQuote(selectedCurrency, amountValue)
-                                                    if (refreshed.isSuccess && refreshed.data != null) {
-                                                        quote = refreshed.data
-                                                        quoteRefreshPrompt = "Fee updated. Review new net amount and hold Withdraw again."
-                                                        formError = null
-                                                    } else {
-                                                        formError = refreshed.errorMessage ?: "Quote expired. Unable to refresh fee right now."
-                                                    }
-                                                    return@launch
-                                                }
-
-                                                val key = activeAttemptKey ?: UUID.randomUUID().toString().also { activeAttemptKey = it }
-                                                val result = try {
-                                                    withTimeout(20_000) {
-                                                        HomeApiClient.withdrawCrypto(
-                                                            request = HomeApiClient.WithdrawCryptoRequest(
-                                                                currency = selectedCurrency,
-                                                                amount = amountValue,
-                                                                toAddress = normalizedAddress,
-                                                                pin = pin,
-                                                                quoteId = activeQuote.quoteId
-                                                            ),
-                                                            idempotencyKey = key
-                                                        )
-                                                    }
-                                                } catch (_: Exception) {
-                                                    formError = null
-                                                    quoteRefreshPrompt = null
-                                                    withdrawViewModel.onWithdrawInitiated(
-                                                        transactionId = null,
-                                                        referenceCode = null,
-                                                        toAddress = normalizedAddress,
-                                                        message = "Withdrawal request sent. Waiting for network confirmation."
-                                                    )
-                                                    return@launch
-                                                }
-
-                                                if (result.isSuccess) {
-                                                    withdrawViewModel.onWithdrawInitiated(
-                                                        transactionId = result.data?.transactionId,
-                                                        referenceCode = result.data?.referenceCode,
-                                                        toAddress = result.data?.toAddress ?: normalizedAddress,
-                                                        message = result.data?.message
-                                                    )
-                                                    quoteRefreshPrompt = null
-                                                    formError = null
-                                                } else {
-                                                    val mappedError = when (result.statusCode) {
-                                                        400 -> result.errorMessage ?: "Please check withdrawal details and try again."
-                                                        401 -> "Session expired. Please sign in again."
-                                                        403 -> result.errorMessage ?: "Withdrawals are currently disabled for this asset."
-                                                        404 -> "Wallet or quote not found."
-                                                        409 -> result.errorMessage ?: "A conflicting withdrawal request already exists."
-                                                        422 -> result.errorMessage ?: "Unable to process this withdrawal right now."
-                                                        429 -> "Too many requests. Please wait 30 seconds and try again."
-                                                        else -> result.errorMessage ?: "Unable to initiate withdrawal."
-                                                    }
-                                                    formError = mappedError
-                                                    withdrawViewModel.onWithdrawInitiationFailed(mappedError)
-                                                }
-                                            } finally {
-                                                submitting = false
+                                            val activeQuote = quoteState.quote ?: return@launch
+                                            if (!isValidWithdrawAddress(normalizedAddress)) {
+                                                withdrawViewModel.onWithdrawInitiationFailed("Destination address is invalid.")
                                                 holdProgress = 0f
+                                                return@launch
                                             }
+                                            quoteRefreshPrompt = null
+                                            withdrawViewModel.submitWithdrawal(
+                                                currency = selectedCurrency,
+                                                amount = amountValue,
+                                                toAddress = normalizedAddress,
+                                                pin = pin,
+                                                quoteId = activeQuote.quoteId,
+                                                refreshQuoteIfExpired = {
+                                                    quoteState.refreshIfExpired(
+                                                        currency = selectedCurrency,
+                                                        amount = amountValue,
+                                                        successPrompt = "Fee updated. Review new net amount and hold Withdraw again."
+                                                    )
+                                                },
+                                                onQuotePrompt = { prompt -> quoteRefreshPrompt = prompt }
+                                            )
+                                            holdProgress = 0f
                                         }
 
                                         val released = tryAwaitRelease()
@@ -604,7 +470,7 @@ fun WithdrawCryptoScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (submitting) "Submitting..." else "Hold 3 seconds to Withdraw",
+                        text = if (withdrawUiState.isSubmitting) "Submitting..." else "Hold 3 seconds to Withdraw",
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
                     )

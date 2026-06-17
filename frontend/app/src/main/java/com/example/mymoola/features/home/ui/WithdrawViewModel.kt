@@ -3,6 +3,7 @@ package com.example.mymoola.features.home.ui
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -10,8 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.OffsetDateTime
+import java.util.UUID
 
 private fun HomeApiClient.UserTransaction.isWithdrawalTransaction(): Boolean =
     type.equals("Withdrawal", ignoreCase = true)
@@ -39,7 +42,9 @@ data class WithdrawUiState(
     val pendingStartedAtMs: Long? = null,
     val pendingStatus: String? = null,
     val pendingToAddress: String? = null,
-    val finalOutcome: String? = null
+    val finalOutcome: String? = null,
+    val isSubmitting: Boolean = false,
+    val submissionError: String? = null
 )
 
 class WithdrawViewModel(
@@ -78,14 +83,105 @@ class WithdrawViewModel(
                 pendingStartedAtMs = System.currentTimeMillis(),
                 pendingStatus = "Pending",
                 pendingToAddress = toAddress,
-                finalOutcome = null
+                finalOutcome = null,
+                isSubmitting = false,
+                submissionError = null
             )
         }
         startPollingIfNeeded()
     }
 
     fun onWithdrawInitiationFailed(errorMessage: String) {
-        updateState { it.copy(finalOutcome = errorMessage) }
+        updateState { it.copy(finalOutcome = errorMessage, isSubmitting = false, submissionError = errorMessage) }
+    }
+
+    fun clearSubmissionError() {
+        updateState { it.copy(submissionError = null) }
+    }
+
+    fun submitWithdrawal(
+        currency: String,
+        amount: Double,
+        toAddress: String,
+        pin: String,
+        quoteId: String,
+        refreshQuoteIfExpired: suspend () -> String?,
+        onQuotePrompt: (String) -> Unit
+    ) {
+        updateState { it.copy(isSubmitting = true, submissionError = null) }
+        viewModelScope.launch {
+            try {
+                val sessionPin = AuthSession.sessionPin
+                if (sessionPin.isNullOrBlank()) {
+                    onWithdrawInitiationFailed("Session PIN unavailable. Please log in again.")
+                    return@launch
+                }
+                if (pin != sessionPin) {
+                    onWithdrawInitiationFailed("Incorrect PIN. Enter your account PIN to continue.")
+                    return@launch
+                }
+
+                val expiryResult = refreshQuoteIfExpired()
+                if (expiryResult != null) {
+                    if (expiryResult.startsWith("Fee updated.")) {
+                        onQuotePrompt(expiryResult)
+                        updateState { it.copy(isSubmitting = false, submissionError = null) }
+                    } else {
+                        onWithdrawInitiationFailed(expiryResult)
+                    }
+                    return@launch
+                }
+
+                val key = savedStateHandle[KEY_ACTIVE_ATTEMPT_KEY] as String?
+                    ?: UUID.randomUUID().toString().also { savedStateHandle[KEY_ACTIVE_ATTEMPT_KEY] = it }
+
+                val result = try {
+                    withTimeout(20_000) {
+                        HomeApiClient.withdrawCrypto(
+                            request = HomeApiClient.WithdrawCryptoRequest(
+                                currency = currency,
+                                amount = amount,
+                                toAddress = toAddress,
+                                pin = pin,
+                                quoteId = quoteId
+                            ),
+                            idempotencyKey = key
+                        )
+                    }
+                } catch (_: Exception) {
+                    onWithdrawInitiated(
+                        transactionId = null,
+                        referenceCode = null,
+                        toAddress = toAddress,
+                        message = "Withdrawal request sent. Waiting for network confirmation."
+                    )
+                    return@launch
+                }
+
+                if (result.isSuccess) {
+                    onWithdrawInitiated(
+                        transactionId = result.data?.transactionId,
+                        referenceCode = result.data?.referenceCode,
+                        toAddress = result.data?.toAddress ?: toAddress,
+                        message = result.data?.message
+                    )
+                } else {
+                    val error = when (result.statusCode) {
+                        400 -> result.errorMessage ?: "Please check withdrawal details and try again."
+                        401 -> "Session expired. Please sign in again."
+                        403 -> result.errorMessage ?: "Withdrawals are currently disabled for this asset."
+                        404 -> "Wallet or quote not found."
+                        409 -> result.errorMessage ?: "A conflicting withdrawal request already exists."
+                        422 -> result.errorMessage ?: "Unable to process this withdrawal right now."
+                        429 -> "Too many requests. Please wait 30 seconds and try again."
+                        else -> result.errorMessage ?: "Unable to initiate withdrawal."
+                    }
+                    onWithdrawInitiationFailed(error)
+                }
+            } finally {
+                updateState { it.copy(isSubmitting = false) }
+            }
+        }
     }
 
     fun clearTerminalOutcome() {
@@ -97,7 +193,9 @@ class WithdrawViewModel(
                 pendingStartedAtMs = null,
                 pendingStatus = null,
                 pendingToAddress = null,
-                finalOutcome = null
+                finalOutcome = null,
+                isSubmitting = false,
+                submissionError = null
             )
         }
     }
@@ -229,5 +327,6 @@ class WithdrawViewModel(
         private const val KEY_PENDING_STATUS = "withdraw_pending_status"
         private const val KEY_PENDING_TO_ADDRESS = "withdraw_pending_to_address"
         private const val KEY_FINAL_OUTCOME = "withdraw_final_outcome"
+        private const val KEY_ACTIVE_ATTEMPT_KEY = "withdraw_active_attempt_key"
     }
 }

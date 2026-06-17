@@ -31,7 +31,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,18 +49,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
-import com.example.mymoola.features.auth.data.AuthSession
+import com.example.mymoola.normalizeKenyanPhone
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 import java.util.Locale
-import java.util.UUID
 
 private const val MerchantPlatformFeeRate = 0.015
 
@@ -111,6 +104,7 @@ fun PayWithMpesaScreen(
     )
     var currencies by remember { mutableStateOf(fallbackCurrencies) }
     var selectedCurrency by rememberSaveable { mutableStateOf("BTC") }
+    val quoteState = rememberTransactionQuoteState(selectedCurrency)
     var selectedMerchantType by rememberSaveable { mutableStateOf(MerchantType.Paybill) }
     var amountKesInput by rememberSaveable { mutableStateOf("") }
     var paybillNumber by rememberSaveable { mutableStateOf("") }
@@ -118,34 +112,8 @@ fun PayWithMpesaScreen(
     var tillNumber by rememberSaveable { mutableStateOf("") }
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var pin by rememberSaveable { mutableStateOf("") }
-    var quote by remember { mutableStateOf<HomeApiClient.QuoteResponse?>(null) }
-    var loadingQuote by remember { mutableStateOf(false) }
-    var quoteError by remember { mutableStateOf<String?>(null) }
     var quoteRefreshPrompt by remember { mutableStateOf<String?>(null) }
-    var refreshSecondsRemaining by remember { mutableLongStateOf(25L) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
-    var submitting by remember { mutableStateOf(false) }
-    var formError by remember { mutableStateOf<String?>(null) }
-    var activeAttemptKey by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun parseExpiryMillis(value: String): Long {
-        if (value.isBlank()) return 0L
-
-        return runCatching { Instant.parse(value).toEpochMilli() }
-            .recoverCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
-            .recoverCatching { LocalDateTime.parse(value).toInstant(ZoneOffset.UTC).toEpochMilli() }
-            .getOrDefault(0L)
-    }
-
-    fun normalizePhone(raw: String): String {
-        val digits = raw.filter(Char::isDigit)
-        return when {
-            digits.startsWith("254") && digits.length == 12 -> digits
-            digits.startsWith("0") && digits.length == 10 -> "254${digits.drop(1)}"
-            digits.startsWith("7") && digits.length == 9 -> "254$digits"
-            else -> digits
-        }
-    }
 
     LaunchedEffect(Unit) {
         val balance = HomeApiClient.getBalance()
@@ -177,53 +145,14 @@ fun PayWithMpesaScreen(
         }
     }
 
-    LaunchedEffect(selectedCurrency) {
-        loadingQuote = true
-        quoteError = null
-        val result = HomeApiClient.getQuote(selectedCurrency)
-        loadingQuote = false
-        if (result.isSuccess) {
-            quote = result.data
-        } else {
-            quote = null
-            quoteError = result.errorMessage ?: "Unable to load quote."
-        }
-    }
-
-    LaunchedEffect(selectedCurrency, quote?.quoteId, quote != null) {
-        if (quote == null) {
-            refreshSecondsRemaining = 25L
-            return@LaunchedEffect
-        }
-
-        var remaining = 25L
-        refreshSecondsRemaining = remaining
-        while (true) {
-            delay(1000)
-            remaining -= 1
-            refreshSecondsRemaining = remaining.coerceAtLeast(0L)
-            if (remaining <= 0L) {
-                val result = HomeApiClient.getQuote(selectedCurrency)
-                if (result.isSuccess) {
-                    quote = result.data
-                    quoteError = null
-                } else if (quote == null) {
-                    quoteError = result.errorMessage ?: "Unable to refresh quote."
-                }
-                remaining = 25L
-                refreshSecondsRemaining = remaining
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         payViewModel.startPollingIfNeeded()
     }
 
     val selectedWallet = currencies.firstOrNull { it.code == selectedCurrency }
     val amountKes = amountKesInput.toDoubleOrNull() ?: 0.0
-    val sellRateKes = quote?.sellRateKes ?: 0.0
-    val spreadPercent = quote?.spreadPercent ?: 0.0
+    val sellRateKes = quoteState.quote?.sellRateKes ?: 0.0
+    val spreadPercent = quoteState.quote?.spreadPercent ?: 0.0
     val spreadRate = spreadPercent / 100.0
     val grossKes = if (amountKes > 0.0) {
         amountKes / (1.0 - MerchantPlatformFeeRate - spreadRate)
@@ -236,7 +165,7 @@ fun PayWithMpesaScreen(
     val availableBalance = selectedWallet?.balanceAmount ?: 0.0
     val availableBalanceKes = if (sellRateKes > 0.0) availableBalance * sellRateKes else 0.0
     val hasSufficientBalance = cryptoCost > 0.0 && cryptoCost <= availableBalance
-    val normalizedPhone = normalizePhone(phoneNumber)
+    val normalizedPhone = normalizeKenyanPhone(phoneNumber).removePrefix("+")
     val scrollState = rememberScrollState()
 
     val merchantValidationError = when (selectedMerchantType) {
@@ -255,10 +184,10 @@ fun PayWithMpesaScreen(
 
     val canSubmit = amountKes > 0.0 &&
         pin.length == 4 &&
-        quote != null &&
+        quoteState.quote != null &&
         hasSufficientBalance &&
         merchantValidationError == null &&
-        !submitting &&
+        !payUiState.isSubmitting &&
         payUiState.pendingTransactionId.isNullOrBlank()
 
     val hasPendingLocator =
@@ -349,13 +278,13 @@ fun PayWithMpesaScreen(
                     }
                 }
 
-                if (loadingQuote && quote == null) {
+                if (quoteState.loading && quoteState.quote == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Loading quote...", color = Color(0xFF334155))
                     }
-                } else if (quote != null) {
+                } else if (quoteState.quote != null) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -369,16 +298,16 @@ fun PayWithMpesaScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Quote refreshes in ${refreshSecondsRemaining}s",
-                            color = if (refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
+                            text = "Quote refreshes in ${quoteState.refreshSecondsRemaining}s",
+                            color = if (quoteState.refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                if (!quoteError.isNullOrBlank()) {
+                if (!quoteState.error.isNullOrBlank()) {
                     Text(
-                        text = quoteError ?: "",
+                        text = quoteState.error ?: "",
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -566,7 +495,7 @@ fun PayWithMpesaScreen(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     visualTransformation = PasswordVisualTransformation(),
-                    enabled = !submitting && payUiState.pendingTransactionId.isNullOrBlank()
+                    enabled = !payUiState.isSubmitting && payUiState.pendingTransactionId.isNullOrBlank()
                 )
 
                 if (merchantValidationError != null) {
@@ -585,9 +514,9 @@ fun PayWithMpesaScreen(
                     )
                 }
 
-                if (!formError.isNullOrBlank()) {
+                if (!payUiState.submissionError.isNullOrBlank()) {
                     Text(
-                        text = formError ?: "",
+                        text = payUiState.submissionError ?: "",
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -602,7 +531,7 @@ fun PayWithMpesaScreen(
                             canSubmit,
                             amountKes,
                             pin,
-                            quote?.quoteId,
+                            quoteState.quote?.quoteId,
                             selectedCurrency,
                             selectedMerchantType,
                             paybillNumber,
@@ -614,7 +543,7 @@ fun PayWithMpesaScreen(
                                 onPress = {
                                     if (!canSubmit) return@detectTapGestures
 
-                                    formError = null
+                                    payViewModel.clearSubmissionError()
                                     holdProgress = 0f
                                     coroutineScope {
                                         var triggered = false
@@ -629,92 +558,29 @@ fun PayWithMpesaScreen(
                                             }
 
                                             triggered = true
-                                            submitting = true
-                                            try {
-                                                val sessionPin = AuthSession.sessionPin
-                                                if (sessionPin.isNullOrBlank()) {
-                                                    formError = "Session PIN unavailable. Please log in again."
-                                                    return@launch
-                                                }
-                                                if (pin != sessionPin) {
-                                                    formError = "Incorrect PIN. Enter your account PIN to continue."
-                                                    return@launch
-                                                }
-
-                                                val activeQuote = quote
-                                                if (activeQuote == null) {
-                                                    formError = "Quote is unavailable. Please refresh and try again."
-                                                    return@launch
-                                                }
-
-                                                val expiresMs = parseExpiryMillis(activeQuote.expiresAt)
-                                                if (expiresMs <= System.currentTimeMillis()) {
-                                                    val refreshed = HomeApiClient.getQuote(selectedCurrency)
-                                                    if (refreshed.isSuccess && refreshed.data != null) {
-                                                        quote = refreshed.data
-                                                        quoteRefreshPrompt = "Rate updated. Please review the new estimate and hold Pay again."
-                                                        formError = null
-                                                    } else {
-                                                        formError = refreshed.errorMessage ?: "Quote expired. Unable to refresh rate right now."
-                                                    }
-                                                    return@launch
-                                                }
-
-                                                val key = activeAttemptKey ?: UUID.randomUUID().toString().also { activeAttemptKey = it }
-                                                val result = try {
-                                                    withTimeout(20_000) {
-                                                        HomeApiClient.payMerchant(
-                                                            request = HomeApiClient.PayMerchantRequest(
-                                                                merchantType = selectedMerchantType.wireValue,
-                                                                currency = selectedCurrency,
-                                                                amountKes = amountKes,
-                                                                quoteId = activeQuote.quoteId,
-                                                                pin = pin,
-                                                                paybillNumber = paybillNumber.ifBlank { null },
-                                                                accountNumber = accountNumber.ifBlank { null },
-                                                                tillNumber = tillNumber.ifBlank { null },
-                                                                phoneNumber = normalizedPhone.ifBlank { null }
-                                                            ),
-                                                            idempotencyKey = key
-                                                        )
-                                                    }
-                                                } catch (_: Exception) {
-                                                    formError = null
-                                                    quoteRefreshPrompt = null
-                                                    payViewModel.onPaymentInitiated(
-                                                        transactionId = null,
-                                                        referenceCode = null,
-                                                        message = "Payment request sent. Waiting for merchant confirmation."
+                                            val activeQuote = quoteState.quote ?: return@launch
+                                            quoteRefreshPrompt = null
+                                            payViewModel.submitPayment(
+                                                request = HomeApiClient.PayMerchantRequest(
+                                                    merchantType = selectedMerchantType.wireValue,
+                                                    currency = selectedCurrency,
+                                                    amountKes = amountKes,
+                                                    quoteId = activeQuote.quoteId,
+                                                    pin = pin,
+                                                    paybillNumber = paybillNumber.ifBlank { null },
+                                                    accountNumber = accountNumber.ifBlank { null },
+                                                    tillNumber = tillNumber.ifBlank { null },
+                                                    phoneNumber = normalizedPhone.ifBlank { null }
+                                                ),
+                                                refreshQuoteIfExpired = {
+                                                    quoteState.refreshIfExpired(
+                                                        currency = selectedCurrency,
+                                                        successPrompt = "Rate updated. Please review the new estimate and hold Pay again."
                                                     )
-                                                    return@launch
-                                                }
-
-                                                if (result.isSuccess) {
-                                                    payViewModel.onPaymentInitiated(
-                                                        transactionId = result.data?.transactionId,
-                                                        referenceCode = result.data?.referenceCode,
-                                                        message = result.data?.message
-                                                    )
-                                                    quoteRefreshPrompt = null
-                                                    formError = null
-                                                } else {
-                                                    val mappedError = when (result.statusCode) {
-                                                        400 -> result.errorMessage ?: "Please check your payment details and try again."
-                                                        401 -> "Session expired. Please sign in again."
-                                                        403 -> result.errorMessage ?: "This operation is currently disabled for your account."
-                                                        404 -> "User or wallet not found."
-                                                        409 -> result.errorMessage ?: "A conflicting merchant payment request already exists."
-                                                        422 -> result.errorMessage ?: "Unable to process this merchant payment right now."
-                                                        429 -> "Too many requests. Please wait 30 seconds and try again."
-                                                        else -> result.errorMessage ?: "Unable to initiate merchant payment."
-                                                    }
-                                                    formError = mappedError
-                                                    payViewModel.onPaymentInitiationFailed(mappedError)
-                                                }
-                                            } finally {
-                                                submitting = false
-                                                holdProgress = 0f
-                                            }
+                                                },
+                                                onQuotePrompt = { prompt -> quoteRefreshPrompt = prompt }
+                                            )
+                                            holdProgress = 0f
                                         }
 
                                         val released = tryAwaitRelease()
@@ -730,7 +596,7 @@ fun PayWithMpesaScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (submitting) "Submitting..." else "Hold 3 seconds to Pay",
+                        text = if (payUiState.isSubmitting) "Submitting..." else "Hold 3 seconds to Pay",
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
                     )

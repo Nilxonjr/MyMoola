@@ -1,5 +1,8 @@
 package com.example.mymoola.features.settings.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,12 +23,15 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.example.mymoola.BackIconButton
 import com.example.mymoola.ui.theme.MyMoolaTheme
 
@@ -52,11 +58,17 @@ fun SettingsScreen(
     onDeleteAccountClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val pageBackground = Color(0xFFF8FAFC)
     val panelBorder = Color(0xFFE2E8F0)
     val panelBackground = Color.White
     val titleColor = Color(0xFF0F172A)
     val mutedText = Color(0xFF64748B)
+    val notificationsAllowed = NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+        (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            )
 
     val sections = listOf(
         SettingsSection(
@@ -76,7 +88,7 @@ fun SettingsScreen(
             title = "Preferences",
             rows = listOf(
                 SettingsRow("Default Currency", "KES"),
-                SettingsRow("Transaction Notifications", "On")
+                SettingsRow("Transaction Notifications", if (notificationsAllowed) "On" else "Off")
             )
         ),
         SettingsSection(

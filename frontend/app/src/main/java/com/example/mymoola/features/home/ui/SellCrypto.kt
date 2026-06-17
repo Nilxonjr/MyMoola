@@ -28,7 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,18 +45,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.mymoola.BackIconButton
-import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 import java.util.Locale
-import java.util.UUID
 import kotlin.math.floor
 
 private const val SellPlatformFeeRate = 0.015
@@ -85,26 +77,11 @@ fun SellCryptoScreen(
     )
     var currencies by remember { mutableStateOf(fallbackCurrencies) }
     var selectedCurrency by rememberSaveable { mutableStateOf("BTC") }
+    val quoteState = rememberTransactionQuoteState(selectedCurrency)
     var amountInput by rememberSaveable { mutableStateOf("") }
     var pin by rememberSaveable { mutableStateOf("") }
-    var quote by remember { mutableStateOf<HomeApiClient.QuoteResponse?>(null) }
-    var loadingQuote by remember { mutableStateOf(false) }
-    var quoteError by remember { mutableStateOf<String?>(null) }
     var quoteRefreshPrompt by remember { mutableStateOf<String?>(null) }
-    var refreshSecondsRemaining by remember { mutableLongStateOf(25L) }
     var holdProgress by remember { mutableFloatStateOf(0f) }
-    var submitting by remember { mutableStateOf(false) }
-    var formError by remember { mutableStateOf<String?>(null) }
-    var activeAttemptKey by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun parseExpiryMillis(value: String): Long {
-        if (value.isBlank()) return 0L
-
-        return runCatching { Instant.parse(value).toEpochMilli() }
-            .recoverCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
-            .recoverCatching { LocalDateTime.parse(value).toInstant(ZoneOffset.UTC).toEpochMilli() }
-            .getOrDefault(0L)
-    }
 
     LaunchedEffect(Unit) {
         val balance = HomeApiClient.getBalance()
@@ -136,53 +113,14 @@ fun SellCryptoScreen(
         }
     }
 
-    LaunchedEffect(selectedCurrency) {
-        loadingQuote = true
-        quoteError = null
-        val result = HomeApiClient.getQuote(selectedCurrency)
-        loadingQuote = false
-        if (result.isSuccess) {
-            quote = result.data
-        } else {
-            quote = null
-            quoteError = result.errorMessage ?: "Unable to load quote."
-        }
-    }
-
-    LaunchedEffect(selectedCurrency, quote?.quoteId, quote != null) {
-        if (quote == null) {
-            refreshSecondsRemaining = 25L
-            return@LaunchedEffect
-        }
-
-        var remaining = 25L
-        refreshSecondsRemaining = remaining
-        while (true) {
-            delay(1000)
-            remaining -= 1
-            refreshSecondsRemaining = remaining.coerceAtLeast(0L)
-            if (remaining <= 0L) {
-                val result = HomeApiClient.getQuote(selectedCurrency)
-                if (result.isSuccess) {
-                    quote = result.data
-                    quoteError = null
-                } else if (quote == null) {
-                    quoteError = result.errorMessage ?: "Unable to refresh quote."
-                }
-                remaining = 25L
-                refreshSecondsRemaining = remaining
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         sellViewModel.startPollingIfNeeded()
     }
 
     val selectedWallet = currencies.firstOrNull { it.code == selectedCurrency }
     val cryptoAmount = amountInput.toDoubleOrNull() ?: 0.0
-    val marketRateKes = quote?.rateKes ?: 0.0
-    val spreadPercent = quote?.spreadPercent ?: 0.0
+    val marketRateKes = quoteState.quote?.rateKes ?: 0.0
+    val spreadPercent = quoteState.quote?.spreadPercent ?: 0.0
     val grossKes = cryptoAmount * marketRateKes
     val platformFeeKes = grossKes * SellPlatformFeeRate
     val spreadKes = grossKes * (spreadPercent / 100.0)
@@ -191,9 +129,9 @@ fun SellCryptoScreen(
     val hasSufficientBalance = cryptoAmount > 0.0 && cryptoAmount <= availableBalance
     val canSubmit = cryptoAmount > 0.0 &&
         pin.length == 4 &&
-        quote != null &&
+        quoteState.quote != null &&
         hasSufficientBalance &&
-        !submitting &&
+        !sellUiState.isSubmitting &&
         sellUiState.pendingTransactionId.isNullOrBlank()
 
     val hasPendingLocator =
@@ -281,13 +219,13 @@ fun SellCryptoScreen(
                     }
                 }
 
-                if (loadingQuote && quote == null) {
+                if (quoteState.loading && quoteState.quote == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Loading quote...", color = Color(0xFF334155))
                     }
-                } else if (quote != null) {
+                } else if (quoteState.quote != null) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -295,22 +233,22 @@ fun SellCryptoScreen(
                             .padding(12.dp)
                     ) {
                         Text(
-                            text = "Sell rate: ${String.format(Locale.US, "%.2f", quote?.sellRateKes ?: 0.0)} KES",
+                            text = "Sell rate: ${String.format(Locale.US, "%.2f", quoteState.quote?.sellRateKes ?: 0.0)} KES",
                             color = Color(0xFF0F172A),
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Quote refreshes in ${refreshSecondsRemaining}s",
-                            color = if (refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
+                            text = "Quote refreshes in ${quoteState.refreshSecondsRemaining}s",
+                            color = if (quoteState.refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                if (!quoteError.isNullOrBlank()) {
+                if (!quoteState.error.isNullOrBlank()) {
                     Text(
-                        text = quoteError ?: "",
+                        text = quoteState.error ?: "",
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -405,7 +343,7 @@ fun SellCryptoScreen(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     visualTransformation = PasswordVisualTransformation(),
-                    enabled = !submitting && sellUiState.pendingTransactionId.isNullOrBlank()
+                    enabled = !sellUiState.isSubmitting && sellUiState.pendingTransactionId.isNullOrBlank()
                 )
 
                 if (cryptoAmount > availableBalance && availableBalance > 0.0) {
@@ -416,9 +354,9 @@ fun SellCryptoScreen(
                     )
                 }
 
-                if (!formError.isNullOrBlank()) {
+                if (!sellUiState.submissionError.isNullOrBlank()) {
                     Text(
-                        text = formError ?: "",
+                        text = sellUiState.submissionError ?: "",
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -429,12 +367,12 @@ fun SellCryptoScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(holdEnabledColor, RoundedCornerShape(12.dp))
-                        .pointerInput(canSubmit, cryptoAmount, pin, quote?.quoteId, selectedCurrency) {
+                        .pointerInput(canSubmit, cryptoAmount, pin, quoteState.quote?.quoteId, selectedCurrency) {
                             detectTapGestures(
                                 onPress = {
                                     if (!canSubmit) return@detectTapGestures
 
-                                    formError = null
+                                    sellViewModel.clearSubmissionError()
                                     holdProgress = 0f
                                     coroutineScope {
                                         var triggered = false
@@ -449,87 +387,22 @@ fun SellCryptoScreen(
                                             }
 
                                             triggered = true
-                                            submitting = true
-                                            try {
-                                                val sessionPin = AuthSession.sessionPin
-                                                if (sessionPin.isNullOrBlank()) {
-                                                    formError = "Session PIN unavailable. Please log in again."
-                                                    return@launch
-                                                }
-                                                if (pin != sessionPin) {
-                                                    formError = "Incorrect PIN. Enter your account PIN to continue."
-                                                    return@launch
-                                                }
-
-                                                val activeQuote = quote
-                                                if (activeQuote == null) {
-                                                    formError = "Quote is unavailable. Please refresh and try again."
-                                                    return@launch
-                                                }
-
-                                                val expiresMs = parseExpiryMillis(activeQuote.expiresAt)
-                                                if (expiresMs <= System.currentTimeMillis()) {
-                                                    val refreshed = HomeApiClient.getQuote(selectedCurrency)
-                                                    if (refreshed.isSuccess && refreshed.data != null) {
-                                                        quote = refreshed.data
-                                                        quoteRefreshPrompt = "Rate updated. Please review new payout and hold Sell again."
-                                                        formError = null
-                                                    } else {
-                                                        formError = refreshed.errorMessage ?: "Quote expired. Unable to refresh rate right now."
-                                                    }
-                                                    return@launch
-                                                }
-
-                                                val key = activeAttemptKey ?: UUID.randomUUID().toString().also { activeAttemptKey = it }
-                                                val result = try {
-                                                    withTimeout(20_000) {
-                                                        HomeApiClient.sellCrypto(
-                                                            request = HomeApiClient.SellCryptoRequest(
-                                                                currency = selectedCurrency,
-                                                                cryptoAmount = cryptoAmount,
-                                                                quoteId = activeQuote.quoteId,
-                                                                pin = pin
-                                                            ),
-                                                            idempotencyKey = key
-                                                        )
-                                                    }
-                                                } catch (_: Exception) {
-                                                    formError = null
-                                                    quoteRefreshPrompt = null
-                                                    sellViewModel.onSellInitiated(
-                                                        transactionId = null,
-                                                        referenceCode = null,
-                                                        message = "Sell request sent. Waiting for payout confirmation."
+                                            val activeQuote = quoteState.quote ?: return@launch
+                                            quoteRefreshPrompt = null
+                                            sellViewModel.submitSell(
+                                                currency = selectedCurrency,
+                                                cryptoAmount = cryptoAmount,
+                                                pin = pin,
+                                                quoteId = activeQuote.quoteId,
+                                                refreshQuoteIfExpired = {
+                                                    quoteState.refreshIfExpired(
+                                                        currency = selectedCurrency,
+                                                        successPrompt = "Rate updated. Please review new payout and hold Sell again."
                                                     )
-                                                    return@launch
-                                                }
-
-                                                if (result.isSuccess) {
-                                                    sellViewModel.onSellInitiated(
-                                                        transactionId = result.data?.transactionId,
-                                                        referenceCode = result.data?.referenceCode,
-                                                        message = result.data?.message
-                                                    )
-                                                    quoteRefreshPrompt = null
-                                                    formError = null
-                                                } else {
-                                                    val mappedError = when (result.statusCode) {
-                                                        400 -> result.errorMessage ?: "Please check your inputs and try again."
-                                                        401 -> "Session expired. Please sign in again."
-                                                        403 -> result.errorMessage ?: "This operation is currently disabled for your account."
-                                                        404 -> "User or wallet not found."
-                                                        409 -> result.errorMessage ?: "A conflicting sell request already exists."
-                                                        422 -> result.errorMessage ?: "Unable to process this payout right now."
-                                                        429 -> "Too many requests. Please wait 30 seconds and try again."
-                                                        else -> result.errorMessage ?: "Unable to initiate sell."
-                                                    }
-                                                    formError = mappedError
-                                                    sellViewModel.onSellInitiationFailed(mappedError)
-                                                }
-                                            } finally {
-                                                submitting = false
-                                                holdProgress = 0f
-                                            }
+                                                },
+                                                onQuotePrompt = { prompt -> quoteRefreshPrompt = prompt }
+                                            )
+                                            holdProgress = 0f
                                         }
 
                                         val released = tryAwaitRelease()
@@ -545,7 +418,7 @@ fun SellCryptoScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (submitting) "Submitting..." else "Hold 3 seconds to Sell",
+                        text = if (sellUiState.isSubmitting) "Submitting..." else "Hold 3 seconds to Sell",
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
                     )

@@ -30,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,18 +48,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.mymoola.BackIconButton
-import com.example.mymoola.features.auth.data.AuthSession
 import com.example.mymoola.features.home.data.HomeApiClient
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 import java.util.Locale
-import java.util.UUID
 
 @Composable
 fun BuyCryptoScreen(
@@ -69,79 +61,25 @@ fun BuyCryptoScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val localContext = LocalContext.current
-    val buyViewModel: BuyViewModel = viewModel()
-    val buyUiState by buyViewModel.uiState.collectAsState()
     val supportedCurrencies = listOf("BTC", "ETH", "USDC")
     var selectedCurrency by rememberSaveable { mutableStateOf("BTC") }
+    val buyViewModel: BuyViewModel = viewModel()
+    val buyUiState by buyViewModel.uiState.collectAsState()
+    val quoteState = rememberTransactionQuoteState(selectedCurrency)
     var amountInput by rememberSaveable { mutableStateOf("1000") }
-    var quote by remember { mutableStateOf<HomeApiClient.QuoteResponse?>(null) }
-    var loadingQuote by remember { mutableStateOf(false) }
-    var quoteError by remember { mutableStateOf<String?>(null) }
     var quoteRefreshPrompt by remember { mutableStateOf<String?>(null) }
-    var refreshSecondsRemaining by remember { mutableLongStateOf(25L) }
     var pin by rememberSaveable { mutableStateOf("") }
     var holdProgress by remember { mutableFloatStateOf(0f) }
-    var submitting by remember { mutableStateOf(false) }
-    var formError by remember { mutableStateOf<String?>(null) }
-    var activeAttemptKey by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun parseExpiryMillis(value: String): Long {
-        if (value.isBlank()) return 0L
-
-        return runCatching { Instant.parse(value).toEpochMilli() }
-            .recoverCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
-            .recoverCatching { LocalDateTime.parse(value).toInstant(ZoneOffset.UTC).toEpochMilli() }
-            .getOrDefault(0L)
-    }
-
-    LaunchedEffect(selectedCurrency) {
-        loadingQuote = true
-        quoteError = null
-        val result = HomeApiClient.getQuote(selectedCurrency)
-        loadingQuote = false
-        if (result.isSuccess) {
-            quote = result.data
-        } else {
-            quote = null
-            quoteError = result.errorMessage ?: "Unable to load quote."
-        }
-    }
-
-    LaunchedEffect(selectedCurrency, quote?.quoteId, quote != null) {
-        if (quote == null) {
-            refreshSecondsRemaining = 25L
-            return@LaunchedEffect
-        }
-
-        var remaining = 25L
-        refreshSecondsRemaining = remaining
-        while (true) {
-            delay(1000)
-            remaining -= 1
-            refreshSecondsRemaining = remaining.coerceAtLeast(0L)
-            if (remaining <= 0L) {
-                val result = HomeApiClient.getQuote(selectedCurrency)
-                if (result.isSuccess) {
-                    quote = result.data
-                    quoteError = null
-                } else if (quote == null) {
-                    quoteError = result.errorMessage ?: "Unable to refresh quote."
-                }
-                remaining = 25L
-                refreshSecondsRemaining = remaining
-            }
-        }
-    }
 
     val grossKes = amountInput.toDoubleOrNull() ?: 0.0
     val platformFee = grossKes * 0.015
     val netKes = (grossKes - platformFee).coerceAtLeast(0.0)
-    val buyRateKes = quote?.buyRateKes ?: 0.0
+    val buyRateKes = quoteState.quote?.buyRateKes ?: 0.0
     val receiveAmount = if (buyRateKes > 0.0) netKes / buyRateKes else 0.0
     val canSubmit = grossKes > 0.0 &&
         pin.length == 4 &&
-        quote != null &&
-        !submitting &&
+        quoteState.quote != null &&
+        !buyUiState.isSubmitting &&
         buyUiState.pendingTransactionId.isNullOrBlank()
 
     val hasPendingLocator =
@@ -250,13 +188,13 @@ fun BuyCryptoScreen(
                     }
                 }
 
-                if (loadingQuote && quote == null) {
+                if (quoteState.loading && quoteState.quote == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(18.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Loading quote...", color = Color(0xFF334155))
                     }
-                } else if (quote != null) {
+                } else if (quoteState.quote != null) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -270,16 +208,16 @@ fun BuyCryptoScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Quote refreshes in ${refreshSecondsRemaining}s",
-                            color = if (refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
+                            text = "Quote refreshes in ${quoteState.refreshSecondsRemaining}s",
+                            color = if (quoteState.refreshSecondsRemaining <= 5) Color(0xFFB91C1C) else Color(0xFF334155),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                if (!quoteError.isNullOrBlank()) {
+                if (!quoteState.error.isNullOrBlank()) {
                     Text(
-                        text = quoteError ?: "",
+                        text = quoteState.error ?: "",
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -372,12 +310,12 @@ fun BuyCryptoScreen(
                         keyboardType = KeyboardType.NumberPassword
                     ),
                     visualTransformation = PasswordVisualTransformation(),
-                    enabled = !submitting && buyUiState.pendingTransactionId.isNullOrBlank()
+                    enabled = !buyUiState.isSubmitting && buyUiState.pendingTransactionId.isNullOrBlank()
                 )
 
-                if (!formError.isNullOrBlank()) {
+                if (!buyUiState.submissionError.isNullOrBlank()) {
                     Text(
-                        text = formError ?: "",
+                        text = buyUiState.submissionError ?: "",
                         color = Color(0xFFB91C1C),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -388,12 +326,12 @@ fun BuyCryptoScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(holdEnabledColor, RoundedCornerShape(12.dp))
-                        .pointerInput(canSubmit, grossKes, pin, quote?.quoteId, selectedCurrency) {
+                        .pointerInput(canSubmit, grossKes, pin, quoteState.quote?.quoteId, selectedCurrency) {
                             detectTapGestures(
                                 onPress = {
                                     if (!canSubmit) return@detectTapGestures
 
-                                    formError = null
+                                    buyViewModel.clearSubmissionError()
                                     holdProgress = 0f
                                     coroutineScope {
                                         var triggered = false
@@ -408,95 +346,22 @@ fun BuyCryptoScreen(
                                             }
 
                                             triggered = true
-                                            submitting = true
-                                            try {
-                                                val sessionPin = AuthSession.sessionPin
-                                                if (sessionPin.isNullOrBlank()) {
-                                                    formError = "Session PIN unavailable. Please log in again."
-                                                    return@launch
-                                                }
-                                                if (pin != sessionPin) {
-                                                    formError = "Incorrect PIN. Enter your account PIN to continue."
-                                                    return@launch
-                                                }
-
-                                                val activeQuote = quote
-                                                if (activeQuote == null) {
-                                                    formError = "Quote is unavailable. Please refresh and try again."
-                                                    return@launch
-                                                }
-
-                                                val expiresMs = parseExpiryMillis(activeQuote.expiresAt)
-                                                if (expiresMs <= System.currentTimeMillis()) {
-                                                    val refreshed = HomeApiClient.getQuote(selectedCurrency)
-                                                    if (refreshed.isSuccess && refreshed.data != null) {
-                                                        quote = refreshed.data
-                                                        quoteRefreshPrompt = "Rate updated. Please review new price and hold Buy again."
-                                                        formError = null
-                                                    } else {
-                                                        formError = refreshed.errorMessage ?: "Quote expired. Unable to refresh rate right now."
-                                                    }
-                                                    return@launch
-                                                }
-
-                                                val key = activeAttemptKey ?: UUID.randomUUID().toString().also { activeAttemptKey = it }
-                                                val result = try {
-                                                    withTimeout(20_000) {
-                                                        HomeApiClient.buyCrypto(
-                                                            request = HomeApiClient.BuyCryptoRequest(
-                                                                currency = selectedCurrency,
-                                                                grossKes = grossKes,
-                                                                quoteId = activeQuote.quoteId,
-                                                                pin = pin
-                                                            ),
-                                                            idempotencyKey = key
-                                                        )
-                                                    }
-                                                } catch (_: Exception) {
-                                                    formError = null
-                                                    quoteRefreshPrompt = null
-                                                    buyViewModel.onBuyInitiated(
-                                                        transactionId = null,
-                                                        referenceCode = null,
-                                                        message = "Payment request sent. Waiting for confirmation."
+                                            val activeQuote = quoteState.quote ?: return@launch
+                                            quoteRefreshPrompt = null
+                                            buyViewModel.submitBuy(
+                                                currency = selectedCurrency,
+                                                grossKes = grossKes,
+                                                pin = pin,
+                                                quoteId = activeQuote.quoteId,
+                                                refreshQuoteIfExpired = {
+                                                    quoteState.refreshIfExpired(
+                                                        currency = selectedCurrency,
+                                                        successPrompt = "Rate updated. Please review new price and hold Buy again."
                                                     )
-                                                    return@launch
-                                                }
-
-                                                if (result.isSuccess) {
-                                                    buyViewModel.onBuyInitiated(
-                                                        transactionId = result.data?.transactionId,
-                                                        referenceCode = result.data?.referenceCode,
-                                                        message = result.data?.message
-                                                    )
-                                                    quoteRefreshPrompt = null
-                                                    formError = null
-                                                } else {
-                                                    val mappedError = when (result.statusCode) {
-                                                        400 -> result.errorMessage ?: "Please check your inputs and try again."
-                                                        401 -> "Session expired. Please sign in again."
-                                                        403 -> result.errorMessage ?: "This operation is currently disabled for your account."
-                                                        404 -> "User or wallet not found."
-                                                        422 -> "Quote expired. Fetching latest rate..."
-                                                        429 -> "Too many requests. Please wait 30 seconds and try again."
-                                                        else -> result.errorMessage ?: "Unable to initiate payment."
-                                                    }
-                                                    val error = mappedError
-                                                    formError = error
-                                                    buyViewModel.onBuyInitiationFailed(error)
-
-                                                    if (result.statusCode == 422) {
-                                                        val refreshed = HomeApiClient.getQuote(selectedCurrency)
-                                                        if (refreshed.isSuccess && refreshed.data != null) {
-                                                            quote = refreshed.data
-                                                            quoteRefreshPrompt = "Quote expired. New rate loaded. Review and hold Buy again."
-                                                        }
-                                                    }
-                                                }
-                                            } finally {
-                                                submitting = false
-                                                holdProgress = 0f
-                                            }
+                                                },
+                                                onQuotePrompt = { prompt -> quoteRefreshPrompt = prompt }
+                                            )
+                                            holdProgress = 0f
                                         }
 
                                         val released = tryAwaitRelease()
@@ -512,7 +377,7 @@ fun BuyCryptoScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (submitting) "Submitting..." else "Hold 3 seconds to Buy",
+                        text = if (buyUiState.isSubmitting) "Submitting..." else "Hold 3 seconds to Buy",
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
                     )
