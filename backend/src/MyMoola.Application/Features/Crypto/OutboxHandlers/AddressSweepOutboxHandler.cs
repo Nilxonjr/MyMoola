@@ -131,7 +131,7 @@ public sealed class AddressSweepOutboxHandler(
                     "Address={Address} EthBalance={Balance} Required={Required} Funding={Funding}",
                     depositAddress.Address, ethBalance, estimatedGas, fundingAmount);
 
-                var fundingTxHash = await blockchain.BroadcastWithdrawalAsync(
+                var fundingTxHash = await blockchain.BroadcastErc20WithdrawalAsync(
                     toAddress: depositAddress.Address,
                     amount: fundingAmount,
                     currency: Currency.ETH,

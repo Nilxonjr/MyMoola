@@ -106,6 +106,7 @@ public sealed class BlockchainService(
     // Fix C: Use TransactionManager for remote signing via Alchemy
     // -------------------------------------------------------------------------
 
+    [Obsolete]
     public async Task<string> BroadcastWithdrawalAsync(
         string toAddress,
         decimal amount,
@@ -245,7 +246,7 @@ public sealed class BlockchainService(
             "Sweeping {Amount} {Currency} from {From} to {To}",
             amount, currency, fromAddress, toAddress);
 
-        return await BroadcastWithdrawalAsync(toAddress, amount, currency, fromIndex, ct);
+        return await BroadcastErc20WithdrawalAsync(toAddress, amount, currency, fromIndex, ct);
     }
 
     // -------------------------------------------------------------------------
