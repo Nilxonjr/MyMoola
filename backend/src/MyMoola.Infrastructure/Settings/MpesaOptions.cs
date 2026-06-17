@@ -24,4 +24,7 @@ public sealed class MpesaOptions
     public string B2BRequester { get; init; } = default!;
 
     public string B2CShortCode { get; init; } = default!;
+
+    public string B2BTillTestNumber { get; init; } = "600000";
+    public string B2BTillTestAccountReference { get; init; } = "353353";
 }
