@@ -78,8 +78,8 @@ public sealed class BlockchainService(
             var contract = web3.Eth.GetContract(Erc20Abi, contractAddress);
             var balanceOf = contract.GetFunction("balanceOf");
             var raw = await balanceOf.CallAsync<BigInteger>(address);
-            // USDC and WBTC use 6 decimals on Sepolia
-            return (decimal)raw / 1_000_000m;
+            var decimals = GetTokenDecimals(currency);
+            return (decimal)raw / (decimal)Math.Pow(10, decimals);
         }
 
         throw new InvalidOperationException($"Currency {currency} is not supported for balance queries.");
@@ -134,7 +134,7 @@ public sealed class BlockchainService(
             var gas = new Nethereum.Hex.HexTypes.HexBigInteger(50_000);
 
             // Fix A: convert decimal to BigInteger via string — no long cast
-            var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
+            var tokenUnits = DecimalToTokenUnits(amount, GetTokenDecimals(currency));
 
             // Fix C: SendTransactionAndWaitForReceiptAsync uses TransactionManager
             var receipt = await transfer.SendTransactionAndWaitForReceiptAsync(
@@ -191,7 +191,7 @@ public sealed class BlockchainService(
             var transfer = contract.GetFunction("transfer");
 
             // 1. Convert decimal to BigInteger token units (e.g., 6 decimals for USDC)
-            var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
+            var tokenUnits = DecimalToTokenUnits(amount, GetTokenDecimals(currency));
 
             // 2. Compute the Gas Limit internally using your local estimation logic
             // For your estimation logic call, we pass the parameters directly 
@@ -428,7 +428,7 @@ public sealed class BlockchainService(
         var transferFunction = contract.GetFunction("transfer");
 
         // Convert decimal to BigInteger token units (e.g., 6 decimals for USDC)
-        var tokenUnits = DecimalToTokenUnits(amount, decimals: 6);
+        var tokenUnits = DecimalToTokenUnits(amount, GetTokenDecimals(currency));
 
         try
         {
@@ -452,5 +452,12 @@ public sealed class BlockchainService(
             return 100_000;
         }
     }
+
+    private static int GetTokenDecimals(Currency currency) => currency switch
+    {
+        Currency.USDC => 6,
+        Currency.BTC => 8,
+        _ => throw new InvalidOperationException($"Unsupported ERC-20 currency: {currency}")
+    };
 }
 
