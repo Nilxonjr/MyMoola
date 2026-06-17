@@ -163,15 +163,15 @@ public sealed class AddressSweepOutboxHandler(
         var tokenBalance = await blockchain
             .GetBalanceAsync(depositAddress.Address, payload.Currency, ct);
 
-        if (tokenBalance <= 1)
-        {
-            logger.LogWarning(
-                "No token balance to sweep. Address={Address} Currency={Currency}",
-                depositAddress.Address, payload.Currency);
-            depositAddress.ClearGasFundingTxHash();
-            await uow.SaveChangesAsync(ct);
-            return;
-        }
+        //if (tokenBalance <= 1)
+        //{
+        //    logger.LogWarning(
+        //        "No token balance to sweep. Address={Address} Currency={Currency}",
+        //        depositAddress.Address, payload.Currency);
+        //    depositAddress.ClearGasFundingTxHash();
+        //    await uow.SaveChangesAsync(ct);
+        //    return;
+        //}
 
         var sweepTxHash = await blockchain.BroadcastSweepAsync(
             fromAddress: depositAddress.Address,
