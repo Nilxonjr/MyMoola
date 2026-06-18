@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -33,6 +34,13 @@ private fun String?.isFailedWithdrawalStatus(): Boolean {
         value.equals("Cancelled", ignoreCase = true) ||
         value.equals("Canceled", ignoreCase = true) ||
         value.equals("Timeout", ignoreCase = true)
+}
+
+internal fun Throwable.shouldPollPendingWithdrawal(): Boolean =
+    this is TimeoutCancellationException
+
+internal fun clearWithdrawAttempt(savedStateHandle: SavedStateHandle) {
+    savedStateHandle[WithdrawViewModel.ActiveAttemptKey] = null
 }
 
 data class WithdrawUiState(
@@ -92,6 +100,7 @@ class WithdrawViewModel(
     }
 
     fun onWithdrawInitiationFailed(errorMessage: String) {
+        clearActiveAttemptKey()
         updateState { it.copy(finalOutcome = errorMessage, isSubmitting = false, submissionError = errorMessage) }
     }
 
@@ -148,12 +157,16 @@ class WithdrawViewModel(
                             idempotencyKey = key
                         )
                     }
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    if (!error.shouldPollPendingWithdrawal()) {
+                        onWithdrawInitiationFailed("Network error while initiating withdrawal.")
+                        return@launch
+                    }
                     onWithdrawInitiated(
                         transactionId = null,
                         referenceCode = null,
                         toAddress = toAddress,
-                        message = "Withdrawal request sent. Waiting for network confirmation."
+                        message = "Withdrawal status is unknown. Checking recent activity for confirmation."
                     )
                     return@launch
                 }
@@ -185,6 +198,7 @@ class WithdrawViewModel(
     }
 
     fun clearTerminalOutcome() {
+        clearActiveAttemptKey()
         updateState {
             it.copy(
                 pendingMessage = null,
@@ -256,6 +270,7 @@ class WithdrawViewModel(
 
         when {
             tx == null && startedAtMs != null && System.currentTimeMillis() - startedAtMs > 300_000L -> {
+                clearActiveAttemptKey()
                 updateState {
                     it.copy(
                         pendingReference = null,
@@ -269,6 +284,7 @@ class WithdrawViewModel(
             }
             tx == null -> return false
             normalizedStatus.isCompletedWithdrawalStatus() -> {
+                clearActiveAttemptKey()
                 updateState {
                     it.copy(
                         pendingMessage = "Withdrawal confirmed on network.",
@@ -282,6 +298,7 @@ class WithdrawViewModel(
                 return true
             }
             normalizedStatus.isFailedWithdrawalStatus() -> {
+                clearActiveAttemptKey()
                 updateState {
                     it.copy(
                         pendingMessage = "Withdrawal failed.",
@@ -319,6 +336,10 @@ class WithdrawViewModel(
         savedStateHandle[KEY_FINAL_OUTCOME] = next.finalOutcome
     }
 
+    private fun clearActiveAttemptKey() {
+        clearWithdrawAttempt(savedStateHandle)
+    }
+
     companion object {
         private const val KEY_PENDING_MESSAGE = "withdraw_pending_message"
         private const val KEY_PENDING_REFERENCE = "withdraw_pending_reference"
@@ -328,5 +349,6 @@ class WithdrawViewModel(
         private const val KEY_PENDING_TO_ADDRESS = "withdraw_pending_to_address"
         private const val KEY_FINAL_OUTCOME = "withdraw_final_outcome"
         private const val KEY_ACTIVE_ATTEMPT_KEY = "withdraw_active_attempt_key"
+        internal const val ActiveAttemptKey = KEY_ACTIVE_ATTEMPT_KEY
     }
 }

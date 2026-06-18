@@ -193,12 +193,12 @@ fun PayWithMpesaScreen(
     val hasPendingLocator =
         !payUiState.pendingTransactionId.isNullOrBlank() || !payUiState.pendingReference.isNullOrBlank()
     val showPendingScreen = hasPendingLocator &&
-        (payUiState.pendingStatus.equals("Pending", ignoreCase = true) ||
-            payUiState.pendingStatus.equals("Processing", ignoreCase = true))
+        !payUiState.pendingStatus.isCompletedMerchantPaymentStatus() &&
+        !payUiState.pendingStatus.isFailedMerchantPaymentStatus()
     val showSuccessScreen =
-        payUiState.pendingStatus.equals("Completed", ignoreCase = true)
+        !hasPendingLocator && payUiState.pendingStatus.isCompletedMerchantPaymentStatus()
     val showFailedScreen =
-        payUiState.pendingStatus.equals("Failed", ignoreCase = true)
+        !hasPendingLocator && payUiState.pendingStatus.isFailedMerchantPaymentStatus()
 
     Column(
         modifier = Modifier

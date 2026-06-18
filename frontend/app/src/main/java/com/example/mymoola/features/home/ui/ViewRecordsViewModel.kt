@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.Locale
 
 data class ViewRecordItem(
@@ -51,6 +53,17 @@ class ViewRecordsViewModel : ViewModel() {
 
             val me = HomeApiClient.getMe()
             val currentUserId = if (me.isSuccess) me.data?.id.orEmpty() else ""
+            if (currentUserId.isBlank()) {
+                updateState {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = me.errorMessage ?: "Unable to identify your account. Please try again.",
+                        currentUserId = "",
+                        records = emptyList()
+                    )
+                }
+                return@launch
+            }
 
             val result = HomeApiClient.getAllTransactions()
             if (result.isSuccess) {
@@ -99,7 +112,7 @@ private fun mapRecords(
                 ?: group.firstOrNull { it.initiatorUserId.equals(currentUserId, ignoreCase = true) }
                 ?: group.first()
         }
-        .sortedByDescending { it.createdAt }
+        .sortedByDescending { parseRecordEpochMillis(it.createdAt) ?: Long.MIN_VALUE }
         .map { tx ->
             val isSendType = tx.type.equals("Send", ignoreCase = true)
             val isInitiator = tx.initiatorUserId.equals(currentUserId, ignoreCase = true)
@@ -118,7 +131,7 @@ private fun mapRecords(
                 isSendType && isInitiator -> false
                 else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
             }
-            val isFailed = tx.status.equals("Failed", ignoreCase = true)
+            val isFailed = tx.status.isFailedRecordStatus()
             val amountColor = when {
                 isFailed -> Color(0xFFDC2626)
                 isCredit -> Color(0xFF10B981)
@@ -148,6 +161,15 @@ private fun mapRecords(
         }
 }
 
+internal fun String?.isFailedRecordStatus(): Boolean {
+    val value = this?.trim().orEmpty()
+    return value.equals("Failed", ignoreCase = true) ||
+        value.equals("Declined", ignoreCase = true) ||
+        value.equals("Cancelled", ignoreCase = true) ||
+        value.equals("Canceled", ignoreCase = true) ||
+        value.equals("Timeout", ignoreCase = true)
+}
+
 private fun recordsMerchantPaymentLabel(merchantType: String?): String? = when (merchantType?.trim()?.lowercase(Locale.US)) {
     "paybill" -> "Paybill"
     "till" -> "Till"
@@ -170,6 +192,12 @@ private fun formatRecordDate(raw: String): String {
         }
     }
     return raw
+}
+
+internal fun parseRecordEpochMillis(raw: String): Long? {
+    return runCatching { Instant.parse(raw).toEpochMilli() }
+        .recoverCatching { OffsetDateTime.parse(raw).toInstant().toEpochMilli() }
+        .getOrNull()
 }
 
 private fun formatMeaningfulRecordAmount(amount: Double): String {
