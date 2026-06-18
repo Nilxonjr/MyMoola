@@ -19,4 +19,4 @@ public sealed record B2BResultParameters(
 
 public sealed record B2BResultParameter(
     [property: JsonPropertyName("Key")] string Key,
-    [property: JsonPropertyName("Value")] JsonElement Value);
+    [property: JsonPropertyName("Value")] object? Value);
