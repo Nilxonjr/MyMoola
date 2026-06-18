@@ -82,7 +82,7 @@ public sealed class MpesaCallbackController(
     //    return Ok();
     //}
 
-    [HttpPost("b2b")]
+    //[HttpPost("b2b")]
     //public async Task<IActionResult> B2BCallback(
     //[FromBody] JsonElement raw,
     //CancellationToken ct)
