@@ -83,25 +83,41 @@ public sealed class MpesaCallbackController(
     //}
 
     [HttpPost("b2b")]
+    //public async Task<IActionResult> B2BCallback(
+    //[FromBody] JsonElement raw,
+    //CancellationToken ct)
+    //{
+    //    logger.LogInformation("Raw B2B callback: {Raw}", raw.GetRawText());
+
+    //    try
+    //    {
+    //        var callback = JsonSerializer.Deserialize<B2BCallbackPayload>(
+    //            raw.GetRawText(),
+    //            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+    //        await sender.Send(new ProcessB2BCallbackCommand(callback!), ct);
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        logger.LogError(ex, "B2B callback handler failed.");
+    //    }
+
+    //    return Ok();
+    //}
+
+    [HttpPost("b2b")]
     public async Task<IActionResult> B2BCallback(
-    [FromBody] JsonElement raw,
+    [FromBody] B2BCallbackPayload callback,
     CancellationToken ct)
     {
-        logger.LogInformation("Raw B2B callback: {Raw}", raw.GetRawText());
-
         try
         {
-            var callback = JsonSerializer.Deserialize<B2BCallbackPayload>(
-                raw.GetRawText(),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            await sender.Send(new ProcessB2BCallbackCommand(callback!), ct);
+            await sender.Send(new ProcessB2BCallbackCommand(callback), ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "B2B callback handler failed.");
         }
-
         return Ok();
     }
 
