@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import com.example.mymoola.ui.theme.MyMoolaTheme
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -51,6 +52,7 @@ import com.example.mymoola.features.settings.ui.LogoutScreen
 import com.example.mymoola.features.settings.ui.ProfileSummaryScreen
 import com.example.mymoola.features.settings.ui.SettingsScreen
 import com.example.mymoola.features.settings.ui.TransactionNotificationsScreen
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private companion object {
@@ -63,7 +65,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        syncWalletRealtime()
+        lifecycleScope.launch {
+            refreshSessionForRealtimeIfPossible()
+            syncWalletRealtime()
+        }
     }
 
     override fun onStop() {
@@ -431,6 +436,13 @@ class MainActivity : ComponentActivity() {
             WalletNotificationHelper.showWalletCredited(this, payload)
         }
         WalletRealtimeClient.connect()
+    }
+
+    private suspend fun refreshSessionForRealtimeIfPossible() {
+        if (AuthSession.refreshToken.isNullOrBlank()) return
+        if (!AuthApiClient.refreshSession() && AuthSession.accessToken.isNullOrBlank()) {
+            stopWalletRealtime()
+        }
     }
 
     private fun stopWalletRealtime() {

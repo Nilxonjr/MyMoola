@@ -38,6 +38,15 @@ data class HomeUiState(
     val hasLoadedActivities: Boolean = false
 )
 
+internal fun String?.isFailedHomeStatus(): Boolean {
+    val value = this?.trim().orEmpty()
+    return value.equals("Failed", ignoreCase = true) ||
+        value.equals("Declined", ignoreCase = true) ||
+        value.equals("Cancelled", ignoreCase = true) ||
+        value.equals("Canceled", ignoreCase = true) ||
+        value.equals("Timeout", ignoreCase = true)
+}
+
 class HomeViewModel : ViewModel() {
     private companion object {
         const val WalletCreditedListenerKey = "home_view_model"
@@ -135,6 +144,14 @@ class HomeViewModel : ViewModel() {
             val meResult = meDeferred.await()
             if (meResult.isSuccess) {
                 val me = meResult.data
+                if (me?.id.isNullOrBlank()) {
+                    updateState {
+                        it.copy(
+                            activitiesError = "Unable to identify your account. Please refresh and try again.",
+                            hasLoadedActivities = true
+                        )
+                    }
+                }
                 updateState {
                     it.copy(
                         userName = me?.fullName?.ifBlank { "User" } ?: "User",
@@ -203,12 +220,14 @@ class HomeViewModel : ViewModel() {
         }
 
         cachedBalance?.let { applyBalance(it) }
-        cachedTransactions?.let { applyTransactions(it, _uiState.value.currentUserId) }
+        if (!_uiState.value.currentUserId.isNullOrBlank()) {
+            cachedTransactions?.let { applyTransactions(it, _uiState.value.currentUserId) }
+        }
         if (hasAnyCachedData) {
             updateState {
                 it.copy(
                     hasLoadedBalance = cachedBalance != null || it.hasLoadedBalance,
-                    hasLoadedActivities = !cachedTransactions.isNullOrEmpty() || it.hasLoadedActivities
+                    hasLoadedActivities = (cachedTransactions != null && !_uiState.value.currentUserId.isNullOrBlank()) || it.hasLoadedActivities
                 )
             }
         }
@@ -245,7 +264,16 @@ class HomeViewModel : ViewModel() {
     }
 
     private fun applyTransactions(all: List<HomeApiClient.UserTransaction>, userId: String) {
-        if (userId.isBlank()) return
+        if (userId.isBlank()) {
+            updateState {
+                it.copy(
+                    activities = emptyList(),
+                    activitiesError = "Unable to identify your account. Please refresh and try again.",
+                    hasLoadedActivities = true
+                )
+            }
+            return
+        }
         val txs = all
             .filter { tx ->
                 tx.initiatorUserId.equals(userId, ignoreCase = true) ||
@@ -280,7 +308,7 @@ class HomeViewModel : ViewModel() {
                 else -> tx.type.uppercase(Locale.US) in setOf("BUY", "DEPOSIT", "RECEIVE")
             }
 
-            val isFailed = tx.status.equals("Failed", ignoreCase = true)
+            val isFailed = tx.status.isFailedHomeStatus()
             val amountColor = when {
                 isFailed -> androidx.compose.ui.graphics.Color(0xFFDC2626)
                 isCredit -> androidx.compose.ui.graphics.Color(0xFF10B981)
@@ -319,7 +347,7 @@ class HomeViewModel : ViewModel() {
             )
         }
 
-        updateState { it.copy(activities = activities, hasLoadedActivities = true) }
+        updateState { it.copy(activities = activities, activitiesError = null, hasLoadedActivities = true) }
     }
 
     private fun updateState(transform: (HomeUiState) -> HomeUiState) {

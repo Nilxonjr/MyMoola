@@ -11,11 +11,35 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.Locale
 import java.util.UUID
+
+internal fun String?.isCompletedMerchantPaymentStatus(): Boolean {
+    val value = this?.trim().orEmpty()
+    return value.equals("Completed", ignoreCase = true) ||
+        value.equals("Success", ignoreCase = true) ||
+        value.equals("Succeeded", ignoreCase = true)
+}
+
+internal fun String?.isFailedMerchantPaymentStatus(): Boolean {
+    val value = this?.trim().orEmpty()
+    return value.equals("Failed", ignoreCase = true) ||
+        value.equals("Declined", ignoreCase = true) ||
+        value.equals("Cancelled", ignoreCase = true) ||
+        value.equals("Canceled", ignoreCase = true) ||
+        value.equals("Timeout", ignoreCase = true)
+}
+
+internal fun Throwable.shouldPollPendingMerchantPayment(): Boolean =
+    this is TimeoutCancellationException
+
+internal fun clearMerchantPaymentAttempt(savedStateHandle: SavedStateHandle) {
+    savedStateHandle[PayWithMpesaViewModel.ActiveAttemptKey] = null
+}
 
 data class PayWithMpesaUiState(
     val pendingMessage: String? = null,
@@ -70,6 +94,7 @@ class PayWithMpesaViewModel(
     }
 
     fun onPaymentInitiationFailed(errorMessage: String) {
+        clearActiveAttemptKey()
         updateState { it.copy(finalOutcome = errorMessage, isSubmitting = false, submissionError = errorMessage) }
     }
 
@@ -113,11 +138,15 @@ class PayWithMpesaViewModel(
                     withTimeout(20_000) {
                         HomeApiClient.payMerchant(request, key)
                     }
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    if (!error.shouldPollPendingMerchantPayment()) {
+                        onPaymentInitiationFailed("Network error while initiating merchant payment.")
+                        return@launch
+                    }
                     onPaymentInitiated(
                         transactionId = null,
                         referenceCode = null,
-                        message = "Payment request sent. Waiting for merchant confirmation."
+                        message = "Payment status is unknown. Checking recent activity for confirmation."
                     )
                     return@launch
                 }
@@ -148,6 +177,7 @@ class PayWithMpesaViewModel(
     }
 
     fun clearTerminalOutcome() {
+        clearActiveAttemptKey()
         updateState {
             it.copy(
                 pendingMessage = null,
@@ -216,17 +246,10 @@ class PayWithMpesaViewModel(
             .maxByOrNull { parseEpochMillis(it.createdAt) ?: Long.MIN_VALUE }
 
         val normalizedStatus = tx?.status?.trim().orEmpty()
-        val isCompleted = normalizedStatus.equals("Completed", ignoreCase = true) ||
-            normalizedStatus.equals("Success", ignoreCase = true) ||
-            normalizedStatus.equals("Succeeded", ignoreCase = true)
-        val isFailed = normalizedStatus.equals("Failed", ignoreCase = true) ||
-            normalizedStatus.equals("Declined", ignoreCase = true) ||
-            normalizedStatus.equals("Cancelled", ignoreCase = true) ||
-            normalizedStatus.equals("Canceled", ignoreCase = true) ||
-            normalizedStatus.equals("Timeout", ignoreCase = true)
 
         when {
             tx == null && startedAtMs != null && System.currentTimeMillis() - startedAtMs > 180_000L -> {
+                clearActiveAttemptKey()
                 updateState {
                     it.copy(
                         pendingReference = null,
@@ -239,7 +262,8 @@ class PayWithMpesaViewModel(
                 return true
             }
             tx == null -> return false
-            isCompleted -> {
+            normalizedStatus.isCompletedMerchantPaymentStatus() -> {
+                clearActiveAttemptKey()
                 updateState {
                     it.copy(
                         pendingMessage = "Merchant payment completed.",
@@ -252,7 +276,8 @@ class PayWithMpesaViewModel(
                 }
                 return true
             }
-            isFailed -> {
+            normalizedStatus.isFailedMerchantPaymentStatus() -> {
+                clearActiveAttemptKey()
                 updateState {
                     it.copy(
                         pendingMessage = "Merchant payment failed.",
@@ -289,6 +314,10 @@ class PayWithMpesaViewModel(
         savedStateHandle[KEY_FINAL_OUTCOME] = next.finalOutcome
     }
 
+    private fun clearActiveAttemptKey() {
+        clearMerchantPaymentAttempt(savedStateHandle)
+    }
+
     companion object {
         private const val KEY_PENDING_MESSAGE = "pay_mpesa_pending_message"
         private const val KEY_PENDING_REFERENCE = "pay_mpesa_pending_reference"
@@ -297,5 +326,6 @@ class PayWithMpesaViewModel(
         private const val KEY_PENDING_STATUS = "pay_mpesa_pending_status"
         private const val KEY_FINAL_OUTCOME = "pay_mpesa_final_outcome"
         private const val KEY_ACTIVE_ATTEMPT_KEY = "pay_mpesa_active_attempt_key"
+        internal const val ActiveAttemptKey = KEY_ACTIVE_ATTEMPT_KEY
     }
 }

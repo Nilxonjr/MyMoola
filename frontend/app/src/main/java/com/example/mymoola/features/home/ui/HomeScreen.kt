@@ -120,7 +120,7 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner, homeViewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                homeViewModel.refreshForNavigation()
+                homeViewModel.onPullRefresh()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -131,7 +131,7 @@ fun HomeScreen(
 
     LaunchedEffect(refreshNonce) {
         if (refreshNonce != 0L) {
-            homeViewModel.refreshForNavigation()
+            homeViewModel.onPullRefresh()
         }
     }
 
