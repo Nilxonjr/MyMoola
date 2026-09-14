@@ -18,4 +18,19 @@ appsettings.Production.json
 .gradle/
 local.properties
 
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.build/
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+Pods/
+Secrets.xcconfig
+
+# Local iOS working agreement
+ios/AGENTS.md
+
 launchSettings.json
