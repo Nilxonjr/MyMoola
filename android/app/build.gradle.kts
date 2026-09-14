@@ -17,7 +17,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        buildConfigField("String", "API_BASE_URL", "\"https://mymoola-production-fbca.up.railway.app/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://mymoola-production-4ca7.up.railway.app/\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

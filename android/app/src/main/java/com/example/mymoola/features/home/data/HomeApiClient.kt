@@ -226,10 +226,10 @@ object HomeApiClient {
         runCatching {
             val firstAttempt = executeAuthorizedGet("/api/users/me/balance?currency=KES")
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedGet("/api/users/me/balance?currency=KES")
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedGet("/api/users/me/balance?currency=KES")
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -271,10 +271,10 @@ object HomeApiClient {
 
                 val firstAttempt = executeAuthorizedGet(path)
                 val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                    executeAuthorizedGet(path)
-                } else {
-                    firstAttempt
-                }
+                        executeAuthorizedGet(path)
+                    } else {
+                        firstAttempt
+                    }
 
                 val code = finalAttempt.statusCode
                 val body = finalAttempt.body
@@ -291,8 +291,14 @@ object HomeApiClient {
                     val normalizedMessage = when {
                         code == HttpURLConnection.HTTP_NOT_FOUND ->
                             "No user found with phone number $phoneNumber."
+
                         rawMessage.contains("user with key", ignoreCase = true) ->
-                            rawMessage.replace("user with key", "user with phone number", ignoreCase = true)
+                            rawMessage.replace(
+                                "user with key",
+                                "user with phone number",
+                                ignoreCase = true
+                            )
+
                         else -> rawMessage
                     }
                     ApiResult(errorMessage = normalizedMessage, statusCode = code)
@@ -310,10 +316,10 @@ object HomeApiClient {
 
                 val firstAttempt = executeAuthorizedGet(path)
                 val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                    executeAuthorizedGet(path)
-                } else {
-                    firstAttempt
-                }
+                        executeAuthorizedGet(path)
+                    } else {
+                        firstAttempt
+                    }
 
                 val code = finalAttempt.statusCode
                 val body = finalAttempt.body
@@ -346,10 +352,10 @@ object HomeApiClient {
             runCatching {
                 val firstAttempt = executeAuthorizedSend(request)
                 val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                    executeAuthorizedSend(request)
-                } else {
-                    firstAttempt
-                }
+                        executeAuthorizedSend(request)
+                    } else {
+                        firstAttempt
+                    }
 
                 val code = finalAttempt.statusCode
                 val body = finalAttempt.body
@@ -371,79 +377,79 @@ object HomeApiClient {
         }
 
     suspend fun getAllTransactions(): ApiResult<List<UserTransaction>> = withContext(Dispatchers.IO) {
-        runCatching {
-            val collected = mutableListOf<UserTransaction>()
-            var page = 1
-            val pageSize = 50
-            var totalPages = 1
+            runCatching {
+                val collected = mutableListOf<UserTransaction>()
+                var page = 1
+                val pageSize = 50
+                var totalPages = 1
 
-            do {
-                val path = "/api/users/me/transactions?page=$page&pageSize=$pageSize"
-                val firstAttempt = executeAuthorizedGet(path)
-                val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                    executeAuthorizedGet(path)
-                } else {
-                    firstAttempt
-                }
-
-                val code = finalAttempt.statusCode
-                val body = finalAttempt.body
-                if (code != HttpURLConnection.HTTP_OK) {
-                    return@runCatching ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
-                }
-
-                val json = JSONObject(body)
-                totalPages = json.optInt("totalPages", 1).coerceAtLeast(1)
-                val items = json.optJSONArray("items") ?: JSONArray()
-                for (i in 0 until items.length()) {
-                    val item = items.getJSONObject(i)
-                    val metadata = item.optString("metadata").ifBlank { null }
-                    val metadataJson = metadata
-                        ?.let { raw -> runCatching { JSONObject(raw) }.getOrNull() }
-                    val merchantType = metadataJson
-                        ?.let { meta ->
-                            meta.optString("merchantType").ifBlank {
-                                meta.optString("MerchantType")
-                            }
+                do {
+                    val path = "/api/users/me/transactions?page=$page&pageSize=$pageSize"
+                    val firstAttempt = executeAuthorizedGet(path)
+                    val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
+                            executeAuthorizedGet(path)
+                        } else {
+                            firstAttempt
                         }
-                        ?.ifBlank { null }
-                    val receiverName = metadataJson
-                        ?.let { meta ->
-                            meta.optString("receiverName").ifBlank {
-                                meta.optString("ReceiverName")
+
+                    val code = finalAttempt.statusCode
+                    val body = finalAttempt.body
+                    if (code != HttpURLConnection.HTTP_OK) {
+                        return@runCatching ApiResult(errorMessage = extractErrorMessage(body, code), statusCode = code)
+                    }
+
+                    val json = JSONObject(body)
+                    totalPages = json.optInt("totalPages", 1).coerceAtLeast(1)
+                    val items = json.optJSONArray("items") ?: JSONArray()
+                    for (i in 0 until items.length()) {
+                        val item = items.getJSONObject(i)
+                        val metadata = item.optString("metadata").ifBlank { null }
+                        val metadataJson = metadata
+                            ?.let { raw -> runCatching { JSONObject(raw) }.getOrNull() }
+                        val merchantType = metadataJson
+                            ?.let { meta ->
+                                meta.optString("merchantType").ifBlank {
+                                    meta.optString("MerchantType")
+                                }
                             }
-                        }
-                        ?.ifBlank { null }
-                    collected.add(
-                        UserTransaction(
-                            id = item.optString("id"),
-                            referenceCode = item.optString("referenceCode"),
-                            type = item.optString("type"),
-                            merchantType = merchantType,
-                            receiverName = receiverName,
-                            status = item.optString("status"),
-                            initiatorUserId = item.optString("initiatorUserId").ifBlank { null },
-                            counterpartyUserId = item.optString("counterpartyUserId").ifBlank { null },
-                            interactedPhone = item.optString("interactedPhone").ifBlank { null },
-                            currency = item.optString("currency"),
-                            amount = item.optDouble("amount", 0.0),
-                            createdAt = item.optString("createdAt"),
-                            marketRateSnapshot = item.optDouble("marketRateSnapshot").takeUnless { item.isNull("marketRateSnapshot") },
-                            onChainTxHash = item.optString("onChainTxHash").ifBlank { null },
-                            onChainConfirmations = item.optInt("onChainConfirmations", 0),
-                            mpesaReference = item.optString("mpesaReference").ifBlank { null }
+                            ?.ifBlank { null }
+                        val receiverName = metadataJson
+                            ?.let { meta ->
+                                meta.optString("receiverName").ifBlank {
+                                    meta.optString("ReceiverName")
+                                }
+                            }
+                            ?.ifBlank { null }
+                        collected.add(
+                            UserTransaction(
+                                id = item.optString("id"),
+                                referenceCode = item.optString("referenceCode"),
+                                type = item.optString("type"),
+                                merchantType = merchantType,
+                                receiverName = receiverName,
+                                status = item.optString("status"),
+                                initiatorUserId = item.optString("initiatorUserId").ifBlank { null },
+                                counterpartyUserId = item.optString("counterpartyUserId").ifBlank { null },
+                                interactedPhone = item.optString("interactedPhone").ifBlank { null },
+                                currency = item.optString("currency"),
+                                amount = item.optDouble("amount", 0.0),
+                                createdAt = item.optString("createdAt"),
+                                marketRateSnapshot = item.optDouble("marketRateSnapshot").takeUnless { item.isNull("marketRateSnapshot") },
+                                onChainTxHash = item.optString("onChainTxHash").ifBlank { null },
+                                onChainConfirmations = item.optInt("onChainConfirmations", 0),
+                                mpesaReference = item.optString("mpesaReference").ifBlank { null }
+                            )
                         )
-                    )
-                }
+                    }
 
-                page += 1
-            } while (page <= totalPages)
+                    page += 1
+                } while (page <= totalPages)
 
-            ApiResult(data = collected).also { cachedTransactions = it.data }
-        }.getOrElse {
-            ApiResult(errorMessage = "Network error while loading transactions.")
+                ApiResult(data = collected).also { cachedTransactions = it.data }
+            }.getOrElse {
+                ApiResult(errorMessage = "Network error while loading transactions.")
+            }
         }
-    }
 
     suspend fun getRatesHistory(
         currencies: List<String>,
@@ -458,10 +464,10 @@ object HomeApiClient {
 
             val firstAttempt = executeAuthorizedGet(path)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedGet(path)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedGet(path)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -526,10 +532,10 @@ object HomeApiClient {
 
             val firstAttempt = executeAuthorizedGet(path)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedGet(path)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedGet(path)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -561,10 +567,10 @@ object HomeApiClient {
         runCatching {
             val firstAttempt = executeAuthorizedBuy(request, idempotencyKey)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedBuy(request, idempotencyKey)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedBuy(request, idempotencyKey)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -633,10 +639,10 @@ object HomeApiClient {
         runCatching {
             val firstAttempt = executeAuthorizedSell(request, idempotencyKey)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedSell(request, idempotencyKey)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedSell(request, idempotencyKey)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -710,10 +716,10 @@ object HomeApiClient {
 
             val firstAttempt = executeAuthorizedGet(path)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedGet(path)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedGet(path)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -742,10 +748,10 @@ object HomeApiClient {
         runCatching {
             val firstAttempt = executeAuthorizedWithdraw(request, idempotencyKey)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedWithdraw(request, idempotencyKey)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedWithdraw(request, idempotencyKey)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
@@ -826,10 +832,10 @@ object HomeApiClient {
         runCatching {
             val firstAttempt = executeAuthorizedPayMerchant(request, idempotencyKey)
             val finalAttempt = if (firstAttempt.statusCode == HttpURLConnection.HTTP_UNAUTHORIZED && AuthApiClient.refreshSession()) {
-                executeAuthorizedPayMerchant(request, idempotencyKey)
-            } else {
-                firstAttempt
-            }
+                    executeAuthorizedPayMerchant(request, idempotencyKey)
+                } else {
+                    firstAttempt
+                }
 
             val code = finalAttempt.statusCode
             val body = finalAttempt.body
