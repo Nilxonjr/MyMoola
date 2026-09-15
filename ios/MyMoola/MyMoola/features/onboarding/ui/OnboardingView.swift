@@ -10,27 +10,27 @@ struct OnboardingView: View {
             title: "Welcome to MyMoola",
             subtitle: "Buy, sell, send, and spend crypto with M-PESA support in Kenya.",
             features: [
-                ("cart.fill", "Buy crypto using M-PESA"),
-                ("banknote.fill", "Sell crypto back to KES"),
-                ("wallet.bifold.fill", "Manage everything from one wallet")
+                ("onb_buy_mpesa", "Buy crypto using M-PESA"),
+                ("onb_sell_kes", "Sell crypto back to KES"),
+                ("onb_wallet_manage", "Manage everything from one wallet")
             ]
         ),
         OnboardingPage(
             title: "Pay with M-PESA",
             subtitle: "Use your wallet to pay Till Numbers, PayBills, and everyday services.",
             features: [
-                ("storefront.fill", "Pay Till Numbers"),
-                ("doc.text.fill", "Pay PayBills"),
-                ("list.bullet.rectangle.fill", "Keep payment records")
+                ("onb_pay_till", "Pay Till Numbers"),
+                ("onb_paybill", "Pay PayBills"),
+                ("onb_payment_records", "Keep payment records")
             ]
         ),
         OnboardingPage(
             title: "Send Crypto Easily",
             subtitle: "Send crypto to friends, family, or supported wallet addresses quickly and securely.",
             features: [
-                ("paperplane.fill", "Send crypto to other users"),
-                ("arrow.down.circle.fill", "Receive crypto in your wallet"),
-                ("clock.arrow.circlepath", "View your transaction history")
+                ("onb_send_crypto", "Send crypto to other users"),
+                ("onb_receive_crypto", "Receive crypto in your wallet"),
+                ("onb_tx_history", "View your transaction history")
             ]
         )
     ]
@@ -64,9 +64,10 @@ struct OnboardingView: View {
 
                     ForEach(Array(content.features.enumerated()), id: \.offset) { _, feature in
                         HStack(spacing: AppSpacing.medium) {
-                            Image(systemName: feature.icon)
+                            Image(feature.image)
+                                .resizable()
+                                .scaledToFit()
                                 .frame(width: 30, height: 30)
-                                .foregroundStyle(Color.brandAccent)
                                 .background(Color.brandAccent.opacity(0.12))
                                 .clipShape(.rect(cornerRadius: 8))
                                 .accessibilityHidden(true)

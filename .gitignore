@@ -11,6 +11,8 @@ obj/
 *.user
 
 # Secrets
+.env
+backend/.env
 appsettings.Development.json
 appsettings.Production.json
 
