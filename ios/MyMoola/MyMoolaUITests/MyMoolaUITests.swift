@@ -23,14 +23,17 @@ final class MyMoolaUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testOnboardingAdvancesToAuthentication() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.staticTexts["Welcome to MyMoola"].waitForExistence(timeout: 3))
+        app.buttons["Next"].tap()
+        XCTAssertTrue(app.staticTexts["Pay with M-PESA"].exists)
+        app.buttons["Next"].tap()
+        XCTAssertTrue(app.staticTexts["Send Crypto Easily"].exists)
+        app.buttons["Get Started"].tap()
+        XCTAssertTrue(app.staticTexts["Authentication"].exists)
     }
 
     @MainActor
