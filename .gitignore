@@ -35,4 +35,7 @@ Secrets.xcconfig
 # Local iOS working agreement
 ios/AGENTS.md
 
+# Local design and implementation documents
+docs/superpowers/**/*.md
+
 launchSettings.json
