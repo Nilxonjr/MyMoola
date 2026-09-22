@@ -2,8 +2,8 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var page: Int
-    let onSkip: () -> Void
-    let onFinish: () -> Void
+    let onSignUp: () -> Void
+    let onLogin: () -> Void
 
     private let pages = [
         OnboardingPage(
@@ -42,14 +42,9 @@ struct OnboardingView: View {
             Color.pageBackground.ignoresSafeArea()
 
             VStack(spacing: AppSpacing.large) {
-                HStack {
-                    Text("MyMoola")
-                        .font(.title2.bold())
-                        .foregroundStyle(Color.brandText)
-                    Spacer()
-                    Button("Skip", action: onSkip)
-                        .foregroundStyle(Color.brandAccent)
-                }
+                Text("MyMoola")
+                    .font(.title2.bold())
+                    .foregroundStyle(Color.brandText)
 
                 Spacer(minLength: 24)
 
@@ -107,12 +102,23 @@ struct OnboardingView: View {
 
                         Button(page == pages.count - 1 ? "Get Started" : "Next") {
                             if page == pages.count - 1 {
-                                onFinish()
+                                onSignUp()
                             } else {
                                 page += 1
                             }
                         }
                         .buttonStyle(PrimaryButtonStyle())
+                    }
+
+                    if page == pages.count - 1 {
+                        Button(action: onLogin) {
+                            Text("Already have an account? ")
+                                .foregroundStyle(Color.brandMuted)
+                            + Text("Sign in")
+                                .foregroundStyle(Color.brandAccent)
+                                .bold()
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 .padding(AppSpacing.large)
