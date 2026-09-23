@@ -81,7 +81,11 @@ struct ContentView: View {
                     onAuthenticated: { route = .home }
                 )
             case .home:
-                HomePlaceholderView {
+                HomeView(
+                    service: service.map { HomeService(client: $0.client) },
+                    authService: service,
+                    session: session
+                ) {
                     route = try sessionRestorer.logout()
                 }
             }

@@ -33,6 +33,20 @@ struct MyMoolaTests {
         #expect(probe.openapi == "3.0.1")
     }
 
+    @Test func getSendsBearerToken() async throws {
+        let client = makeClient(status: 200, data: Data(#"{"openapi":"3.0.1"}"#.utf8))
+
+        _ = try await client.get(
+            "api/users/me",
+            headers: ["Authorization": "Bearer access-token"],
+            as: Probe.self
+        )
+
+        #expect(MockURLProtocol.lastRequest?.httpMethod == "GET")
+        #expect(MockURLProtocol.lastRequest?.url?.path == "/api/users/me")
+        #expect(MockURLProtocol.lastRequest?.value(forHTTPHeaderField: "Authorization") == "Bearer access-token")
+    }
+
     @Test func getRejectsErrorStatus() async {
         let client = makeClient(status: 500, data: Data())
 

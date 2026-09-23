@@ -32,17 +32,21 @@ nonisolated struct APIClient {
 
     func get<Response: Decodable>(
         _ path: String,
+        headers: [String: String] = [:],
         as type: Response.Type
     ) async throws -> Response {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
         }
 
+        var request = URLRequest(url: url)
+        headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+
         let data: Data
         let response: URLResponse
 
         do {
-            (data, response) = try await session.data(from: url)
+            (data, response) = try await session.data(for: request)
         } catch {
             throw APIError.transport
         }
