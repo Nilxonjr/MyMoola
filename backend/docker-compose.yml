@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build:
@@ -12,25 +10,28 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=MyMoola;Username=postgres;Password=Kenya2026*;
-      - Jwt__SecretKey=9fA7kL2xQw8ZrP4mT1vYc6JdN0sH3eUb
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=MyMoola;Username=postgres;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env};
+      - Jwt__SecretKey=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in backend/.env}
       - Jwt__Issuer=MyMoola
       - Jwt__Audience=MyMoolaUsers
       - Jwt__ExpiryMinutes=15
-      - AdminJwt__SecretKey=mK9pL3xQw7ZrN4vT2uYc8JdN1sH5eUbW
+      - AdminJwt__SecretKey=${ADMIN_JWT_SECRET_KEY:?Set ADMIN_JWT_SECRET_KEY in backend/.env}
       - AdminJwt__Issuer=MyMoola-Admin
       - AdminJwt__Audience=MyMoolaAdmins
       - AdminJwt__ExpiryMinutes=60
+      - Crypto__HdWalletSeedPhrase=${CRYPTO_HD_WALLET_SEED_PHRASE:?Set CRYPTO_HD_WALLET_SEED_PHRASE in backend/.env}
+      - Crypto__HotWalletAddress=${CRYPTO_HOT_WALLET_ADDRESS:?Set CRYPTO_HOT_WALLET_ADDRESS in backend/.env}
+      - Crypto__TreasuryAddress=${CRYPTO_TREASURY_ADDRESS:?Set CRYPTO_TREASURY_ADDRESS in backend/.env}
       - Redis__ConnectionString=redis:6379
       - Redis__IdempotencyDatabase=6
       - AfricasTalking__Username=sandbox
-      - AfricasTalking__ApiKey=atsk_92457b1b3f5b5f7284187a518dae52460815f1a124660e2141f8bf33a6fa72a240f234d6
+      - AfricasTalking__ApiKey=${AFRICASTALKING_API_KEY:?Set AFRICASTALKING_API_KEY in backend/.env}
       - AfricasTalking__SenderId=
       - AfricasTalking__BaseUrl=https://api.sandbox.africastalking.com/
-      - Email__ResendApiKey=re_NLkZPPFA_PXM4iivh5DTbXiK3CN76K47W
+      - Email__ResendApiKey=${RESEND_API_KEY:?Set RESEND_API_KEY in backend/.env}
       - Email__FromAddress=onboarding@resend.dev
       - Email__FromName=MyMoola
-      - ExternalApis__CoinGeckoApiKey=CG-p5sLcU3zJLxWfUU6KyMemYD3
+      - ExternalApis__CoinGeckoApiKey=${COINGECKO_API_KEY:?Set COINGECKO_API_KEY in backend/.env}
       - ExternalApis__Binance__BaseUrl=https://api.binance.com
       - ExternalApis__Binance__TimeoutSeconds=15
       - ExternalApis__CoinGecko__BaseUrl=https://api.coingecko.com
@@ -54,7 +55,7 @@ services:
     environment:
       - POSTGRES_DB=MyMoola
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=Kenya2026*
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
     expose:
       - "5432"
     volumes:

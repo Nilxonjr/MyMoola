@@ -1,0 +1,322 @@
+package com.example.mymoola.features.home.ui
+
+import android.content.ClipData
+import android.graphics.Bitmap
+import androidx.core.graphics.createBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.toClipEntry
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.mymoola.BackIconButton
+import com.example.mymoola.R
+import com.example.mymoola.ui.theme.MyMoolaTheme
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import kotlinx.coroutines.launch
+import androidx.core.graphics.set
+
+@Composable
+fun ReceiveCryptoScreen(
+    onBackClick: () -> Unit
+) {
+    val pageBackground = Color(0xFFF8FAFC)
+    val panelBorder = Color(0xFFE2E8F0)
+    val brandDark = Color(0xFF0F172A)
+    val brandAccent = MaterialTheme.colorScheme.primary
+    val mutedText = Color(0xFF64748B)
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    val receiveCryptoViewModel: ReceiveCryptoViewModel = viewModel()
+    val uiState by receiveCryptoViewModel.uiState.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(pageBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(scrollState)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BackIconButton(onClick = onBackClick)
+            Text(
+                text = "Receive Crypto",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = brandDark,
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, panelBorder),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(brandAccent.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.onb_receive_crypto),
+                        contentDescription = "Receive crypto",
+                        modifier = Modifier.size(28.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                Text(
+                    text = "Get your wallet address and share it only with the sender. Assets sent to unsupported networks may be lost.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = mutedText
+                )
+
+                when {
+                    uiState.isLoading -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = brandAccent
+                            )
+                            Text(
+                                text = "Loading wallet address...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = brandDark
+                            )
+                        }
+                    }
+
+                    !uiState.errorMessage.isNullOrBlank() -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = uiState.errorMessage.orEmpty(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Button(
+                                onClick = { receiveCryptoViewModel.loadAddress() },
+                                colors = ButtonDefaults.buttonColors(containerColor = brandAccent)
+                            ) {
+                                Text("Try Again")
+                            }
+                        }
+                    }
+
+                    uiState.addressResponse != null -> {
+                        val response = uiState.addressResponse
+                            ?: return@Column
+                        val qrBitmap = remember(response.address) {
+                            generateQrBitmap(response.address, 720)
+                        }
+                        InfoRow(label = "Chain", value = response.chain)
+                        InfoRow(label = "Network", value = response.network)
+                        InfoRow(
+                            label = "Supported assets",
+                            value = response.supportedAssets.joinToString(", ").ifBlank { "None provided" }
+                        )
+
+                        Text(
+                            text = "QR code",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = mutedText
+                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, panelBorder)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (qrBitmap != null) {
+                                    Image(
+                                        bitmap = qrBitmap.asImageBitmap(),
+                                        contentDescription = "Wallet address QR code",
+                                        modifier = Modifier.size(220.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Unable to generate QR code.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = "Wallet address",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = mutedText
+                        )
+                        Text(
+                            text = response.address,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = brandDark,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, panelBorder, RoundedCornerShape(14.dp))
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(14.dp))
+                                .padding(14.dp)
+                        )
+
+                        if (!uiState.copiedMessage.isNullOrBlank()) {
+                            Text(
+                                text = uiState.copiedMessage.orEmpty(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = brandAccent
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipData.newPlainText("wallet address", response.address).toClipEntry()
+                                        )
+                                        receiveCryptoViewModel.onAddressCopied()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = brandAccent)
+                            ) {
+                                Text("Copy Address")
+                            }
+
+                            Button(
+                                onClick = { receiveCryptoViewModel.loadAddress() },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2E8F0), contentColor = brandDark)
+                            ) {
+                                Text("Refresh Address")
+                            }
+                        }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, panelBorder)
+                ) {
+                    Text(
+                        text = "Only share this address for the shown network.",
+                        modifier = Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = mutedText,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = Color(0xFF64748B)
+        )
+        Text(
+            text = value.ifBlank { "-" },
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF0F172A)
+        )
+    }
+}
+
+private fun generateQrBitmap(content: String, size: Int): Bitmap? {
+    if (content.isBlank()) return null
+
+    return runCatching {
+        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
+        val bitmap = createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bitmap[x, y] =
+                    if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            }
+        }
+        bitmap
+    }.getOrNull()
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ReceiveCryptoScreenPreview() {
+    MyMoolaTheme {
+        ReceiveCryptoScreen(onBackClick = {})
+    }
+}

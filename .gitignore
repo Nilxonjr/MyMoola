@@ -11,11 +11,31 @@ obj/
 *.user
 
 # Secrets
+.env
+backend/.env
 appsettings.Development.json
 appsettings.Production.json
 
 # Android/Frontend
 .gradle/
 local.properties
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.build/
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+Pods/
+Secrets.xcconfig
+
+# Local iOS working agreement
+ios/AGENTS.md
+
+# Local design and implementation documents
+docs/superpowers/**/*.md
 
 launchSettings.json
