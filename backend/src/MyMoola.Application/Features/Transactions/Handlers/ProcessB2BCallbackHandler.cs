@@ -55,14 +55,14 @@ public sealed class ProcessB2BCallbackHandler(
         {
             receiptNumber = result.ResultParameters.ResultParameter
                 .FirstOrDefault(p => p.Key == "TransactionReceipt")
-                ?.Value.GetString();
+                ?.Value.ToString();
 
             receiverName = result.ResultParameters?.ResultParameter
                     .FirstOrDefault(p => p.Key == "ReceiverPartyPublicName")
-                    ?.Value.GetString()
+                    ?.Value.ToString()
                     ?? result.ResultParameters?.ResultParameter
                         .FirstOrDefault(p => p.Key == "CreditPartyName")
-                        ?.Value.GetString();
+                        ?.Value.ToString();
         }
 
         if (string.IsNullOrWhiteSpace(transaction.Metadata))

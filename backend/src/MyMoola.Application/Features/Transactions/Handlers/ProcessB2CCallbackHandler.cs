@@ -39,6 +39,9 @@ public sealed class ProcessB2CCallbackHandler(
             "B2C callback received. ConversationID={ID} ResultCode={Code}",
             result.ConversationID, result.ResultCode);
 
+        logger.LogInformation(
+            "B2C  payload is: {rawjson}", rawJson);
+
         // Load MpesaTransaction by ConversationID
         var mpesaTx = await mpesaTransactions
             .FindByConversationIDAsync(result.ConversationID, ct)
